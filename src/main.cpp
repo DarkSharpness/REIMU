@@ -31,8 +31,21 @@ auto Config::parse(int argc, char** argv) -> Config {
         return result;
     };
 
+    constexpr auto __match_prefix = [](std::string_view &view, std::initializer_list <std::string_view> list) {
+        for (const auto &prefix : list)
+            if (view.starts_with(prefix))
+                return void(view = view.substr(prefix.size()));
+        panic_if(true, kInvalid, view);
+    };
+
+    constexpr auto __match_string = [](std::string_view view, std::initializer_list <std::string_view> list) {
+        for (const auto &prefix : list)
+            if (view == prefix) return;
+        panic_if(true, kInvalid, view);
+    };
+
+
     constexpr auto __help = [](std::string_view view) {
-        panic_if(view != "-h" && view != "-help", kInvalid, view);
         std::cout << "Usage: simulator [options]\n"
                      "Options:\n"
                      "  -h, --help  Display help information\n"
@@ -41,24 +54,14 @@ auto Config::parse(int argc, char** argv) -> Config {
     };
 
     constexpr auto __version = [](std::string_view view) {
-        panic_if(view != "-v" && view != "-version", kInvalid, view);
         std::cout << "Version: 0.1.0\n";
         std::exit(EXIT_SUCCESS);
     };
 
     const auto __set_option = [&](std::string_view view, bool enable) {
-        if (view.starts_with("able-")) {
-            view = view.substr(5);
-        } else if (view.starts_with("-")) {
-            view = view.substr(1);
-        } else {
-            view = {};
-        }
-
-        panic_if(view.empty(), kInvalid, view);
-        static constexpr const char kDuplicate[] = "Duplicate option: {}";
+        panic_if(view.empty(), "Invalid option: {}", view);
         auto &table = config.option_table;
-        panic_if(table.try_emplace(view, enable).second == false, kDuplicate, view);
+        panic_if(table.try_emplace(view, enable).second == false, "Duplicate option: {}", view);
     };
 
     const auto __set_weight = [&](std::string_view view) {
@@ -69,14 +72,6 @@ auto Config::parse(int argc, char** argv) -> Config {
         static constexpr const char kOverflow[]     = "Weight overflow: {} \n"
                                                       "  Hint: Maximum Weight = {}";
         static constexpr std::size_t kThreshold     = 1919810;
-
-        if (view.starts_with("-w")) {
-            view = view.substr(2);
-        } else if (view.starts_with("-weight-")) {
-            view = view.substr(8);
-        } else {
-            panic_if(true, kInvalid, view);
-        }
 
         std::size_t next = view.find_first_of('=');
         panic_if(next == std::string_view::npos, kInvalid, view);
@@ -125,31 +120,68 @@ auto Config::parse(int argc, char** argv) -> Config {
             }
         } else {
             panic_if(config.maximum_time != config.uninitialized, kDuplicate, view);
-            auto value = std::get <std::size_t> (timeout);
-            config.maximum_time = value;
+            config.maximum_time = std::get <std::size_t> (timeout);
         }
     };
 
-    if (argc == 1) __help("-h");
+    const auto __set_memory = [&](std::string_view view) {
+        static constexpr const char kInvalid[]      = "Invalid memory argument: {}";
+        static constexpr const char kMissing[]      = "Missing memory: {}";
+        static constexpr const char kDuplicate[]    = "Duplicate memory: {}";
+        static constexpr const char kNonNegative[]  = "Memory must be non-negative integer: {}";
+        static constexpr const char kOverflow[]     = "Memory overflow: {} \n"
+                                                      "  Hint: Maximum Memory = {}";
+        static constexpr std::size_t kThreshold     = 1 << 30;  // 1GB
+
+        std::size_t factor = 1;
+        if (view.size() && view.back() == 'K') {
+            factor = 1 << 10;
+            view.remove_suffix(1);
+        } else if (view.size() && view.back() == 'M') {
+            factor = 1 << 20;
+            view.remove_suffix(1);
+        }
+
+        auto memory = __to_size_t(view);
+        if (std::holds_alternative <CastError> (memory)) {
+            switch (std::get <CastError> (memory)) {
+                case CastError::Invalid:
+                    panic_if(true, kNonNegative, view);
+                case CastError::Overflow:
+                    panic_if(true, kOverflow, view, kThreshold);
+                case CastError::Missing:
+                    panic_if(true, kMissing, view);
+                default:
+                    runtime_assert(false);
+            }
+        } else {
+            panic_if(config.storage_size != config.uninitialized, kDuplicate, view);
+            config.storage_size = std::get <std::size_t> (memory) * factor;
+        }
+    };
+
+    if (argc == 1) __help("");
 
     for (int i = 1 ; i < argc ; ++i) {
-        const std::string_view view = argv[i];
-        if (view.empty() || view.front() != '-') {
+        std::string_view view = argv[i];
+        if (view.size() < 2 || view.front() != '-') {
             panic_if(true, kInvalid, view);
-        } else if (view.starts_with("-h")) {
-            __help(view);
-        } else if (view.starts_with("-v")) {
-            __version(view);
-        } else if (view.starts_with("-en")) {
-            __set_option(view.substr(3), true);
-        } else if (view.starts_with("-dis")) {
-            __set_option(view.substr(4), false);
-        } else if (view.starts_with("-w")) {
-            __set_weight(view);
-        } else if (view.starts_with("-time=")) {
-            __set_timeout(view.substr(6));
-        } else {
-            panic_if(true, kInvalid, view);
+        } else switch (view[1]) {
+            case 'h':   __match_string(view, {"-help", "-h"});
+                        __help(view);     break;
+            case 'v':   __match_string(view, {"-version", "-v"});
+                        __version(view);  break;
+            case 'e':   __match_prefix(view, {"-enable-", "-en-"});
+                        __set_option(view, true); break;
+            case 'd':   __match_prefix(view, {"-disable-", "-dis-"});
+                        __set_option(view, false); break;
+            case 'w':   __match_prefix(view, {"-weight-", "-w"});
+                        __set_weight(view); break;
+            case 't':   __match_prefix(view, {"-time=", "-t="});
+                        __set_timeout(view); break;
+            case 'm':   __match_prefix(view, {"-memory=", "-mem=", "-m="});
+                        __set_memory(view); break;
+            default:    panic_if(true, kInvalid, view);
         }
     }
 
