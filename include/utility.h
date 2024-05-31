@@ -11,11 +11,57 @@
 
 namespace dark {
 
+namespace __console {
+
+enum class Color {
+    RED         = 31,
+    GREEN       = 32,
+    YELLOW      = 33,
+    BLUE        = 34,
+    MAGENTA     = 35,
+    CYAN        = 36,
+    WHITE       = 37,
+    DEFAULT     = 0,
+};
+
+template <Color _Color>
+inline static constexpr auto color_code_impl = []() {
+    std::array <char, 6> buffer;
+    if constexpr (_Color == Color::DEFAULT) {
+        buffer[0] = '\033';
+        buffer[1] = '[';
+        buffer[2] = '0';
+        buffer[3] = 'm';
+        buffer[4] = '\0';
+    } else {
+        auto value = static_cast<int>(_Color);
+        buffer[0] = '\033';
+        buffer[1] = '[';
+        buffer[2] = '0' + (value / 10);
+        buffer[3] = '0' + (value % 10);
+        buffer[4] = 'm';
+        buffer[5] = '\0';
+    }
+    return buffer;
+} ();
+
+template <Color _Color>
+inline static constexpr std::string_view color_code = {
+    color_code_impl <_Color>.data(), color_code_impl <_Color>.size()
+};
+
+} // namespace __console
+
 template <typename _Tp, typename ..._Args>
 void panic_if(_Tp &&condition, std::format_string <_Args...> fmt, _Args &&...args) {
     if (!condition) return;
     // Failure case, print the message and exit
-    std::cerr << std::format(fmt, std::forward <_Args>(args)...) << std::endl;
+    std::cerr
+        << __console::color_code <__console::Color::RED>
+        << "Fatal error: "
+        << __console::color_code <__console::Color::DEFAULT>
+        << std::format(fmt, std::forward <_Args>(args)...)
+        << std::endl;
     std::exit(EXIT_FAILURE);
 }
 
@@ -28,9 +74,13 @@ void runtime_assert(_Tp &&condition, std::source_location where = std::source_lo
     if (condition) return;
     // Failure case, print the message and exit
     std::cerr << std::format(
+        "{}"
         "Assertion failed at {}:{} in {}:\n"
-        "Internal error, please report this issue to the developer.\n",
-        where.file_name(), where.line(), where.function_name());
+        "Internal error, please report this issue to the developer.\n"
+        "{}",
+        __console::color_code <__console::Color::RED>,
+        where.file_name(), where.line(), where.function_name(),
+        __console::color_code <__console::Color::DEFAULT>);
     std::exit(EXIT_FAILURE);
 }
 
