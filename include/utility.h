@@ -53,7 +53,7 @@ inline static constexpr std::string_view color_code = {
 } // namespace __console
 
 template <typename _Tp, typename ..._Args>
-void panic_if(_Tp &&condition, std::format_string <_Args...> fmt, _Args &&...args) {
+void panic_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&...args) {
     if (!condition) return;
     // Failure case, print the message and exit
     std::cerr

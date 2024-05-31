@@ -1,5 +1,6 @@
 #include "utility.h"
 #include <iostream>
+#include <algorithm>
 #include <unordered_set>
 
 int main(int argc, char** argv) {
@@ -65,6 +66,9 @@ Options:
                                             We support K/M suffix for kilobytes/megabytes.
                                             Note that the memory has a hard limit of 1GB.
                                             Example: -m=114K -m=514M -mem=1919 -memory=810
+  -i=<file>, -input=<file>                  Set input file for the simulator.
+  -o=<file>, -output=<file>                 Set output file for the simulator.
+  -f=<file>,... -file=<file>,...            Set input files as the assembly code.
 )";
         std::exit(EXIT_SUCCESS);
     };
@@ -176,6 +180,24 @@ Options:
         }
     };
 
+    const auto __set_assembly = [&](std::string_view view) {
+        panic_if(view.empty(), "Invalid input file: {}", view);
+        auto &files = config.assembly_files;
+        panic_if(!files.empty(), "Duplicate input file: {}", view);
+
+        std::size_t next = view.find_first_of(',');
+        while (next != std::string_view::npos) {
+            files.emplace_back(view.substr(0, next));
+            view.remove_prefix(next + 1);
+            next = view.find_first_of(',');
+        }
+        files.emplace_back(view);
+
+        std::ranges::sort(config.assembly_files);
+        std::size_t rest = std::ranges::unique(files).size();
+        files.resize(files.size() - rest);
+    };
+
     if (argc == 1) __help("");
 
     for (int i = 1 ; i < argc ; ++i) {
@@ -197,6 +219,15 @@ Options:
                         __set_timeout(view); break;
             case 'm':   __match_prefix(view, {"-memory=", "-mem=", "-m="});
                         __set_memory(view); break;
+            case 'i':   __match_prefix(view, {"-input=", "-i="});
+                        panic_if(!config.input_file.empty(), "Duplicate input file: {}", view);
+                        config.input_file = view; break;
+            case 'o':   __match_prefix(view, {"-output=", "-o="});
+                        panic_if(!config.output_file.empty(), "Duplicate output file: {}", view);
+                        config.output_file = view; break;
+            case 'f':   __match_prefix(view, {"-file=", "-f="});
+                        __set_assembly(view); break;
+
             default:    panic_if(true, kInvalid, view);
         }
     }
