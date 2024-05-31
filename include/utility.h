@@ -54,7 +54,7 @@ inline static constexpr std::string_view color_code = {
 
 template <typename ..._Args>
 __attribute__((noinline, noreturn, cold))
-void panic(std::format_string <_Args...> fmt = "", _Args &&...args) {
+inline void panic(std::format_string <_Args...> fmt = "", _Args &&...args) {
     // Failure case, print the message and exit
     std::cerr
         << std::format("{:=^80}\n", "")
@@ -68,7 +68,8 @@ void panic(std::format_string <_Args...> fmt = "", _Args &&...args) {
 }
 
 template <typename _Tp, typename ..._Args>
-void panic_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&...args) {
+__attribute((always_inline))
+inline void panic_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&...args) {
     if (condition) return panic(fmt, std::forward <_Args>(args)...);
 }
 
@@ -77,7 +78,7 @@ void panic_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&.
  * @param condition Assertion condition.
  */
 template <typename _Tp, typename ...Args>
-void runtime_assert(_Tp &&condition, std::source_location where = std::source_location::current()) {
+inline void runtime_assert(_Tp &&condition, std::source_location where = std::source_location::current()) {
     if (condition) return;
     // Failure case, print the message and exit
     std::cerr << std::format(
