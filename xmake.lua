@@ -1,9 +1,11 @@
 add_rules("mode.debug", "mode.release")
 
-target("tmp")
+target("simulator")
     set_kind("binary")
     add_includedirs("include/")
     add_files("src/*.cpp")
+    set_toolchains("gcc-13")
+    set_languages("c++20")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io
