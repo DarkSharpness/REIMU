@@ -21,13 +21,13 @@ enum class Color {
     MAGENTA     = 35,
     CYAN        = 36,
     WHITE       = 37,
-    DEFAULT     = 0,
+    RESET       = 0,
 };
 
 template <Color _Color>
 inline static constexpr auto color_code_impl = []() {
     std::array <char, 6> buffer;
-    if constexpr (_Color == Color::DEFAULT) {
+    if constexpr (_Color == Color::RESET) {
         buffer[0] = '\033';
         buffer[1] = '[';
         buffer[2] = '0';
@@ -52,17 +52,24 @@ inline static constexpr std::string_view color_code = {
 
 } // namespace __console
 
-template <typename _Tp, typename ..._Args>
-void panic_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&...args) {
-    if (!condition) return;
+template <typename ..._Args>
+__attribute__((noinline, noreturn, cold))
+void panic(std::format_string <_Args...> fmt = "", _Args &&...args) {
     // Failure case, print the message and exit
     std::cerr
+        << std::format("{:=^80}\n", "")
         << __console::color_code <__console::Color::RED>
         << "Fatal error: "
-        << __console::color_code <__console::Color::DEFAULT>
+        << __console::color_code <__console::Color::RESET>
         << std::format(fmt, std::forward <_Args>(args)...)
-        << std::endl;
+        << __console::color_code <__console::Color::RESET>
+        << std::format("\n{:=^80}\n", "");
     std::exit(EXIT_FAILURE);
+}
+
+template <typename _Tp, typename ..._Args>
+void panic_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&...args) {
+    if (condition) return panic(fmt, std::forward <_Args>(args)...);
 }
 
 /**
@@ -80,7 +87,7 @@ void runtime_assert(_Tp &&condition, std::source_location where = std::source_lo
         "{}",
         __console::color_code <__console::Color::RED>,
         where.file_name(), where.line(), where.function_name(),
-        __console::color_code <__console::Color::DEFAULT>);
+        __console::color_code <__console::Color::RESET>);
     std::exit(EXIT_FAILURE);
 }
 

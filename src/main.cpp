@@ -1,10 +1,12 @@
 #include "utility.h"
+#include "interpreter.h"
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
 
 int main(int argc, char** argv) {
     const auto config = dark::Config::parse(argc, argv);
+    dark::Interpreter interpreter(config);
     return 0;
 }
 
@@ -36,13 +38,13 @@ auto Config::parse(int argc, char** argv) -> Config {
         for (const auto &prefix : list)
             if (view.starts_with(prefix))
                 return void(view = view.substr(prefix.size()));
-        panic_if(true, kInvalid, view);
+        panic(kInvalid, view);
     };
 
     constexpr auto __match_string = [](std::string_view view, std::initializer_list <std::string_view> list) {
         for (const auto &prefix : list)
             if (view == prefix) return;
-        panic_if(true, kInvalid, view);
+        panic(kInvalid, view);
     };
 
     constexpr auto __help = [](std::string_view view) {
@@ -102,11 +104,11 @@ Options:
         if (std::holds_alternative <CastError> (weight)) {
             switch (std::get <CastError> (weight)) {
                 case CastError::Invalid:
-                    panic_if(true, kNonNegative, view);
+                    panic(kNonNegative, view);
                 case CastError::Overflow:
-                    panic_if(true, kOverflow, view, kThreshold);
+                    panic(kOverflow, view, kThreshold);
                 case CastError::Missing:
-                    panic_if(true, kMissing, name);
+                    panic(kMissing, name);
                 default:
                     runtime_assert(false);
             }
@@ -130,11 +132,11 @@ Options:
         if (std::holds_alternative <CastError> (timeout)) {
             switch (std::get <CastError> (timeout)) {
                 case CastError::Invalid:
-                    panic_if(true, kNonNegative, view);
+                    panic(kNonNegative, view);
                 case CastError::Overflow:
-                    panic_if(true, kOverflow, view, kThreshold);
+                    panic(kOverflow, view, kThreshold);
                 case CastError::Missing:
-                    panic_if(true, kMissing, view);
+                    panic(kMissing, view);
                 default:
                     runtime_assert(false);
             }
@@ -166,11 +168,11 @@ Options:
         if (std::holds_alternative <CastError> (memory)) {
             switch (std::get <CastError> (memory)) {
                 case CastError::Invalid:
-                    panic_if(true, kNonNegative, view);
+                    panic(kNonNegative, view);
                 case CastError::Overflow:
-                    panic_if(true, kOverflow, view, kThreshold);
+                    panic(kOverflow, view, kThreshold);
                 case CastError::Missing:
-                    panic_if(true, kMissing, view);
+                    panic(kMissing, view);
                 default:
                     runtime_assert(false);
             }
@@ -198,12 +200,10 @@ Options:
         files.resize(files.size() - rest);
     };
 
-    if (argc == 1) __help("");
-
     for (int i = 1 ; i < argc ; ++i) {
         std::string_view view = argv[i];
         if (view.size() < 2 || view.front() != '-') {
-            panic_if(true, kInvalid, view);
+            panic(kInvalid, view);
         } else switch (view[1]) {
             case 'h':   __match_string(view, {"-help", "-h"});
                         __help(view);     break;
@@ -228,7 +228,7 @@ Options:
             case 'f':   __match_prefix(view, {"-file=", "-f="});
                         __set_assembly(view); break;
 
-            default:    panic_if(true, kInvalid, view);
+            default:    panic(kInvalid, view);
         }
     }
 
