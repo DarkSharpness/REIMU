@@ -44,12 +44,28 @@ auto Config::parse(int argc, char** argv) -> Config {
         panic_if(true, kInvalid, view);
     };
 
-
     constexpr auto __help = [](std::string_view view) {
-        std::cout << "Usage: simulator [options]\n"
-                     "Options:\n"
-                     "  -h, --help  Display help information\n"
-                     "  -v, --version  Display version information\n";
+        std::cout <<
+R"(This is a RISC-V simulator. Usage: simulator [options]
+Options:
+  -h, --help                                Display help information.
+  -v, --version                             Display version information.
+
+  -en-<option>, -enable-<option>            Enable a option.
+  -dis-<option>, -disable-<option>          Disable a option.
+                                            * Available options: detail, debug, cache
+
+  -w<name>=<value>, -weight-<name>=<value>  Set weight (cycles) for a specific assembly command.
+                                            The name can be either a opcode name or a group name.
+                                            Example: -wadd=1 -wmul=3 -wmemory=100 -wbranch=3
+
+  -t=<time>, -time=<time>                   Set maximum time (cycles) for the simulator, default unlimited.
+
+  -m=<mem>, -mem=<mem>, -memory=<mem>       Set memory size (bytes) for the simulator, default 256MB.
+                                            We support K/M suffix for kilobytes/megabytes.
+                                            Note that the memory has a hard limit of 1GB.
+                                            Example: -m=114K -m=514M -mem=1919 -memory=810
+)";
         std::exit(EXIT_SUCCESS);
     };
 
