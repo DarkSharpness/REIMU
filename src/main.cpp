@@ -2,7 +2,6 @@
 #include "interpreter.h"
 #include <iostream>
 #include <algorithm>
-#include <unordered_set>
 
 int main(int argc, char** argv) {
     const auto config = dark::Config::parse(argc, argv);

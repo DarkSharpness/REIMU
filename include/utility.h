@@ -73,6 +73,12 @@ inline void panic_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _A
     if (condition) return panic(fmt, std::forward <_Args>(args)...);
 }
 
+template <typename _Execption, typename _Tp, typename ..._Args>
+__attribute((always_inline))
+inline void throw_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&...args) {
+    if (condition) throw _Execption(std::format(fmt, std::forward <_Args>(args)...));
+}
+
 /**
  * @brief Runtime assertion, if the condition is false, print the message and exit.
  * @param condition Assertion condition.
