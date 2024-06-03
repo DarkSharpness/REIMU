@@ -1,5 +1,6 @@
 #include "utility.h"
 #include "assembly.h"
+#include "default_config.h"
 #include <fstream>
 #include <algorithm>
 
@@ -25,20 +26,27 @@ struct IntegerData : public Assembly::Storage {
         BYTE = 0, SHORT = 1, LONG = 2
     } type;
 
-    template <std::size_t _N>
-    IntegerData(std::string_view data) : data(data) {
-        if constexpr (_N == 1) this->type = Type::BYTE;
-        else if constexpr (_N == 2) this->type = Type::SHORT;
-        else if constexpr (_N == 4) this->type = Type::LONG;
-        else static_assert(sizeof(_N) == 0, "Invalid size");
+    IntegerData(std::size_t n, std::string_view data) : data(data) {
+        switch (n) {
+            case 1: this->type = Type::BYTE; break;
+            case 2: this->type = Type::SHORT; break;
+            case 4: this->type = Type::LONG; break;
+            default: runtime_assert(false);
+        }
     }
 
     ~IntegerData() override = default;
 };
 
+struct ZeroBytes : public Assembly::Storage {
+    std::size_t size;
+    explicit ZeroBytes(std::size_t size) : size(size) {}
+    ~ZeroBytes() override = default;
+};
+
 struct ASCIZ : public Assembly::Storage {
     std::string data;
-    explicit ASCIZ(std::string_view str) {}
+    explicit ASCIZ(std::string str) : data(std::move(str)) {}
     ~ASCIZ() override = default;
 };
 
@@ -69,12 +77,56 @@ static auto start_with_label(std::string_view str)
 }
 
 /* Find the first token in the string. */
-static auto find_first_token(std::string_view str) -> std::array<std::string_view, 2> {
+static auto find_first_token(std::string_view str)
+    -> std::pair <std::string_view, std::string_view> {
     str = remove_front_whitespace(str);
     auto pos = std::ranges::find_if(str, [](char c) {
         return std::isspace(c) || c == '#';
     });
     return { str.substr(0, pos - str.begin()), str.substr(pos - str.begin()) };
+}
+
+static auto find_first_asciz(std::string_view str)
+    -> std::pair <std::string, std::string_view> {
+    str = remove_front_whitespace(str);
+
+    enum class _Error_t {
+        INVALID = 0,
+        ESCAPE  = 1,
+        NOEND   = 2,
+    };
+    using enum _Error_t;
+
+    constexpr auto __throw_invalid = [][[noreturn]](_Error_t num) {
+        switch (num) {
+            case _Error_t::INVALID: throw FailToParse { "Invalid ascii string" };
+            case _Error_t::ESCAPE:  throw FailToParse { "Invalid escape character" };
+            case _Error_t::NOEND:   throw FailToParse { "Missing end of string" };
+            default: runtime_assert(false); __builtin_unreachable();
+        }
+    };
+
+    if (str.empty() || str.front() != '\"') __throw_invalid(INVALID);
+
+    // Parse the string
+    std::string ret;
+    for (std::size_t i = 1; i < str.size() ; ++i) {
+        switch (str[i]) {
+            case '\\':
+                switch (str[++i]) { // Even safe when out of bound ('\0' case)
+                    case 'n': ret.push_back('\n'); break;
+                    case 't': ret.push_back('\t'); break;
+                    case 'r': ret.push_back('\r'); break;
+                    case '0': ret.push_back('\0'); break;
+                    case '\\': ret.push_back('\\'); break;
+                    case '\"': ret.push_back('\"'); break;
+                    default: __throw_invalid(ESCAPE);
+                } break;
+            case '\"': return { ret, str.substr(i + 1) };
+            default: ret.push_back(str[i]);
+        }
+    }
+    __throw_invalid(NOEND);
 }
 
 /* Check whether the string is a valid token. */
@@ -220,51 +272,114 @@ void Assembly::parse_storage(std::string_view token, std::string_view rest) {
             if (match_prefix(rest, { "rodata" }))
                 return "rodata";
         }
-        throw FailToParse {};
+        warning("Unknown section: {}", rest);
+        return std::string_view {};
     };
 
     if (match_string(token, { "section" })) {
         token = __parse_section(rest);
         rest = std::string_view {};
+        if (token.empty()) return;
     }
 
-    if (match_string(token, { "data", "sdata" })) {
-        this->current_section = Assembly::Section::DATA;
-    } else if (match_string(token, { "bss", "sbss" })) {
-        this->current_section = Assembly::Section::BSS;
-    } else if (match_string(token, { "rodata" })) {
-        this->current_section = Assembly::Section::RODATA;
-    } else if (match_string(token, { "text" })) {
-        this->current_section = Assembly::Section::TEXT;
-    } else if (match_string(token, { "global" })) {
-        this->labels[std::string(rest)].global = true;
-    } else if (match_string(token, { "align", "p2align" })) {
-        auto [num_str, new_rest] = find_first_token(rest);
-        rest = new_rest;
-        constexpr std::size_t kMaxAlign = 20;
-        auto num = sv_to_integer <std::size_t> (num_str).value_or(kMaxAlign);
-        throw_if <FailToParse> (num >= kMaxAlign, "Invalid alignment value: \"{}\"", num_str);
-        this->storages.push_back(std::make_unique <Alignment>(std::size_t{1} << num));
-    } else if (match_string(token, { "byte" })) {
-
-    } else if (match_string(token, { "short", "half", "2byte" })) {
-
-    } else if (match_string(token, { "long", "word", "4byte" })) {
-
-    } else if (match_string(token, { "string", "asciz" })) {
-
-    } else if (match_string(token, { "zero" })) {
-
-    } else if (match_string(token, { "type" })) {
-
-    } 
+    auto new_rest = this->parse_storage_impl(token, rest);
 
     // Fail to parse the token
-    if (!have_no_token(rest)) throw FailToParse {};
+    if (!have_no_token(new_rest)) throw FailToParse {};
 }
 
+auto Assembly::parse_storage_impl(std::string_view token, std::string_view rest) -> std::string_view {
+    // Warn once for those known yet ignored attributes.
+    constexpr auto __warn_once = [](std::string_view str) {
+        static std::unordered_set <std::string> ignored_attributes;
+        if (ignored_attributes.insert(std::string(str)).second)
+            warning("attribute ignored: .{}", str);
+        return std::string_view {};
+    };
+    constexpr auto __set_section = [](Assembly *ptr, std::string_view rest, Assembly::Section section) {
+        ptr->current_section = section;
+        return rest;
+    };
+    constexpr auto __set_global = [](Assembly *ptr, std::string_view rest) {
+        ptr->labels[std::string(rest)].global = true;
+        return std::string_view {};
+    };
+    constexpr auto __set_align = [](Assembly *ptr, std::string_view rest) {
+        using __config::kMaxAlign;
+        auto [num_str, new_rest] = find_first_token(rest);
+        auto num = sv_to_integer <std::size_t> (num_str).value_or(kMaxAlign);
+        throw_if <FailToParse> (num >= kMaxAlign, "Invalid alignment value: \"{}\"", rest);
+        ptr->storages.push_back(std::make_unique <Alignment> (std::size_t{1} << num));
+        return new_rest;
+    };
+    constexpr auto __set_bytes = [](Assembly *ptr, std::string_view rest, std::size_t n) {
+        auto [first, new_rest] = find_first_token(rest);
+        ptr->storages.push_back(std::make_unique <IntegerData> (n, first));
+        return new_rest;
+    };
+    constexpr auto __set_asciz = [](Assembly *ptr, std::string_view rest) {
+        auto [str, new_rest] = find_first_asciz(rest);
+        ptr->storages.push_back(std::make_unique <ASCIZ> (std::move(str)));
+        return new_rest;
+    };
+    constexpr auto __set_zeros = [](Assembly *ptr, std::string_view rest) {
+        auto [num_str, new_rest] = find_first_token(rest);
+        using __config::kMaxZeros;
+        auto num = sv_to_integer <std::size_t> (num_str).value_or(kMaxZeros);
+        throw_if <FailToParse> (num >= kMaxZeros, "Invalid zero count: \"{}\"", num_str);
+        ptr->storages.push_back(std::make_unique <ZeroBytes> (num));
+        return new_rest;
+    };
+
+    using namespace ::dark::literals;
+
+    #define match_or_break(str, expr) case switch_hash_impl(str):\
+         if (token == str) { return expr; } else break
+
+    switch (switch_hash_impl(token)) {
+        // Data section
+        match_or_break("data", __set_section(this, rest, Assembly::Section::DATA));
+        match_or_break("sdata", __set_section(this, rest , Assembly::Section::DATA));
+        match_or_break("bss", __set_section(this, rest, Assembly::Section::BSS));
+        match_or_break("sbss", __set_section(this, rest, Assembly::Section::BSS));
+        match_or_break("rodata", __set_section(this, rest, Assembly::Section::RODATA));
+        match_or_break("text", __set_section(this, rest, Assembly::Section::TEXT));
+
+        // Real storage
+        match_or_break("align", __set_align(this, rest));
+        match_or_break("p2align", __set_align(this, rest));
+        match_or_break("byte", __set_bytes(this, rest, 1));
+        match_or_break("short", __set_bytes(this, rest, 2));
+        match_or_break("half", __set_bytes(this, rest, 2));
+        match_or_break("2byte", __set_bytes(this, rest, 2));
+        match_or_break("long", __set_bytes(this, rest, 4));
+        match_or_break("word", __set_bytes(this, rest, 4));
+        match_or_break("4byte", __set_bytes(this, rest, 4));
+        match_or_break("string", __set_asciz(this, rest));
+        match_or_break("asciz", __set_asciz(this, rest));
+        match_or_break("zero", __set_zeros(this, rest));
+        match_or_break("globl", __set_global(this, rest));
+
+        // Only warn once for those known yet ignored attributes.
+        case "type"_h:
+        case "size"_h:
+        case "file"_h:
+        case "attribute"_h:
+        case "addrsig"_h:
+            return __warn_once(token);
+
+        default:
+            // We allow cfi directives to be ignored. 
+            if (!token.starts_with("cfi_")) break;
+            return __warn_once(token);
+    }
+
+    throw FailToParse { std::format("Unknown storage type: .{}", token) };
+}
+
+
 void Assembly::parse_command(std::string_view token, std::string_view rest) {
-    panic("todo: parse command");
+    // panic("todo: parse command");
 }
 
 

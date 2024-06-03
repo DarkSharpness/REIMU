@@ -6,6 +6,11 @@
 
 namespace dark {
 
+using __config::kWeightCount;
+using __config::weight_ranges;
+using __config::kOther;
+
+
 using _Option_Map_t = decltype(Config::option_table);
 using _Weight_Map_t = decltype(Config::weight_table);
 

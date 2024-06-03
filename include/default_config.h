@@ -66,12 +66,7 @@ static constexpr std::size_t kWeightCount = []() {
     return total_weight;
 } ();
 
+static constexpr std::size_t kMaxAlign = 20;
+static constexpr std::size_t kMaxZeros = 1ull << 32;
+
 } // namespace dark::__config
-
-namespace dark {
-
-using __config::kWeightCount;
-using __config::weight_ranges;
-using __config::kOther;
-
-} // namespace dark

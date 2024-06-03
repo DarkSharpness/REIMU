@@ -70,11 +70,14 @@ struct Assembly {
 
     explicit Assembly(std::string_view);
 
-    [[noreturn]] void fail_to_parse();
+  private:
+
     void add_label(std::string_view);
     void parse_line(std::string_view);
     void parse_command(std::string_view, std::string_view);
     void parse_storage(std::string_view, std::string_view);
+
+    auto parse_storage_impl(std::string_view, std::string_view) -> std::string_view;
 };
 
 } // namespace dark

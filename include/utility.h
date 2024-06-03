@@ -47,6 +47,21 @@ inline static constexpr std::string_view color_code = {
 
 } // namespace __console
 
+template <typename ...Args>
+inline void warning(std::format_string <Args...> fmt = "", Args &&...args) {
+    std::cerr
+        << __console::color_code <__console::Color::YELLOW>
+        << "Warning: "
+        << __console::color_code <__console::Color::RESET>
+        << std::format(fmt, std::forward <Args>(args)...)
+        << std::endl;
+}
+
+template <typename ...Args>
+inline void warning_if(bool condition, std::format_string <Args...> fmt = "", Args &&...args) {
+    if (condition) return warning(fmt, std::forward <Args>(args)...);
+}
+
 template <typename ..._Args>
 __attribute__((noinline, noreturn, cold))
 inline void panic(std::format_string <_Args...> fmt = "", _Args &&...args) {
@@ -97,9 +112,26 @@ template <std::integral _Tp>
 auto sv_to_integer(std::string_view view) -> std::optional <_Tp> {
     _Tp result;
     auto res = std::from_chars(view.data(), view.data() + view.size(), result);
-    if (res.ec == std::errc()) return result;
-    else return std::nullopt;
+    if (res.ec == std::errc() && res.ptr == view.end())
+        return result;
+    else
+        return std::nullopt;
 }
 
+namespace literals {
+
+static constexpr std::size_t kHashBase = 133;
+
+constexpr std::size_t switch_hash_impl(std::string_view view) {
+    std::size_t hash = 0;
+    for (char c : view) hash = hash * kHashBase + c;
+    return hash;
+}
+
+consteval std::size_t operator ""_h(const char *str, std::size_t len) {
+    return switch_hash_impl(std::string_view(str, len));
+}
+
+} // namespace literals
 
 } // namespace dark
