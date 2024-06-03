@@ -1,4 +1,5 @@
 #pragma once
+#include "declarations.h"
 #include <vector>
 #include <memory>
 #include <unordered_set>
@@ -7,7 +8,7 @@
 
 namespace dark {
 
-/** 
+/**
  * @brief Represents a collection of parts that are assembled together.
  * Supported part now:
  *  .text

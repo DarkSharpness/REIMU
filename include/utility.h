@@ -1,12 +1,7 @@
 #pragma once
-
-// #include "common.h"
 #include <vector>
-#include <ranges>
 #include <iostream>
-#include <string_view>
 #include <source_location>
-#include <unordered_map>
 #include <format>
 
 namespace dark {
@@ -98,51 +93,13 @@ inline void runtime_assert(_Tp &&condition, std::source_location where = std::so
     std::exit(EXIT_FAILURE);
 }
 
-/**
- * @brief Split the string_view by the given delimiter
- * @param view Input string.
- * @param policy Policy to find the delimiters.
- * @return A vector of subranges of the input string.
- */
-template <typename _Delim_Policy_t>
-auto split_string(std::string_view view, _Delim_Policy_t &&policy) -> std::vector <std::string_view> {
-    // Skip the prefix delimiters, and return the reference to the view.
-    auto &&skip_delimiter = [&policy](std::string_view &view) -> std::string_view & {
-        auto pos = std::ranges::find_if_not(view, policy);
-        return view = view.substr(pos - view.begin());
-    };
-
-    std::vector <std::string_view> result;
-
-    while (!skip_delimiter(view).empty()) {
-        auto pos = std::ranges::find_if(view, policy) - view.begin();
-        result.push_back(view.substr(0, pos));
-        view.remove_prefix(pos);
-    }
-
-    return result;
+template <std::integral _Tp>
+auto sv_to_integer(std::string_view view) -> std::optional <_Tp> {
+    _Tp result;
+    auto res = std::from_chars(view.data(), view.data() + view.size(), result);
+    if (res.ec == std::errc()) return result;
+    else return std::nullopt;
 }
-
-struct Config {
-    std::string_view input_file;                    // Input file
-    std::string_view output_file;                   // Output file
-    std::vector <std::string_view> assembly_files;  // Assembly files
-
-    inline static constexpr std::size_t uninitialized = std::size_t(-1);
-
-    std::size_t storage_size = uninitialized;     // Memory storage 
-    std::size_t maximum_time = uninitialized;     // Maximum time
-
-    // The additional configuration table provided by the user.
-    std::unordered_map <std::string_view, bool> option_table;
-    // The additional weight table provided by the user.
-    std::unordered_map <std::string_view, std::size_t> weight_table;
-
-    static auto parse(int argc, char **argv) -> Config;
-    void initialize_with_check();
-    void print_in_detail() const;
-};
 
 
 } // namespace dark
-

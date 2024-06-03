@@ -1,13 +1,12 @@
 #pragma once
-#include "utility.h"
+#include "declarations.h"
 #include "assembly.h"
-#include <fstream>
 
 namespace dark {
 
 struct Parser {
     std::vector <Assembly> files;
-    Parser(const Config &config);
+    explicit Parser(const Config &);
 };
 
 } // namespace dark

@@ -33,7 +33,6 @@ struct IntegerData : public Assembly::Storage {
         else static_assert(sizeof(_N) == 0, "Invalid size");
     }
 
-
     ~IntegerData() override = default;
 };
 
@@ -58,7 +57,7 @@ static bool have_no_token(std::string_view str) {
 
 /* Whether the string part starts with a label. */
 static auto start_with_label(std::string_view str)
-    -> std::variant <std::nullopt_t, std::string_view, ErrorCase> {
+    -> std::variant <std::monostate, std::string_view, ErrorCase> {
     auto pos1 = str.find_first_of('\"');
     auto pos2 = str.find_first_of(':');
     if (pos2 != str.npos && pos2 < pos1) {
@@ -66,16 +65,16 @@ static auto start_with_label(std::string_view str)
             return ErrorCase {};
         return str.substr(0, pos2);
     }
-    return std::nullopt;
+    return std::monostate {};
 }
 
 /* Find the first token in the string. */
-static auto find_first_token(std::string_view str) -> std::string_view {
+static auto find_first_token(std::string_view str) -> std::array<std::string_view, 2> {
     str = remove_front_whitespace(str);
-    auto pos = std::ranges::find_if_not(str, [](char c) {
+    auto pos = std::ranges::find_if(str, [](char c) {
         return std::isspace(c) || c == '#';
     });
-    return str.substr(pos - str.begin());
+    return { str.substr(0, pos - str.begin()), str.substr(pos - str.begin()) };
 }
 
 /* Check whether the string is a valid token. */
@@ -89,6 +88,11 @@ static bool is_valid_token(std::string_view str) {
 
 static bool match_string(std::string_view str, std::initializer_list <std::string_view> list) {
     for (std::string_view s : list) if (str == s) return true;
+    return false;
+}
+
+static bool match_prefix(std::string_view str, std::initializer_list <std::string_view> list) {
+    for (std::string_view s : list) if (str.starts_with(s)) return true;
     return false;
 }
 
@@ -152,13 +156,13 @@ void Assembly::parse_line(std::string_view line) {
     else if (std::holds_alternative<std::string_view>(label))
         return this->add_label(std::get<std::string_view>(label));
 
-    auto token = find_first_token(line);
+    // Not a label, find the first token
+    auto [token, rest] = find_first_token(line);
 
     // Empty line case, nothing happens
     if (token.empty()) return;
     if (!is_valid_token(token)) throw FailToParse {};
 
-    auto rest = line.substr(token.size());
     if (token[0] != '.') {
         return this->parse_command(token, rest);
     } else {
@@ -180,7 +184,7 @@ void Assembly::add_label(std::string_view label) {
 
     throw_if <FailToParse> (success == false && iter->second.line_number != 0,
         "Label \"{}\" already exists\n"
-        "First appearance at line: {} in {}",
+        "First appearance at line {} in {}",
         label, iter->second.line_number, this->file_info);
 
     throw_if <FailToParse> (this->current_section == Assembly::Section::INVALID,
@@ -203,34 +207,60 @@ void Assembly::add_label(std::string_view label) {
  * @return Whether the parsing is successful.
  */
 void Assembly::parse_storage(std::string_view token, std::string_view rest) {
+    constexpr auto __parse_section = [](std::string_view rest) -> std::string_view {
+        rest = remove_front_whitespace(rest);
+        if (!rest.empty() && rest.front() == '.') {
+            rest.remove_prefix(1);
+            if (match_prefix(rest, { "text" }))
+                return "text";
+            if (match_prefix(rest, { "data", "sdata" }))
+                return "data";
+            if (match_prefix(rest, { "bss", "sbss" }))
+                return "bss";
+            if (match_prefix(rest, { "rodata" }))
+                return "rodata";
+        }
+        throw FailToParse {};
+    };
+
     if (match_string(token, { "section" })) {
-        panic("todo: parse section with name");
+        token = __parse_section(rest);
+        rest = std::string_view {};
     }
 
     if (match_string(token, { "data", "sdata" })) {
         this->current_section = Assembly::Section::DATA;
-    } else if (match_string(token, { "text", "" })) {
+    } else if (match_string(token, { "bss", "sbss" })) {
+        this->current_section = Assembly::Section::BSS;
+    } else if (match_string(token, { "rodata" })) {
+        this->current_section = Assembly::Section::RODATA;
+    } else if (match_string(token, { "text" })) {
         this->current_section = Assembly::Section::TEXT;
     } else if (match_string(token, { "global" })) {
         this->labels[std::string(rest)].global = true;
     } else if (match_string(token, { "align", "p2align" })) {
-        // this->storages.push_back(std::make_unique <Alignment>());
+        auto [num_str, new_rest] = find_first_token(rest);
+        rest = new_rest;
+        constexpr std::size_t kMaxAlign = 20;
+        auto num = sv_to_integer <std::size_t> (num_str).value_or(kMaxAlign);
+        throw_if <FailToParse> (num >= kMaxAlign, "Invalid alignment value: \"{}\"", num_str);
+        this->storages.push_back(std::make_unique <Alignment>(std::size_t{1} << num));
     } else if (match_string(token, { "byte" })) {
 
     } else if (match_string(token, { "short", "half", "2byte" })) {
 
     } else if (match_string(token, { "long", "word", "4byte" })) {
 
-    } else if (match_string(token, { "type" })) {
-
     } else if (match_string(token, { "string", "asciz" })) {
 
     } else if (match_string(token, { "zero" })) {
 
-    }
+    } else if (match_string(token, { "type" })) {
+
+    } 
 
     // Fail to parse the token
-    if (!is_valid_token(rest)) throw FailToParse {};
+    if (!have_no_token(rest)) throw FailToParse {};
 }
 
 void Assembly::parse_command(std::string_view token, std::string_view rest) {

@@ -1,6 +1,5 @@
 #pragma once
-#include "utility.h"
-#include "assembly.h"
+#include "declarations.h"
 
 namespace dark {
 
