@@ -26,13 +26,8 @@ struct IntegerData : public Assembly::Storage {
         BYTE = 0, SHORT = 1, LONG = 2
     } type;
 
-    IntegerData(std::size_t n, std::string_view data) : data(data) {
-        switch (n) {
-            case 1: this->type = Type::BYTE; break;
-            case 2: this->type = Type::SHORT; break;
-            case 4: this->type = Type::LONG; break;
-            default: runtime_assert(false);
-        }
+    IntegerData(std::string_view data, Type type) : data(data), type(type) {
+        runtime_assert(Type::BYTE <= type && type <= Type::LONG);
     }
 
     ~IntegerData() override = default;
@@ -289,18 +284,11 @@ void Assembly::parse_storage(std::string_view token, std::string_view rest) {
 }
 
 auto Assembly::parse_storage_impl(std::string_view token, std::string_view rest) -> std::string_view {
-    // Warn once for those known yet ignored attributes.
-    constexpr auto __warn_once = [](std::string_view str) {
-        static std::unordered_set <std::string> ignored_attributes;
-        if (ignored_attributes.insert(std::string(str)).second)
-            warning("attribute ignored: .{}", str);
-        return std::string_view {};
-    };
     constexpr auto __set_section = [](Assembly *ptr, std::string_view rest, Assembly::Section section) {
         ptr->current_section = section;
         return rest;
     };
-    constexpr auto __set_global = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __set_globl = [](Assembly *ptr, std::string_view rest) {
         ptr->labels[std::string(rest)].global = true;
         return std::string_view {};
     };
@@ -312,9 +300,9 @@ auto Assembly::parse_storage_impl(std::string_view token, std::string_view rest)
         ptr->storages.push_back(std::make_unique <Alignment> (std::size_t{1} << num));
         return new_rest;
     };
-    constexpr auto __set_bytes = [](Assembly *ptr, std::string_view rest, std::size_t n) {
+    constexpr auto __set_bytes = [](Assembly *ptr, std::string_view rest, IntegerData::Type n) {
         auto [first, new_rest] = find_first_token(rest);
-        ptr->storages.push_back(std::make_unique <IntegerData> (n, first));
+        ptr->storages.push_back(std::make_unique <IntegerData> (first, n));
         return new_rest;
     };
     constexpr auto __set_asciz = [](Assembly *ptr, std::string_view rest) {
@@ -330,51 +318,47 @@ auto Assembly::parse_storage_impl(std::string_view token, std::string_view rest)
         ptr->storages.push_back(std::make_unique <ZeroBytes> (num));
         return new_rest;
     };
+    // Warn once for those known yet ignored attributes.
+    constexpr auto __warn_once = [](std::string_view str) {
+        static std::unordered_set <std::string> ignored_attributes;
+        if (ignored_attributes.insert(std::string(str)).second)
+            warning("attribute ignored: .{}", str);
+        return std::string_view {};
+    };
 
     using namespace ::dark::literals;
 
-    #define match_or_break(str, expr) case switch_hash_impl(str):\
-         if (token == str) { return expr; } else break
+    #define match_or_break(str, expr, ...) case switch_hash_impl(str):\
+         if (token == str) { return expr(this, rest, ##__VA_ARGS__); } break;
 
     switch (switch_hash_impl(token)) {
         // Data section
-        match_or_break("data", __set_section(this, rest, Assembly::Section::DATA));
-        match_or_break("sdata", __set_section(this, rest , Assembly::Section::DATA));
-        match_or_break("bss", __set_section(this, rest, Assembly::Section::BSS));
-        match_or_break("sbss", __set_section(this, rest, Assembly::Section::BSS));
-        match_or_break("rodata", __set_section(this, rest, Assembly::Section::RODATA));
-        match_or_break("text", __set_section(this, rest, Assembly::Section::TEXT));
+        match_or_break("data",      __set_section, Assembly::Section::DATA);
+        match_or_break("sdata",     __set_section, Assembly::Section::DATA);
+        match_or_break("bss",       __set_section, Assembly::Section::BSS);
+        match_or_break("sbss",      __set_section, Assembly::Section::BSS);
+        match_or_break("rodata",    __set_section, Assembly::Section::RODATA);
+        match_or_break("text",      __set_section, Assembly::Section::TEXT);
 
         // Real storage
-        match_or_break("align", __set_align(this, rest));
-        match_or_break("p2align", __set_align(this, rest));
-        match_or_break("byte", __set_bytes(this, rest, 1));
-        match_or_break("short", __set_bytes(this, rest, 2));
-        match_or_break("half", __set_bytes(this, rest, 2));
-        match_or_break("2byte", __set_bytes(this, rest, 2));
-        match_or_break("long", __set_bytes(this, rest, 4));
-        match_or_break("word", __set_bytes(this, rest, 4));
-        match_or_break("4byte", __set_bytes(this, rest, 4));
-        match_or_break("string", __set_asciz(this, rest));
-        match_or_break("asciz", __set_asciz(this, rest));
-        match_or_break("zero", __set_zeros(this, rest));
-        match_or_break("globl", __set_global(this, rest));
-
-        // Only warn once for those known yet ignored attributes.
-        case "type"_h:
-        case "size"_h:
-        case "file"_h:
-        case "attribute"_h:
-        case "addrsig"_h:
-            return __warn_once(token);
-
-        default:
-            // We allow cfi directives to be ignored. 
-            if (!token.starts_with("cfi_")) break;
-            return __warn_once(token);
+        match_or_break("align",     __set_align);
+        match_or_break("p2align",   __set_align);
+        match_or_break("byte",      __set_bytes, IntegerData::Type::BYTE);
+        match_or_break("short",     __set_bytes, IntegerData::Type::SHORT);
+        match_or_break("half",      __set_bytes, IntegerData::Type::SHORT);
+        match_or_break("2byte",     __set_bytes, IntegerData::Type::SHORT);
+        match_or_break("long",      __set_bytes, IntegerData::Type::LONG);
+        match_or_break("word",      __set_bytes, IntegerData::Type::LONG);
+        match_or_break("4byte",     __set_bytes, IntegerData::Type::LONG);
+        match_or_break("string",    __set_asciz);
+        match_or_break("asciz",     __set_asciz);
+        match_or_break("zero",      __set_zeros);
+        match_or_break("globl",     __set_globl);
     }
+    #undef match_or_break
 
-    throw FailToParse { std::format("Unknown storage type: .{}", token) };
+    return  __warn_once(token);
+    // throw FailToParse { std::format("Unknown storage type: .{}", token) };
 }
 
 
