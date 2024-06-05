@@ -1,5 +1,5 @@
 #include "utility.h"
-#include "assembly.h"
+#include "assembly/assembly.h"
 #include "default_config.h"
 #include <fstream>
 #include <algorithm>
@@ -81,6 +81,7 @@ static auto find_first_token(std::string_view str)
     return { str.substr(0, pos - str.begin()), str.substr(pos - str.begin()) };
 }
 
+/* Find and extract the first asciz string. */
 static auto find_first_asciz(std::string_view str)
     -> std::pair <std::string, std::string_view> {
     str = remove_front_whitespace(str);

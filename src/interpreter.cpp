@@ -1,6 +1,6 @@
-#include "interpreter.h"
+#include "interpreter/interpreter.h"
 #include "config.h"
-#include "assembly.h"
+#include "assembly/assembly.h"
 
 namespace dark {
 

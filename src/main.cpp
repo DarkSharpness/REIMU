@@ -1,5 +1,5 @@
 #include "config.h"
-#include "interpreter.h"
+#include "interpreter/interpreter.h"
 #include <iostream>
 #include <algorithm>
 
@@ -8,8 +8,3 @@ int main(int argc, char** argv) {
     dark::Interpreter interpreter(config);
     return 0;
 }
-
-namespace dark {
-
-
-} // namespace dark
