@@ -1,148 +1,135 @@
 #include <utility.h>
+#include <assembly/command.h>
 #include <assembly/assembly.h>
+#include <assembly/helper.h>
 #include <default_config.h>
 #include <fstream>
 #include <algorithm>
 
 namespace dark {
 
-struct FailToParse {
-    std::string inner;
+namespace __details {
+
+constexpr std::string_view kArithMap[] = {
+    "add", "sub", "and", "or", "xor", "sll", "srl", "sra", "slt", "sltu",
+    "mul", "mulh", "mulhsu", "mulhu", "div", "divu", "rem", "remu"
 };
 
-/** Just a code to indicate the error. */
-struct ErrorCase {};
-
-struct Alignment : public Assembly::Storage {
-    std::size_t alignment;
-    explicit Alignment(std::size_t pow) {}
-    ~Alignment() override = default;
+constexpr std::string_view kImmMap[] = {
+    "addi", {}, "andi", "ori", "xori", "slli", "srli", "srai", "slti", "sltiu",
 };
 
-struct IntegerData : public Assembly::Storage {
-    std::string data;
-    enum class Type {
-        // 1 << 0, 1 << 1, 1 << 2 Bytes
-        BYTE = 0, SHORT = 1, LONG = 2
-    } type;
+constexpr std::string_view kMemoryMap[] = {
+    "lb", "lh", "lw", "lbu", "lhu", "sb", "sh", "sw"
+};
 
-    IntegerData(std::string_view data, Type type) : data(data), type(type) {
-        runtime_assert(Type::BYTE <= type && type <= Type::LONG);
+constexpr std::string_view kBranchMap[] = {
+    "beq", "bne", "blt", "bge", "bltu", "bgeu"
+};
+
+constexpr std::string_view kRegisterMap[] = {
+    "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2", "s0", "s1",
+    "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3",
+    "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4",
+    "t5", "t6"
+};
+
+} // namespace __details
+
+void ArithmeticReg::debug(std::ostream &os) const {
+    using namespace __details;
+    if (this->opcode == Opcode::ADD && this->rs2 == Register::zero) {
+        os << std::format("    mv {}, {}",
+            kRegisterMap[static_cast<std::size_t>(rd)],
+            kRegisterMap[static_cast<std::size_t>(rs1)]);
+        return;
     }
 
-    ~IntegerData() override = default;
-};
-
-struct ZeroBytes : public Assembly::Storage {
-    std::size_t size;
-    explicit ZeroBytes(std::size_t size) : size(size) {}
-    ~ZeroBytes() override = default;
-};
-
-struct ASCIZ : public Assembly::Storage {
-    std::string data;
-    explicit ASCIZ(std::string str) : data(std::move(str)) {}
-    ~ASCIZ() override = default;
-};
-
-/* Remove the front whitespace of the string. */
-static auto remove_front_whitespace(std::string_view str) -> std::string_view {
-    while (!str.empty() && std::isspace(str.front()))
-        str.remove_prefix(1);
-    return str;
+    os << std::format("    {} {}, {}, {}",
+        kArithMap[static_cast<std::size_t>(opcode)],
+        kRegisterMap[static_cast<std::size_t>(rd)],
+        kRegisterMap[static_cast<std::size_t>(rs1)],
+        kRegisterMap[static_cast<std::size_t>(rs2)]);
 }
 
-/* Whether the string part contains no token. */
-static bool have_no_token(std::string_view str) {
-    std::string_view tmp = remove_front_whitespace(str);
-    return tmp.empty() || tmp.front() == '#';
+void ArithmeticImm::debug(std::ostream &os) const {
+    using namespace __details;
+    os << std::format("    {} {}, {}, {}",
+        kImmMap[static_cast<std::size_t>(opcode)],
+        kRegisterMap[static_cast<std::size_t>(rd)],
+        kRegisterMap[static_cast<std::size_t>(rs1)],
+        imm.to_string());
 }
 
-/* Whether the string part starts with a label. */
-static auto start_with_label(std::string_view str)
-    -> std::variant <std::monostate, std::string_view, ErrorCase> {
-    auto pos1 = str.find_first_of('\"');
-    auto pos2 = str.find_first_of(':');
-    if (pos2 != str.npos && pos2 < pos1) {
-        if (have_no_token(str.substr(pos2 + 1)) == false)
-            return ErrorCase {};
-        return str.substr(0, pos2);
+void LoadStore::debug(std::ostream &os) const {
+    using namespace __details;
+    os << std::format("    {} {}, {}({})",
+        kMemoryMap[static_cast<std::size_t>(opcode)],
+        kRegisterMap[static_cast<std::size_t>(rd)],
+        imm.to_string(),
+        kRegisterMap[static_cast<std::size_t>(rs1)]);
+}
+
+void Branch::debug(std::ostream &os) const {
+    using namespace __details;
+    os << std::format("    {} {}, {}, {}",
+        kBranchMap[static_cast<std::size_t>(opcode)],
+        kRegisterMap[static_cast<std::size_t>(rs1)],
+        kRegisterMap[static_cast<std::size_t>(rs2)],
+        imm.to_string());
+}
+
+void JumpOffset::debug(std::ostream &os) const {
+    using namespace __details;
+    if (this->link) {
+        os << std::format("    jal {}, {}",
+            kRegisterMap[static_cast<std::size_t>(rd)], imm.to_string());
+    } else {
+        os << std::format("    j {}",
+            imm.to_string());
     }
-    return std::monostate {};
 }
 
-/* Find the first token in the string. */
-static auto find_first_token(std::string_view str)
-    -> std::pair <std::string_view, std::string_view> {
-    str = remove_front_whitespace(str);
-    auto pos = std::ranges::find_if(str, [](char c) {
-        return std::isspace(c) || c == '#';
-    });
-    return { str.substr(0, pos - str.begin()), str.substr(pos - str.begin()) };
-}
-
-/* Find and extract the first asciz string. */
-static auto find_first_asciz(std::string_view str)
-    -> std::pair <std::string, std::string_view> {
-    str = remove_front_whitespace(str);
-
-    enum class _Error_t {
-        INVALID = 0,
-        ESCAPE  = 1,
-        NOEND   = 2,
-    };
-    using enum _Error_t;
-
-    constexpr auto __throw_invalid = [][[noreturn]](_Error_t num) {
-        switch (num) {
-            case _Error_t::INVALID: throw FailToParse { "Invalid ascii string" };
-            case _Error_t::ESCAPE:  throw FailToParse { "Invalid escape character" };
-            case _Error_t::NOEND:   throw FailToParse { "Missing end of string" };
-            default: runtime_assert(false); __builtin_unreachable();
-        }
-    };
-
-    if (str.empty() || str.front() != '\"') __throw_invalid(INVALID);
-
-    // Parse the string
-    std::string ret;
-    for (std::size_t i = 1; i < str.size() ; ++i) {
-        switch (str[i]) {
-            case '\\':
-                switch (str[++i]) { // Even safe when out of bound ('\0' case)
-                    case 'n': ret.push_back('\n'); break;
-                    case 't': ret.push_back('\t'); break;
-                    case 'r': ret.push_back('\r'); break;
-                    case '0': ret.push_back('\0'); break;
-                    case '\\': ret.push_back('\\'); break;
-                    case '\"': ret.push_back('\"'); break;
-                    default: __throw_invalid(ESCAPE);
-                } break;
-            case '\"': return { ret, str.substr(i + 1) };
-            default: ret.push_back(str[i]);
-        }
+void JumpRegister::debug(std::ostream &os) const {
+    using namespace __details;
+    if (this->link && this->rd == Register::zero && this->imm.to_string() == "0") {
+        os << "    ret";
+    } else if (this->link) {
+        os << std::format("    jalr {}, {}, {}",
+            kRegisterMap[static_cast<std::size_t>(rd)],
+            kRegisterMap[static_cast<std::size_t>(rs1)],
+            imm.to_string());
+    } else {
+        os << std::format("    jr {}",
+            kRegisterMap[static_cast<std::size_t>(rs1)]);
     }
-    __throw_invalid(NOEND);
 }
 
-/* Check whether the string is a valid token. */
-static bool is_valid_token(std::string_view str) {
-    for (char c : str)
-        if (std::isalnum(c) == false &&
-            c != '_' && c != '.' && c != '@')
-            return false;
-    return true;
+void LoadUpperImmediate::debug(std::ostream &os) const {
+    os << std::format("    lui {}, {}",
+        __details::kRegisterMap[static_cast<std::size_t>(rd)], imm.to_string());
 }
 
-static bool match_string(std::string_view str, std::initializer_list <std::string_view> list) {
-    for (std::string_view s : list) if (str == s) return true;
-    return false;
+void AddUpperImmediatePC::debug(std::ostream &os) const {
+    os << std::format("    auipc {}, {}",
+        __details::kRegisterMap[static_cast<std::size_t>(rd)], imm.to_string());
 }
 
-static bool match_prefix(std::string_view str, std::initializer_list <std::string_view> list) {
-    for (std::string_view s : list) if (str.starts_with(s)) return true;
-    return false;
+void LoadImmediate::debug(std::ostream &os) const {
+    os << std::format("    li {}, {}",
+        __details::kRegisterMap[static_cast<std::size_t>(rd)], imm.to_string());
 }
+
+void CallFunction::debug(std::ostream &os) const {
+    const char *buff = this->tail ? "tail" : "call";
+    os << std::format("    {} {}",
+        buff, imm.to_string());
+}
+
+} // namespace dark
+
+
+namespace dark {
 
 Assembly::Assembly(std::string_view file_name) {
     using enum __console::Color;
@@ -188,6 +175,60 @@ Assembly::Assembly(std::string_view file_name) {
         }
         last = std::move(line);
     }
+
+    this->debug(std::cout);
+}
+
+void Assembly::set_section(Assembly::Section section) {
+    this->current_section = section;
+    this->sections.emplace_back(this->storages.size(), section);
+}
+
+void Assembly::debug(std::ostream &os) {
+    if (this->sections.empty()) return;
+    using _Pair_t = std::pair <std::size_t, decltype(this->labels)::value_type *>;
+    std::vector <_Pair_t> label_list;
+    for (auto &pair : this->labels)
+        label_list.emplace_back(pair.second.data_index, &pair);
+
+    std::ranges::sort(label_list, [](auto &lhs, auto &rhs) {
+        return lhs.first < rhs.first;
+    });
+
+    constexpr auto __print_section =
+    [](std::ostream &os, Assembly *ptr, Section section,
+        std::size_t first, std::size_t last, std::span <const _Pair_t> &view) {
+        os << "    .section .";
+        switch (section) {
+            case Assembly::Section::TEXT:   os << "text\n"; break;
+            case Assembly::Section::DATA:   os << "data\n"; break;
+            case Assembly::Section::BSS:    os << "bss\n"; break;
+            case Assembly::Section::RODATA: os << "rodata\n"; break;
+            default: os << "unknown\n";
+        }
+        for (std::size_t i = first; i < last; ++i) {
+            while (!view.empty() && view.front().first == i) {
+                auto [_, label_ptr] = view.front();
+                view = view.subspan(1);
+                auto &[name, info] = *label_ptr;
+                if (info.global) os << "    .globl " << name << '\n';
+                os << name << ":\n";
+            }
+            ptr->storages[i]->debug(os); os << '\n';
+        }
+    };
+
+    std::span <const _Pair_t> label_view { label_list };
+
+    for (std::size_t i = 0 ; i < this->sections.size() - 1; ++i) {
+        auto [prev, section] = this->sections[i];
+        auto [next, _] = this->sections[i + 1];
+        __print_section(os, this, section, prev, next, label_view);
+        os << '\n';
+    }
+    auto [prev, section] = this->sections.back();
+    auto next = this->storages.size();
+    __print_section(os, this, section, prev, next, label_view);
 }
 
 /**
@@ -198,18 +239,14 @@ void Assembly::parse_line(std::string_view line) {
     line = remove_front_whitespace(line);
 
     // Whether the line starts with a label
-    if (auto label = start_with_label(line);
-        std::holds_alternative<ErrorCase>(label))
-        throw FailToParse {};
-    else if (std::holds_alternative<std::string_view>(label))
-        return this->add_label(std::get<std::string_view>(label));
+    if (auto label = start_with_label(line); label.has_value())
+        return this->add_label(*label);
 
     // Not a label, find the first token
     auto [token, rest] = find_first_token(line);
 
     // Empty line case, nothing happens
     if (token.empty()) return;
-    if (!is_valid_token(token)) throw FailToParse {};
 
     if (token[0] != '.') {
         return this->parse_command(token, rest);
@@ -225,9 +262,6 @@ void Assembly::parse_line(std::string_view line) {
  * @return Whether the label is successfully added.
  */
 void Assembly::add_label(std::string_view label) {
-    throw_if <FailToParse> (!is_valid_token(label),
-        "Invalid label name: {}", label);
-
     auto [iter, success] = this->labels.try_emplace(std::string(label));
 
     throw_if <FailToParse> (success == false && iter->second.line_number != 0,
@@ -235,7 +269,7 @@ void Assembly::add_label(std::string_view label) {
         "First appearance at line {} in {}",
         label, iter->second.line_number, this->file_info);
 
-    throw_if <FailToParse> (this->current_section == Assembly::Section::INVALID,
+    throw_if <FailToParse> (this->current_section == Assembly::Section::UNKNOWN,
         "Label must be defined in a section");
 
     auto &label_info = iter->second;
@@ -281,15 +315,18 @@ void Assembly::parse_storage(std::string_view token, std::string_view rest) {
     auto new_rest = this->parse_storage_impl(token, rest);
 
     // Fail to parse the token
-    if (!have_no_token(new_rest)) throw FailToParse {};
+    if (!contain_no_token(new_rest)) throw FailToParse {};
 }
 
 auto Assembly::parse_storage_impl(std::string_view token, std::string_view rest) -> std::string_view {
     constexpr auto __set_section = [](Assembly *ptr, std::string_view rest, Assembly::Section section) {
-        ptr->current_section = section;
+        ptr->set_section(section);
         return rest;
     };
     constexpr auto __set_globl = [](Assembly *ptr, std::string_view rest) {
+        rest = remove_comments_when_no_string(rest);
+        rest = remove_front_whitespace(rest);
+        rest = remove_back_whitespace(rest);
         ptr->labels[std::string(rest)].global = true;
         return std::string_view {};
     };
@@ -327,10 +364,10 @@ auto Assembly::parse_storage_impl(std::string_view token, std::string_view rest)
         return std::string_view {};
     };
 
-    using namespace ::dark::literals;
+    using namespace ::dark::__hash;
 
     #define match_or_break(str, expr, ...) case switch_hash_impl(str):\
-         if (token == str) { return expr(this, rest, ##__VA_ARGS__); } break;
+        if (token == str) { return expr(this, rest, ##__VA_ARGS__); } break
 
     switch (switch_hash_impl(token)) {
         // Data section
@@ -362,9 +399,199 @@ auto Assembly::parse_storage_impl(std::string_view token, std::string_view rest)
     // throw FailToParse { std::format("Unknown storage type: .{}", token) };
 }
 
-
 void Assembly::parse_command(std::string_view token, std::string_view rest) {
-    // panic("todo: parse command");
+    return this->parse_command_impl(token, rest);
+}
+
+void Assembly::parse_command_impl(std::string_view token, std::string_view rest) {
+    using Aop = ArithmeticReg::Opcode;
+    using Mop = LoadStore::Opcode;
+    using Bop = Branch::Opcode;
+
+    constexpr auto __insert_arith_reg = [](Assembly *ptr, std::string_view rest, Aop opcode) {
+        auto [rd, rs1, rs2] = split_command <3> (rest);
+        ptr->storages.push_back(std::make_unique <ArithmeticReg> (opcode, rd, rs1, rs2));
+    };
+    constexpr auto __insert_arith_imm = [](Assembly *ptr, std::string_view rest, Aop opcode) {
+        auto [rd, rs1, imm] = split_command <3> (rest);
+        ptr->storages.push_back(std::make_unique <ArithmeticImm> (opcode, rd, rs1, imm));
+    };
+    constexpr auto __insert_load_store = [](Assembly *ptr, std::string_view rest, Mop opcode) {
+        auto [rd, off_rs1] = split_command <2> (rest);
+        auto [off, rs1] = split_offset_and_register(off_rs1);
+        ptr->storages.push_back(std::make_unique <LoadStore> (opcode, rd, rs1, off));
+    };
+    constexpr auto __insert_branch = [](Assembly *ptr, std::string_view rest, Bop opcode) {
+        auto [rs1, rs2, label] = split_command <3> (rest);
+        ptr->storages.push_back(std::make_unique <Branch> (opcode, rs1, rs2, label));
+    };
+    constexpr auto __insert_jump = [](Assembly *ptr, std::string_view rest) {
+        auto [rd, offset] = split_command <2> (rest);
+        ptr->storages.push_back(std::make_unique <JumpOffset> (rd, offset));
+    };
+    constexpr auto __insert_jalr = [](Assembly *ptr, std::string_view rest) {
+        auto [rd, off_rs1] = split_command <2> (rest);
+        auto [off, rs1] = split_offset_and_register(off_rs1);
+        ptr->storages.push_back(std::make_unique <JumpRegister> (rd, rs1, off));
+    };
+    constexpr auto __insert_lui  = [](Assembly *ptr, std::string_view rest) {
+        auto [rd, imm] = split_command <2> (rest);
+        ptr->storages.push_back(std::make_unique <LoadUpperImmediate> (rd, imm));
+    };
+    constexpr auto __insert_auipc = [](Assembly *ptr, std::string_view rest) {
+        auto [rd, imm] = split_command <2> (rest);
+        ptr->storages.push_back(std::make_unique <AddUpperImmediatePC> (rd, imm));
+    };
+    constexpr auto __insert_move = [](Assembly *ptr, std::string_view rest) {
+        auto [rd, rs1] = split_command <2> (rest);
+        ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::ADD, rd, rs1, "zero"));
+    };
+    constexpr auto __insert_li = [](Assembly *ptr, std::string_view rest) {
+        auto [rd, imm] = split_command <2> (rest);
+        ptr->storages.push_back(std::make_unique <LoadImmediate> (rd, imm));
+    };
+    constexpr auto __insert_neg = [](Assembly *ptr, std::string_view rest) {
+        auto [rd, rs1] = split_command <2> (rest);
+        ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::SUB, rd, "zero", rs1));
+    };
+    constexpr auto __insert_not = [](Assembly *ptr, std::string_view rest) {
+        auto [rd, rs1] = split_command <2> (rest);
+        ptr->storages.push_back(std::make_unique <ArithmeticImm> (Aop::XOR, rd, rs1, "-1"));
+    };
+    constexpr auto __insert_seqz = [](Assembly *ptr, std::string_view rest) {
+        auto [rd, rs1] = split_command <2> (rest);
+        ptr->storages.push_back(std::make_unique <ArithmeticImm> (Aop::SLTU, rd, rs1, "1"));
+    };
+    constexpr auto __insert_snez = [](Assembly *ptr, std::string_view rest) {
+        auto [rd, rs1] = split_command <2> (rest);
+        ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::SLTU, rd, "zero", rs1));
+    };
+    constexpr auto __insert_sgtz = [](Assembly *ptr, std::string_view rest) {
+        auto [rd, rs1] = split_command <2> (rest);
+        ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::SLT, rd, "zero", rs1));
+    };
+    constexpr auto __insert_sltz = [](Assembly *ptr, std::string_view rest) {
+        auto [rd, rs1] = split_command <2> (rest);
+        ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::SLT, rd, rs1, "zero"));
+    };
+    enum class _Cmp_type { EQZ, NEZ, LTZ, GTZ, LEZ, GEZ };
+    constexpr auto __insert_brz = [](Assembly *ptr, std::string_view rest, _Cmp_type opcode) {
+        auto [rs1, label] = split_command <2> (rest);
+        #define try_match(cmp, op, ...) case cmp:\
+            ptr->storages.push_back(std::make_unique <Branch> (op, ##__VA_ARGS__, label)); return
+        switch (opcode) {
+            try_match(_Cmp_type::EQZ, Bop::BEQ, rs1, "zero");
+            try_match(_Cmp_type::NEZ, Bop::BNE, rs1, "zero");
+            try_match(_Cmp_type::LTZ, Bop::BLT, rs1, "zero");
+            try_match(_Cmp_type::GTZ, Bop::BLT, "zero", rs1);
+            try_match(_Cmp_type::LEZ, Bop::BGE, "zero", rs1);
+            try_match(_Cmp_type::GEZ, Bop::BGE, rs1, "zero");
+        }
+        #undef try_match
+        runtime_assert(false);
+    };
+    constexpr auto __insert_call = [](Assembly *ptr, std::string_view rest, bool is_tail) {
+        auto [offset] = split_command <1> (rest);
+        ptr->storages.push_back(std::make_unique <CallFunction> (is_tail, offset));
+    };
+    constexpr auto __insert_j = [](Assembly *ptr, std::string_view rest) {
+        auto [offset] = split_command <1> (rest);
+        ptr->storages.push_back(std::make_unique <JumpOffset> (offset));
+    };
+    constexpr auto __insert_jr = [](Assembly *ptr, std::string_view rest) {
+        auto [offset] = split_command <1> (rest);
+        ptr->storages.push_back(std::make_unique <JumpRegister> (offset));
+    };
+    constexpr auto __insert_ret = [](Assembly *ptr, std::string_view rest) {
+        split_command <0> (rest);
+        ptr->storages.push_back(std::make_unique <JumpRegister> ("zero", "ra", "0"));
+    };
+
+    using namespace ::dark::__hash;
+
+    #define match_or_break(str, expr, ...) case switch_hash_impl(str):\
+        if (token == str) { return expr(this, rest, ##__VA_ARGS__); } break
+
+    switch (switch_hash_impl(token)) {
+        match_or_break("add",   __insert_arith_reg, Aop::ADD);
+        match_or_break("sub",   __insert_arith_reg, Aop::SUB);
+        match_or_break("and",   __insert_arith_reg, Aop::AND);
+        match_or_break("or",    __insert_arith_reg, Aop::OR);
+        match_or_break("xor",   __insert_arith_reg, Aop::XOR);
+        match_or_break("sll",   __insert_arith_reg, Aop::SLL);
+        match_or_break("srl",   __insert_arith_reg, Aop::SRL);
+        match_or_break("sra",   __insert_arith_reg, Aop::SRA);
+        match_or_break("slt",   __insert_arith_reg, Aop::SLT);
+        match_or_break("sltu",  __insert_arith_reg, Aop::SLTU);
+
+        match_or_break("mul",   __insert_arith_reg, Aop::MUL);
+        match_or_break("mulh",  __insert_arith_reg, Aop::MULH);
+        match_or_break("mulhu", __insert_arith_reg, Aop::MULHU);
+        match_or_break("mulhsu",__insert_arith_reg, Aop::MULHSU);
+        match_or_break("div",   __insert_arith_reg, Aop::DIV);
+        match_or_break("divu",  __insert_arith_reg, Aop::DIVU);
+        match_or_break("rem",   __insert_arith_reg, Aop::REM);
+        match_or_break("remu",  __insert_arith_reg, Aop::REMU);
+
+        match_or_break("addi",  __insert_arith_imm, Aop::ADD);
+        match_or_break("andi",  __insert_arith_imm, Aop::AND);
+        match_or_break("ori",   __insert_arith_imm, Aop::OR);
+        match_or_break("xori",  __insert_arith_imm, Aop::XOR);
+        match_or_break("slli",  __insert_arith_imm, Aop::SLL);
+        match_or_break("srli",  __insert_arith_imm, Aop::SRL);
+        match_or_break("srai",  __insert_arith_imm, Aop::SRA);
+        match_or_break("slti",  __insert_arith_imm, Aop::SLT);
+        match_or_break("sltiu", __insert_arith_imm, Aop::SLTU);
+    
+        match_or_break("lb",    __insert_load_store, Mop::LB);
+        match_or_break("lh",    __insert_load_store, Mop::LH);
+        match_or_break("lw",    __insert_load_store, Mop::LW);
+        match_or_break("lbu",   __insert_load_store, Mop::LBU);
+        match_or_break("lhu",   __insert_load_store, Mop::LHU);
+        match_or_break("sb",    __insert_load_store, Mop::SB);
+        match_or_break("sh",    __insert_load_store, Mop::SH);
+        match_or_break("sw",    __insert_load_store, Mop::SW);
+
+        match_or_break("beq",   __insert_branch, Bop::BEQ);
+        match_or_break("bne",   __insert_branch, Bop::BNE);
+        match_or_break("blt",   __insert_branch, Bop::BLT);
+        match_or_break("bge",   __insert_branch, Bop::BGE);
+        match_or_break("bltu",  __insert_branch, Bop::BLTU);
+        match_or_break("bgeu",  __insert_branch, Bop::BGEU);
+
+        match_or_break("jal",   __insert_jump);
+        match_or_break("jalr",  __insert_jalr);
+
+        match_or_break("lui",   __insert_lui);
+        match_or_break("auipc", __insert_auipc);
+
+        match_or_break("mv",    __insert_move);
+        match_or_break("li",    __insert_li);
+
+        match_or_break("neg",   __insert_neg);
+        match_or_break("not",   __insert_not);
+
+        match_or_break("seqz",  __insert_seqz);
+        match_or_break("snez",  __insert_snez);
+        match_or_break("sgtz",  __insert_sgtz);
+        match_or_break("sltz",  __insert_sltz);
+
+        match_or_break("beqz",  __insert_brz, _Cmp_type::EQZ);
+        match_or_break("bnez",  __insert_brz, _Cmp_type::NEZ);
+        match_or_break("bltz",  __insert_brz, _Cmp_type::LTZ);
+        match_or_break("bgtz",  __insert_brz, _Cmp_type::GTZ);
+        match_or_break("blez",  __insert_brz, _Cmp_type::LEZ);
+        match_or_break("bgez",  __insert_brz, _Cmp_type::GEZ);
+
+        match_or_break("call",  __insert_call, false);
+        match_or_break("tail",  __insert_call, true);
+
+        match_or_break("j",     __insert_j);
+        match_or_break("jr",    __insert_jr);
+        match_or_break("ret",   __insert_ret);
+    }
+
+    throw FailToParse { std::format("Unknown command: \"{}\"", token) };
 }
 
 

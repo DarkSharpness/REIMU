@@ -118,20 +118,16 @@ auto sv_to_integer(std::string_view view) -> std::optional <_Tp> {
         return std::nullopt;
 }
 
-namespace literals {
+namespace __hash {
 
-static constexpr std::size_t kHashBase = 133;
-
-constexpr std::size_t switch_hash_impl(std::string_view view) {
-    std::size_t hash = 0;
-    for (char c : view) hash = hash * kHashBase + c;
+template <std::size_t _Base = 131, std::size_t _Offset = 0>
+constexpr auto switch_hash_impl(std::string_view view) {
+    auto hash = _Offset;
+    for (char c : view) hash = hash * _Base + c;
     return hash;
 }
 
-consteval std::size_t operator ""_h(const char *str, std::size_t len) {
-    return switch_hash_impl(std::string_view(str, len));
-}
 
-} // namespace literals
+} // namespace __hash
 
 } // namespace dark
