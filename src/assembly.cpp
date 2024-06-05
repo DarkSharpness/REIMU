@@ -79,29 +79,29 @@ void Branch::debug(std::ostream &os) const {
         imm.to_string());
 }
 
-void JumpOffset::debug(std::ostream &os) const {
+void JumpRelative::debug(std::ostream &os) const {
     using namespace __details;
-    if (this->link) {
-        os << std::format("    jal {}, {}",
-            kRegisterMap[static_cast<std::size_t>(rd)], imm.to_string());
-    } else {
+    if (this->rd == Register::zero)
         os << std::format("    j {}",
             imm.to_string());
-    }
+    else
+        os << std::format("    jal {}, {}",
+            kRegisterMap[static_cast<std::size_t>(rd)], imm.to_string());
 }
 
 void JumpRegister::debug(std::ostream &os) const {
     using namespace __details;
-    if (this->link && this->rd == Register::zero && this->imm.to_string() == "0") {
-        os << "    ret";
-    } else if (this->link) {
+    if (this->rd == Register::zero && this->imm.to_string() == "0") {
+        if (this->rs1 == Register::ra)
+            os << "    ret";
+        else
+            os << std::format("    jr {}",
+                kRegisterMap[static_cast<std::size_t>(rs1)]);
+    } else {
         os << std::format("    jalr {}, {}, {}",
             kRegisterMap[static_cast<std::size_t>(rd)],
             kRegisterMap[static_cast<std::size_t>(rs1)],
             imm.to_string());
-    } else {
-        os << std::format("    jr {}",
-            kRegisterMap[static_cast<std::size_t>(rs1)]);
     }
 }
 
@@ -421,13 +421,14 @@ void Assembly::parse_command_impl(std::string_view token, std::string_view rest)
         auto [off, rs1] = split_offset_and_register(off_rs1);
         ptr->storages.push_back(std::make_unique <LoadStore> (opcode, rd, rs1, off));
     };
-    constexpr auto __insert_branch = [](Assembly *ptr, std::string_view rest, Bop opcode) {
+    constexpr auto __insert_branch = [](Assembly *ptr, std::string_view rest, Bop opcode, bool swap = false) {
         auto [rs1, rs2, label] = split_command <3> (rest);
+        if (swap) std::swap(rs1, rs2);
         ptr->storages.push_back(std::make_unique <Branch> (opcode, rs1, rs2, label));
     };
     constexpr auto __insert_jump = [](Assembly *ptr, std::string_view rest) {
         auto [rd, offset] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <JumpOffset> (rd, offset));
+        ptr->storages.push_back(std::make_unique <JumpRelative> (rd, offset));
     };
     constexpr auto __insert_jalr = [](Assembly *ptr, std::string_view rest) {
         auto [rd, off_rs1] = split_command <2> (rest);
@@ -496,11 +497,11 @@ void Assembly::parse_command_impl(std::string_view token, std::string_view rest)
     };
     constexpr auto __insert_j = [](Assembly *ptr, std::string_view rest) {
         auto [offset] = split_command <1> (rest);
-        ptr->storages.push_back(std::make_unique <JumpOffset> (offset));
+        ptr->storages.push_back(std::make_unique <JumpRelative> ("zero", offset));
     };
     constexpr auto __insert_jr = [](Assembly *ptr, std::string_view rest) {
-        auto [offset] = split_command <1> (rest);
-        ptr->storages.push_back(std::make_unique <JumpRegister> (offset));
+        auto [rs] = split_command <1> (rest);
+        ptr->storages.push_back(std::make_unique <JumpRegister> ("zero", rs, "0"));
     };
     constexpr auto __insert_ret = [](Assembly *ptr, std::string_view rest) {
         split_command <0> (rest);
@@ -583,12 +584,19 @@ void Assembly::parse_command_impl(std::string_view token, std::string_view rest)
         match_or_break("blez",  __insert_brz, _Cmp_type::LEZ);
         match_or_break("bgez",  __insert_brz, _Cmp_type::GEZ);
 
+        match_or_break("ble",   __insert_branch, Bop::BGE, true);
+        match_or_break("bleu",  __insert_branch, Bop::BGEU, true);
+        match_or_break("bgt",   __insert_branch, Bop::BLT, true);
+        match_or_break("bgtu",  __insert_branch, Bop::BLTU, true);
+
         match_or_break("call",  __insert_call, false);
         match_or_break("tail",  __insert_call, true);
 
         match_or_break("j",     __insert_j);
         match_or_break("jr",    __insert_jr);
         match_or_break("ret",   __insert_ret);
+
+
     }
 
     throw FailToParse { std::format("Unknown command: \"{}\"", token) };

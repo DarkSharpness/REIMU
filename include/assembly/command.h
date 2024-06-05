@@ -144,24 +144,19 @@ struct Branch : Command {
     virtual void debug(std::ostream &os) const override;
 };
 
-struct JumpOffset : Command {
-    bool link = true;
+
+struct JumpRelative : Command {
     Register rd;
     Immediate imm;
 
-    explicit JumpOffset(std::string_view rd, std::string_view imm) :
+    explicit JumpRelative(std::string_view rd, std::string_view imm) :
         rd(sv_to_reg(rd)),
-        imm(imm) {}
-    explicit JumpOffset(std::string_view imm) :
-        link(false),
-        rd(Register::zero),
         imm(imm) {}
 
     virtual void debug(std::ostream &os) const override;
 };
 
 struct JumpRegister : Command {
-    bool link = true;
     Register rd;
     Register rs1;
     Immediate imm;
@@ -169,12 +164,6 @@ struct JumpRegister : Command {
     explicit JumpRegister(std::string_view rd, std::string_view rs1, std::string_view imm) :
         rd(sv_to_reg(rd)),
         rs1(sv_to_reg(rs1)),
-        imm(imm) {}
-
-    explicit JumpRegister(std::string_view imm) :
-        link(false),
-        rd(Register::zero),
-        rs1(Register::zero),
         imm(imm) {}
 
     virtual void debug(std::ostream &os) const override;
