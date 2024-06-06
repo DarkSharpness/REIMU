@@ -2,8 +2,8 @@
 namespace dark {
 
 struct Config;
-struct Interpreter;
 struct Parser;
 struct Linker;
+struct Interpreter;
 
 } // namespace dark

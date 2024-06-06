@@ -3,62 +3,39 @@
 #include "command.h"
 #include <utility.h>
 
+namespace dark::__details {
+
+constexpr std::string_view kArithMap[] = {
+    "add", "sub", "and", "or", "xor", "sll", "srl", "sra", "slt", "sltu",
+    "mul", "mulh", "mulhsu", "mulhu", "div", "divu", "rem", "remu"
+};
+
+constexpr std::string_view kImmMap[] = {
+    "addi", {}, "andi", "ori", "xori", "slli", "srli", "srai", "slti", "sltiu",
+};
+
+constexpr std::string_view kMemoryMap[] = {
+    "lb", "lh", "lw", "lbu", "lhu", "sb", "sh", "sw"
+};
+
+constexpr std::string_view kBranchMap[] = {
+    "beq", "bne", "blt", "bge", "bltu", "bgeu"
+};
+
+constexpr std::string_view kRegisterMap[] = {
+    "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2", "s0", "s1",
+    "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3",
+    "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4",
+    "t5", "t6"
+};
+
+} // namespace dark::__details
+
 namespace dark {
 
 struct FailToParse {
     std::string inner;
 };
-
-Register sv_to_reg(std::string_view view) {
-    using namespace ::dark::__hash;
-    #define match_or_break(str, expr) case switch_hash_impl(str):\
-        if (view == str) { return expr; } break
-
-    using enum Register;
-
-    switch (switch_hash_impl(view)) {
-        match_or_break("zero", zero);
-        match_or_break("ra",   ra);
-        match_or_break("sp",   sp);
-        match_or_break("gp",   gp);
-        match_or_break("tp",   tp);
-        match_or_break("t0",   t0);
-        match_or_break("t1",   t1);
-        match_or_break("t2",   t2);
-        match_or_break("s0",   s0);
-        match_or_break("s1",   s1);
-        match_or_break("a0",   a0);
-        match_or_break("a1",   a1);
-        match_or_break("a2",   a2);
-        match_or_break("a3",   a3);
-        match_or_break("a4",   a4);
-        match_or_break("a5",   a5);
-        match_or_break("a6",   a6);
-        match_or_break("a7",   a7);
-        match_or_break("s2",   s2);
-        match_or_break("s3",   s3);
-        match_or_break("s4",   s4);
-        match_or_break("s5",   s5);
-        match_or_break("s6",   s6);
-        match_or_break("s7",   s7);
-        match_or_break("s8",   s8);
-        match_or_break("s9",   s9);
-        match_or_break("s10",  s10);
-        match_or_break("s11",  s11);
-        match_or_break("t3",   t3);
-        match_or_break("t4",   t4);
-        match_or_break("t5",   t5);
-        match_or_break("t6",   t6);
-    }
-
-    #undef match_or_break
-    if (view.starts_with("x")) {
-        auto num = sv_to_integer <std::size_t> (view.substr(1));
-        if (num.has_value() && *num < 32)
-            return static_cast <Register> (*num);
-    }
-    throw FailToParse { std::format("Invalid register: \"{}\"", view) };
-}
 
 struct RealData : Assembly::Storage {};
 
@@ -288,5 +265,156 @@ static auto split_offset_and_register(std::string_view str)
     throw FailToParse { std::format("Invalid immediate and offset: \"{}\"", str) };
 }
 
+Register sv_to_reg(std::string_view view) {
+    using namespace ::dark::__hash;
+    #define match_or_break(str, expr) case switch_hash_impl(str):\
+        if (view == str) { return expr; } break
+
+    using enum Register;
+
+    switch (switch_hash_impl(view)) {
+        match_or_break("zero", zero);
+        match_or_break("ra",   ra);
+        match_or_break("sp",   sp);
+        match_or_break("gp",   gp);
+        match_or_break("tp",   tp);
+        match_or_break("t0",   t0);
+        match_or_break("t1",   t1);
+        match_or_break("t2",   t2);
+        match_or_break("s0",   s0);
+        match_or_break("s1",   s1);
+        match_or_break("a0",   a0);
+        match_or_break("a1",   a1);
+        match_or_break("a2",   a2);
+        match_or_break("a3",   a3);
+        match_or_break("a4",   a4);
+        match_or_break("a5",   a5);
+        match_or_break("a6",   a6);
+        match_or_break("a7",   a7);
+        match_or_break("s2",   s2);
+        match_or_break("s3",   s3);
+        match_or_break("s4",   s4);
+        match_or_break("s5",   s5);
+        match_or_break("s6",   s6);
+        match_or_break("s7",   s7);
+        match_or_break("s8",   s8);
+        match_or_break("s9",   s9);
+        match_or_break("s10",  s10);
+        match_or_break("s11",  s11);
+        match_or_break("t3",   t3);
+        match_or_break("t4",   t4);
+        match_or_break("t5",   t5);
+        match_or_break("t6",   t6);
+    }
+
+    #undef match_or_break
+    if (view.starts_with("x")) {
+        auto num = sv_to_integer <std::size_t> (view.substr(1));
+        if (num.has_value() && *num < 32)
+            return static_cast <Register> (*num);
+    }
+    throw FailToParse { std::format("Invalid register: \"{}\"", view) };
+}
+
+std::string_view reg_to_sv(Register reg) {
+    using namespace __details;
+    std::size_t which = static_cast<std::size_t>(reg);
+    runtime_assert(which < std::size(kRegisterMap));
+    return kRegisterMap[which];
+}
+
+} // namespace dark
+
+namespace dark {
+
+void ArithmeticReg::debug(std::ostream &os) const {
+    using namespace __details;
+    if (this->opcode == Opcode::ADD && this->rs2 == Register::zero) {
+        os << std::format("    mv {}, {}",
+            kRegisterMap[static_cast<std::size_t>(rd)],
+            kRegisterMap[static_cast<std::size_t>(rs1)]);
+        return;
+    }
+
+    os << std::format("    {} {}, {}, {}",
+        kArithMap[static_cast<std::size_t>(opcode)],
+        kRegisterMap[static_cast<std::size_t>(rd)],
+        kRegisterMap[static_cast<std::size_t>(rs1)],
+        kRegisterMap[static_cast<std::size_t>(rs2)]);
+}
+
+void ArithmeticImm::debug(std::ostream &os) const {
+    using namespace __details;
+    os << std::format("    {} {}, {}, {}",
+        kImmMap[static_cast<std::size_t>(opcode)],
+        kRegisterMap[static_cast<std::size_t>(rd)],
+        kRegisterMap[static_cast<std::size_t>(rs1)],
+        imm.to_string());
+}
+
+void LoadStore::debug(std::ostream &os) const {
+    using namespace __details;
+    os << std::format("    {} {}, {}({})",
+        kMemoryMap[static_cast<std::size_t>(opcode)],
+        kRegisterMap[static_cast<std::size_t>(rd)],
+        imm.to_string(),
+        kRegisterMap[static_cast<std::size_t>(rs1)]);
+}
+
+void Branch::debug(std::ostream &os) const {
+    using namespace __details;
+    os << std::format("    {} {}, {}, {}",
+        kBranchMap[static_cast<std::size_t>(opcode)],
+        kRegisterMap[static_cast<std::size_t>(rs1)],
+        kRegisterMap[static_cast<std::size_t>(rs2)],
+        imm.to_string());
+}
+
+void JumpRelative::debug(std::ostream &os) const {
+    using namespace __details;
+    if (this->rd == Register::zero)
+        os << std::format("    j {}",
+            imm.to_string());
+    else
+        os << std::format("    jal {}, {}",
+            kRegisterMap[static_cast<std::size_t>(rd)], imm.to_string());
+}
+
+void JumpRegister::debug(std::ostream &os) const {
+    using namespace __details;
+    if (this->rd == Register::zero && this->imm.to_string() == "0") {
+        if (this->rs1 == Register::ra)
+            os << "    ret";
+        else
+            os << std::format("    jr {}",
+                kRegisterMap[static_cast<std::size_t>(rs1)]);
+    } else {
+        os << std::format("    jalr {}, {}, {}",
+            kRegisterMap[static_cast<std::size_t>(rd)],
+            kRegisterMap[static_cast<std::size_t>(rs1)],
+            imm.to_string());
+    }
+}
+
+void LoadUpperImmediate::debug(std::ostream &os) const {
+    os << std::format("    lui {}, {}",
+        __details::kRegisterMap[static_cast<std::size_t>(rd)], imm.to_string());
+}
+
+void AddUpperImmediatePC::debug(std::ostream &os) const {
+    os << std::format("    auipc {}, {}",
+        __details::kRegisterMap[static_cast<std::size_t>(rd)], imm.to_string());
+}
+
+void LoadImmediate::debug(std::ostream &os) const {
+    os << std::format("    li {}, {}",
+        __details::kRegisterMap[static_cast<std::size_t>(rd)], imm.to_string());
+}
+
+void CallFunction::debug(std::ostream &os) const {
+    const char *buff = this->tail ? "tail" : "call";
+    os << std::format("    {} {}",
+        buff, imm.to_string());
+}
 
 } // namespace dark

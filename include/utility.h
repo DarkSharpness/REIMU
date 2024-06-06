@@ -120,10 +120,13 @@ auto sv_to_integer(std::string_view view) -> std::optional <_Tp> {
 
 namespace __hash {
 
-template <std::size_t _Base = 131, std::size_t _Offset = 0>
+template <std::size_t _Base = 131, std::size_t _Mod = 0>
 constexpr auto switch_hash_impl(std::string_view view) {
-    auto hash = _Offset;
-    for (char c : view) hash = hash * _Base + c;
+    auto hash = std::size_t {0};
+    for (char c : view) {
+        hash = hash * _Base + c;
+        if constexpr (_Mod != 0) hash %= _Mod;
+    }
     return hash;
 }
 
