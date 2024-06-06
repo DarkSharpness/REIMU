@@ -4,7 +4,7 @@
 
 namespace dark {
 
-struct Command : Assembly::Storage {
+struct Command : Assembler::Storage {
     ~Command() override = default;
 };
 

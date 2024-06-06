@@ -37,7 +37,7 @@ struct FailToParse {
     std::string inner;
 };
 
-struct RealData : Assembly::Storage {};
+struct RealData : Assembler::Storage {};
 
 struct Alignment : RealData {
     std::size_t alignment;

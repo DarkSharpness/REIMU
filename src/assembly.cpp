@@ -8,7 +8,7 @@
 
 namespace dark {
 
-Assembly::Assembly(std::string_view file_name) {
+Assembler::Assembler(std::string_view file_name) {
     using enum __console::Color;
     this->file_info = std::format("{}file: {}{}",
         __console::color_code <YELLOW>, file_name, __console::color_code <RESET>);
@@ -56,12 +56,12 @@ Assembly::Assembly(std::string_view file_name) {
     // this->debug(std::cout);
 }
 
-void Assembly::set_section(Assembly::Section section) {
+void Assembler::set_section(Assembler::Section section) {
     this->current_section = section;
     this->sections.emplace_back(this->storages.size(), section);
 }
 
-void Assembly::debug(std::ostream &os) {
+void Assembler::debug(std::ostream &os) {
     if (this->sections.empty()) return;
     using _Pair_t = std::pair <std::size_t, decltype(this->labels)::value_type *>;
     std::vector <_Pair_t> label_list;
@@ -73,14 +73,14 @@ void Assembly::debug(std::ostream &os) {
     });
 
     constexpr auto __print_section =
-    [](std::ostream &os, Assembly *ptr, Section section,
+    [](std::ostream &os, Assembler *ptr, Section section,
         std::size_t first, std::size_t last, std::span <const _Pair_t> &view) {
         os << "    .section .";
         switch (section) {
-            case Assembly::Section::TEXT:   os << "text\n"; break;
-            case Assembly::Section::DATA:   os << "data\n"; break;
-            case Assembly::Section::BSS:    os << "bss\n"; break;
-            case Assembly::Section::RODATA: os << "rodata\n"; break;
+            case Assembler::Section::TEXT:   os << "text\n"; break;
+            case Assembler::Section::DATA:   os << "data\n"; break;
+            case Assembler::Section::BSS:    os << "bss\n"; break;
+            case Assembler::Section::RODATA: os << "rodata\n"; break;
             default: os << "unknown\n";
         }
         for (std::size_t i = first; i < last; ++i) {
@@ -112,7 +112,7 @@ void Assembly::debug(std::ostream &os) {
  * @brief Parse a line of the assembly.
  * @param line Line of the assembly.
 */
-void Assembly::parse_line(std::string_view line) {
+void Assembler::parse_line(std::string_view line) {
     line = remove_front_whitespace(line);
 
     // Whether the line starts with a label
@@ -138,7 +138,7 @@ void Assembly::parse_line(std::string_view line) {
  * @param label Label name.
  * @return Whether the label is successfully added.
  */
-void Assembly::add_label(std::string_view label) {
+void Assembler::add_label(std::string_view label) {
     auto [iter, success] = this->labels.try_emplace(std::string(label));
 
     throw_if <FailToParse> (success == false && iter->second.line_number != 0,
@@ -146,11 +146,11 @@ void Assembly::add_label(std::string_view label) {
         "First appearance at line {} in {}",
         label, iter->second.line_number, this->file_info);
 
-    throw_if <FailToParse> (this->current_section == Assembly::Section::UNKNOWN,
+    throw_if <FailToParse> (this->current_section == Assembler::Section::UNKNOWN,
         "Label must be defined in a section");
 
     auto &label_info = iter->second;
-    label_info = Assembly::LabelData {
+    label_info = Assembler::LabelData {
         .line_number = this->line_number,
         .data_index = this->storages.size(),
         .label_name = iter->first,
@@ -165,7 +165,7 @@ void Assembly::add_label(std::string_view label) {
  * @param rest Rest of the line.
  * @return Whether the parsing is successful.
  */
-void Assembly::parse_storage(std::string_view token, std::string_view rest) {
+void Assembler::parse_storage(std::string_view token, std::string_view rest) {
     constexpr auto __parse_section = [](std::string_view rest) -> std::string_view {
         rest = remove_front_whitespace(rest);
         if (!rest.empty() && rest.front() == '.') {
@@ -195,19 +195,19 @@ void Assembly::parse_storage(std::string_view token, std::string_view rest) {
     if (!contain_no_token(new_rest)) throw FailToParse {};
 }
 
-auto Assembly::parse_storage_impl(std::string_view token, std::string_view rest) -> std::string_view {
-    constexpr auto __set_section = [](Assembly *ptr, std::string_view rest, Assembly::Section section) {
+auto Assembler::parse_storage_impl(std::string_view token, std::string_view rest) -> std::string_view {
+    constexpr auto __set_section = [](Assembler *ptr, std::string_view rest, Assembler::Section section) {
         ptr->set_section(section);
         return rest;
     };
-    constexpr auto __set_globl = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __set_globl = [](Assembler *ptr, std::string_view rest) {
         rest = remove_comments_when_no_string(rest);
         rest = remove_front_whitespace(rest);
         rest = remove_back_whitespace(rest);
         ptr->labels[std::string(rest)].global = true;
         return std::string_view {};
     };
-    constexpr auto __set_align = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __set_align = [](Assembler *ptr, std::string_view rest) {
         using __config::kMaxAlign;
         auto [num_str, new_rest] = find_first_token(rest);
         auto num = sv_to_integer <std::size_t> (num_str).value_or(kMaxAlign);
@@ -215,17 +215,17 @@ auto Assembly::parse_storage_impl(std::string_view token, std::string_view rest)
         ptr->storages.push_back(std::make_unique <Alignment> (std::size_t{1} << num));
         return new_rest;
     };
-    constexpr auto __set_bytes = [](Assembly *ptr, std::string_view rest, IntegerData::Type n) {
+    constexpr auto __set_bytes = [](Assembler *ptr, std::string_view rest, IntegerData::Type n) {
         auto [first, new_rest] = find_first_token(rest);
         ptr->storages.push_back(std::make_unique <IntegerData> (first, n));
         return new_rest;
     };
-    constexpr auto __set_asciz = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __set_asciz = [](Assembler *ptr, std::string_view rest) {
         auto [str, new_rest] = find_first_asciz(rest);
         ptr->storages.push_back(std::make_unique <ASCIZ> (std::move(str)));
         return new_rest;
     };
-    constexpr auto __set_zeros = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __set_zeros = [](Assembler *ptr, std::string_view rest) {
         auto [num_str, new_rest] = find_first_token(rest);
         using __config::kMaxZeros;
         auto num = sv_to_integer <std::size_t> (num_str).value_or(kMaxZeros);
@@ -248,12 +248,12 @@ auto Assembly::parse_storage_impl(std::string_view token, std::string_view rest)
 
     switch (switch_hash_impl(token)) {
         // Data section
-        match_or_break("data",      __set_section, Assembly::Section::DATA);
-        match_or_break("sdata",     __set_section, Assembly::Section::DATA);
-        match_or_break("bss",       __set_section, Assembly::Section::BSS);
-        match_or_break("sbss",      __set_section, Assembly::Section::BSS);
-        match_or_break("rodata",    __set_section, Assembly::Section::RODATA);
-        match_or_break("text",      __set_section, Assembly::Section::TEXT);
+        match_or_break("data",      __set_section, Assembler::Section::DATA);
+        match_or_break("sdata",     __set_section, Assembler::Section::DATA);
+        match_or_break("bss",       __set_section, Assembler::Section::BSS);
+        match_or_break("sbss",      __set_section, Assembler::Section::BSS);
+        match_or_break("rodata",    __set_section, Assembler::Section::RODATA);
+        match_or_break("text",      __set_section, Assembler::Section::TEXT);
 
         // Real storage
         match_or_break("align",     __set_align);
@@ -276,84 +276,84 @@ auto Assembly::parse_storage_impl(std::string_view token, std::string_view rest)
     // throw FailToParse { std::format("Unknown storage type: .{}", token) };
 }
 
-void Assembly::parse_command(std::string_view token, std::string_view rest) {
+void Assembler::parse_command(std::string_view token, std::string_view rest) {
     return this->parse_command_impl(token, rest);
 }
 
-void Assembly::parse_command_impl(std::string_view token, std::string_view rest) {
+void Assembler::parse_command_impl(std::string_view token, std::string_view rest) {
     using Aop = ArithmeticReg::Opcode;
     using Mop = LoadStore::Opcode;
     using Bop = Branch::Opcode;
 
-    constexpr auto __insert_arith_reg = [](Assembly *ptr, std::string_view rest, Aop opcode) {
+    constexpr auto __insert_arith_reg = [](Assembler *ptr, std::string_view rest, Aop opcode) {
         auto [rd, rs1, rs2] = split_command <3> (rest);
         ptr->storages.push_back(std::make_unique <ArithmeticReg> (opcode, rd, rs1, rs2));
     };
-    constexpr auto __insert_arith_imm = [](Assembly *ptr, std::string_view rest, Aop opcode) {
+    constexpr auto __insert_arith_imm = [](Assembler *ptr, std::string_view rest, Aop opcode) {
         auto [rd, rs1, imm] = split_command <3> (rest);
         ptr->storages.push_back(std::make_unique <ArithmeticImm> (opcode, rd, rs1, imm));
     };
-    constexpr auto __insert_load_store = [](Assembly *ptr, std::string_view rest, Mop opcode) {
+    constexpr auto __insert_load_store = [](Assembler *ptr, std::string_view rest, Mop opcode) {
         auto [rd, off_rs1] = split_command <2> (rest);
         auto [off, rs1] = split_offset_and_register(off_rs1);
         ptr->storages.push_back(std::make_unique <LoadStore> (opcode, rd, rs1, off));
     };
-    constexpr auto __insert_branch = [](Assembly *ptr, std::string_view rest, Bop opcode, bool swap = false) {
+    constexpr auto __insert_branch = [](Assembler *ptr, std::string_view rest, Bop opcode, bool swap = false) {
         auto [rs1, rs2, label] = split_command <3> (rest);
         if (swap) std::swap(rs1, rs2);
         ptr->storages.push_back(std::make_unique <Branch> (opcode, rs1, rs2, label));
     };
-    constexpr auto __insert_jump = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_jump = [](Assembler *ptr, std::string_view rest) {
         auto [rd, offset] = split_command <2> (rest);
         ptr->storages.push_back(std::make_unique <JumpRelative> (rd, offset));
     };
-    constexpr auto __insert_jalr = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_jalr = [](Assembler *ptr, std::string_view rest) {
         auto [rd, off_rs1] = split_command <2> (rest);
         auto [off, rs1] = split_offset_and_register(off_rs1);
         ptr->storages.push_back(std::make_unique <JumpRegister> (rd, rs1, off));
     };
-    constexpr auto __insert_lui  = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_lui  = [](Assembler *ptr, std::string_view rest) {
         auto [rd, imm] = split_command <2> (rest);
         ptr->storages.push_back(std::make_unique <LoadUpperImmediate> (rd, imm));
     };
-    constexpr auto __insert_auipc = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_auipc = [](Assembler *ptr, std::string_view rest) {
         auto [rd, imm] = split_command <2> (rest);
         ptr->storages.push_back(std::make_unique <AddUpperImmediatePC> (rd, imm));
     };
-    constexpr auto __insert_move = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_move = [](Assembler *ptr, std::string_view rest) {
         auto [rd, rs1] = split_command <2> (rest);
         ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::ADD, rd, rs1, "zero"));
     };
-    constexpr auto __insert_li = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_li = [](Assembler *ptr, std::string_view rest) {
         auto [rd, imm] = split_command <2> (rest);
         ptr->storages.push_back(std::make_unique <LoadImmediate> (rd, imm));
     };
-    constexpr auto __insert_neg = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_neg = [](Assembler *ptr, std::string_view rest) {
         auto [rd, rs1] = split_command <2> (rest);
         ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::SUB, rd, "zero", rs1));
     };
-    constexpr auto __insert_not = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_not = [](Assembler *ptr, std::string_view rest) {
         auto [rd, rs1] = split_command <2> (rest);
         ptr->storages.push_back(std::make_unique <ArithmeticImm> (Aop::XOR, rd, rs1, "-1"));
     };
-    constexpr auto __insert_seqz = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_seqz = [](Assembler *ptr, std::string_view rest) {
         auto [rd, rs1] = split_command <2> (rest);
         ptr->storages.push_back(std::make_unique <ArithmeticImm> (Aop::SLTU, rd, rs1, "1"));
     };
-    constexpr auto __insert_snez = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_snez = [](Assembler *ptr, std::string_view rest) {
         auto [rd, rs1] = split_command <2> (rest);
         ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::SLTU, rd, "zero", rs1));
     };
-    constexpr auto __insert_sgtz = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_sgtz = [](Assembler *ptr, std::string_view rest) {
         auto [rd, rs1] = split_command <2> (rest);
         ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::SLT, rd, "zero", rs1));
     };
-    constexpr auto __insert_sltz = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_sltz = [](Assembler *ptr, std::string_view rest) {
         auto [rd, rs1] = split_command <2> (rest);
         ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::SLT, rd, rs1, "zero"));
     };
     enum class _Cmp_type { EQZ, NEZ, LTZ, GTZ, LEZ, GEZ };
-    constexpr auto __insert_brz = [](Assembly *ptr, std::string_view rest, _Cmp_type opcode) {
+    constexpr auto __insert_brz = [](Assembler *ptr, std::string_view rest, _Cmp_type opcode) {
         auto [rs1, label] = split_command <2> (rest);
         #define try_match(cmp, op, ...) case cmp:\
             ptr->storages.push_back(std::make_unique <Branch> (op, ##__VA_ARGS__, label)); return
@@ -368,19 +368,19 @@ void Assembly::parse_command_impl(std::string_view token, std::string_view rest)
         #undef try_match
         runtime_assert(false);
     };
-    constexpr auto __insert_call = [](Assembly *ptr, std::string_view rest, bool is_tail) {
+    constexpr auto __insert_call = [](Assembler *ptr, std::string_view rest, bool is_tail) {
         auto [offset] = split_command <1> (rest);
         ptr->storages.push_back(std::make_unique <CallFunction> (is_tail, offset));
     };
-    constexpr auto __insert_j = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_j = [](Assembler *ptr, std::string_view rest) {
         auto [offset] = split_command <1> (rest);
         ptr->storages.push_back(std::make_unique <JumpRelative> ("zero", offset));
     };
-    constexpr auto __insert_jr = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_jr = [](Assembler *ptr, std::string_view rest) {
         auto [rs] = split_command <1> (rest);
         ptr->storages.push_back(std::make_unique <JumpRegister> ("zero", rs, "0"));
     };
-    constexpr auto __insert_ret = [](Assembly *ptr, std::string_view rest) {
+    constexpr auto __insert_ret = [](Assembler *ptr, std::string_view rest) {
         split_command <0> (rest);
         ptr->storages.push_back(std::make_unique <JumpRegister> ("zero", "ra", "0"));
     };

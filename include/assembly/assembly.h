@@ -43,7 +43,7 @@ namespace dark {
  *  others
 */
 
-struct Assembly {
+struct Assembler {
     enum class Section : std::uint8_t {
         UNKNOWN, // Invalid section
         TEXT,   // Code
@@ -70,7 +70,7 @@ struct Assembly {
     std::string         file_info;      // Debug information
     std::size_t         line_number;    // Debug information
 
-    explicit Assembly(std::string_view);
+    explicit Assembler(std::string_view);
 
   private:
 
