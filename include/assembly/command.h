@@ -52,7 +52,7 @@ struct ArithmeticReg : Command {
         rs1(sv_to_reg(rs1)),
         rs2(sv_to_reg(rs2)) {}
 
-    virtual void debug(std::ostream &os) const override;
+    void debug(std::ostream &os) const override;
 };
 
 struct ArithmeticImm : Command {
@@ -69,7 +69,7 @@ struct ArithmeticImm : Command {
         rs1(sv_to_reg(rs1)),
         imm(imm) {}
 
-    virtual void debug(std::ostream &os) const override;
+    void debug(std::ostream &os) const override;
 };
 
 struct LoadStore : Command {
@@ -86,7 +86,7 @@ struct LoadStore : Command {
         rs1(sv_to_reg(rs1)),
         imm(imm) {}
 
-    virtual void debug(std::ostream &os) const override;
+    void debug(std::ostream &os) const override;
 };
 
 struct Branch : Command {
@@ -103,7 +103,7 @@ struct Branch : Command {
         rs2(sv_to_reg(rs2)),
         imm(imm) {}
 
-    virtual void debug(std::ostream &os) const override;
+    void debug(std::ostream &os) const override;
 };
 
 
@@ -115,7 +115,7 @@ struct JumpRelative : Command {
         rd(sv_to_reg(rd)),
         imm(imm) {}
 
-    virtual void debug(std::ostream &os) const override;
+    void debug(std::ostream &os) const override;
 };
 
 struct JumpRegister : Command {
@@ -128,7 +128,7 @@ struct JumpRegister : Command {
         rs1(sv_to_reg(rs1)),
         imm(imm) {}
 
-    virtual void debug(std::ostream &os) const override;
+    void debug(std::ostream &os) const override;
 };
 
 struct CallFunction : Command {
@@ -139,7 +139,7 @@ struct CallFunction : Command {
         tail(is_tail),
         imm(imm) {}
 
-    virtual void debug(std::ostream &os) const override;
+    void debug(std::ostream &os) const override;
 };
 
 struct LoadImmediate : Command {
@@ -150,7 +150,7 @@ struct LoadImmediate : Command {
         rd(sv_to_reg(rd)),
         imm(imm) {}
 
-    virtual void debug(std::ostream &os) const override;
+    void debug(std::ostream &os) const override;
 };
 
 struct LoadUpperImmediate : Command {
@@ -161,7 +161,7 @@ struct LoadUpperImmediate : Command {
         rd(sv_to_reg(rd)),
         imm(imm) {}
 
-    virtual void debug(std::ostream &os) const override;
+    void debug(std::ostream &os) const override;
 };
 
 struct AddUpperImmediatePC : Command {
@@ -172,7 +172,7 @@ struct AddUpperImmediatePC : Command {
         rd(sv_to_reg(rd)),
         imm(imm) {}
 
-    virtual void debug(std::ostream &os) const override;
+    void debug(std::ostream &os) const override;
 };
 
 } // namespace dark

@@ -45,7 +45,7 @@ struct Alignment : RealData {
         throw_if <FailToParse> (!std::has_single_bit(alignment),
             "Invalid alignment: \"{}\"", alignment);
     }
-    virtual void debug(std::ostream &os) const override {
+    void debug(std::ostream &os) const override {
         os << "    .align " << std::countr_zero(alignment);
     }
 };
@@ -61,7 +61,7 @@ struct IntegerData : RealData {
         runtime_assert(Type::BYTE <= type && type <= Type::LONG);
     }
 
-    virtual void debug(std::ostream &os) const override {
+    void debug(std::ostream &os) const override {
         os << "    .";
         switch (type) {
             case Type::BYTE:  os << "byte "; break;
@@ -75,7 +75,7 @@ struct IntegerData : RealData {
 struct ZeroBytes : RealData {
     std::size_t size;
     explicit ZeroBytes(std::size_t size) : size(size) {}
-    virtual void debug(std::ostream &os) const override {
+    void debug(std::ostream &os) const override {
         os << "    .zero " << size;
     }
 };
@@ -83,7 +83,7 @@ struct ZeroBytes : RealData {
 struct ASCIZ : RealData {
     std::string data;
     explicit ASCIZ(std::string str) : data(std::move(str)) {}
-    virtual void debug(std::ostream &os) const override {
+    void debug(std::ostream &os) const override {
         os << "    .asciz \"";
         for (char c : data) {
             switch (c) {
