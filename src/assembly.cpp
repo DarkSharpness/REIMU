@@ -61,9 +61,9 @@ void Assembler::set_section(Assembler::Section section) {
     this->sections.emplace_back(this->storages.size(), section);
 }
 
-void Assembler::debug(std::ostream &os) {
+void Assembler::debug(std::ostream &os) const {
     if (this->sections.empty()) return;
-    using _Pair_t = std::pair <std::size_t, decltype(this->labels)::value_type *>;
+    using _Pair_t = std::pair <std::size_t, const decltype(this->labels)::value_type *>;
     std::vector <_Pair_t> label_list;
     for (auto &pair : this->labels)
         label_list.emplace_back(pair.second.data_index, &pair);
@@ -73,9 +73,9 @@ void Assembler::debug(std::ostream &os) {
     });
 
     constexpr auto __print_section =
-    [](std::ostream &os, Assembler *ptr, Section section,
-        std::size_t first, std::size_t last, std::span <const _Pair_t> &view) {
+    [](std::ostream &os, auto *ptr, StorageSlice data, std::span <const _Pair_t> &view) {
         os << "    .section .";
+        auto [slice, section] = data;
         switch (section) {
             case Assembler::Section::TEXT:   os << "text\n"; break;
             case Assembler::Section::DATA:   os << "data\n"; break;
@@ -83,29 +83,24 @@ void Assembler::debug(std::ostream &os) {
             case Assembler::Section::RODATA: os << "rodata\n"; break;
             default: os << "unknown\n";
         }
-        for (std::size_t i = first; i < last; ++i) {
-            while (!view.empty() && view.front().first == i) {
+        for (auto &storage : slice) {
+            std::size_t which = &storage - ptr;
+            while (!view.empty() && view.front().first == which) {
                 auto [_, label_ptr] = view.front();
                 view = view.subspan(1);
                 auto &[name, info] = *label_ptr;
                 if (info.global) os << "    .globl " << name << '\n';
                 os << name << ":\n";
             }
-            ptr->storages[i]->debug(os); os << '\n';
+            storage->debug(os); os << '\n';
         }
     };
 
     std::span <const _Pair_t> label_view { label_list };
 
-    for (std::size_t i = 0 ; i < this->sections.size() - 1; ++i) {
-        auto [prev, section] = this->sections[i];
-        auto [next, _] = this->sections[i + 1];
-        __print_section(os, this, section, prev, next, label_view);
-        os << '\n';
-    }
-    auto [prev, section] = this->sections.back();
-    auto next = this->storages.size();
-    __print_section(os, this, section, prev, next, label_view);
+    for (auto part : this->split_by_section())
+        __print_section(os, this->storages.data(), part, label_view);
+
 }
 
 /**
@@ -166,7 +161,7 @@ void Assembler::add_label(std::string_view label) {
  * @return Whether the parsing is successful.
  */
 void Assembler::parse_storage(std::string_view token, std::string_view rest) {
-    constexpr auto __parse_section = [](std::string_view rest) -> std::string_view {
+    constexpr auto __parse_section = [](std::string_view rest) -> std::optional <std::string_view> {
         rest = remove_front_whitespace(rest);
         if (!rest.empty() && rest.front() == '.') {
             rest.remove_prefix(1);
@@ -180,13 +175,16 @@ void Assembler::parse_storage(std::string_view token, std::string_view rest) {
                 return "rodata";
         }
         warning("Unknown section: {}", rest);
-        return std::string_view {};
+        return std::nullopt;
     };
 
     if (match_string(token, { "section" })) {
-        token = __parse_section(rest);
-        rest = std::string_view {};
-        if (token.empty()) return;
+        if (auto result = __parse_section(rest); !result.has_value()) {
+            return this->set_section(Assembler::Section::UNKNOWN);
+        } else {
+            token = *result;
+            rest = std::string_view {};
+        }
     }
 
     auto new_rest = this->parse_storage_impl(token, rest);
@@ -476,6 +474,25 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
     }
 
     throw FailToParse { std::format("Unknown command: \"{}\"", token) };
+}
+
+auto Assembler::split_by_section() const -> std::vector <StorageSlice> {
+    std::vector <StorageSlice> slices;
+    if (this->sections.empty()) return slices;
+
+    auto storage = std::span(this->storages);
+    auto [prev, prev_section] = this->sections[0];
+    for (std::size_t i = 1 ; i < this->sections.size() ; ++i) {
+        auto [next, next_section] = this->sections[i];
+        auto prefix_size = next - prev;
+        slices.push_back({ storage.subspan(0, prefix_size), prev_section });
+        storage = storage.subspan(prefix_size);
+        prev = next, prev_section = next_section;
+    }
+
+    slices.push_back({ storage, prev_section });
+    runtime_assert(prev_section == this->current_section);
+    return slices;
 }
 
 } // namespace dark
