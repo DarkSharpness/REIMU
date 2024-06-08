@@ -9,41 +9,6 @@
 
 namespace dark {
 
-/**
- * @brief Represents a collection of parts that are assembled together.
- * Supported part now:
- *  .text
- *  .data
- *  .sdata
- *  .rodata
- *  .srodata
- *  .bss
- *  .sbss
- *  .section
- *  .globl
- * 
- *  .align
- *  .p2align
- *  .balign
- * 
- *  .string
- *  .asciz
- *  .byte
- *  .2byte
- *  .half
- *  .short
- *  .4byte
- *  .long
- *  .word
- *  .type
- * Ignored attributes:
- *  .attribute
- *  .file
- *
- *  .size
- *  others
-*/
-
 struct Assembler {
     enum class Section : std::uint8_t {
         UNKNOWN, // Invalid section
@@ -58,10 +23,6 @@ struct Assembler {
         std::string_view label_name;
         bool    global  {};
         Section section {};
-    };
-    struct Storage {
-        virtual ~Storage() noexcept = default;
-        virtual void debug(std::ostream&) const = 0;
     };
 
     std::unordered_map <std::string, LabelData> labels;

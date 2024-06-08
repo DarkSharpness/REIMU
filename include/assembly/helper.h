@@ -1,6 +1,6 @@
 // Should be included only in assembly.cpp
 #include "assembly.h"
-#include "command.h"
+#include <storage.h>
 #include <utility.h>
 
 namespace dark::__details {
@@ -31,73 +31,12 @@ constexpr std::string_view kRegisterMap[] = {
 
 } // namespace dark::__details
 
+// Some useful helper functions.
+
 namespace dark {
 
 struct FailToParse {
     std::string inner;
-};
-
-struct RealData : Assembler::Storage {};
-
-struct Alignment : RealData {
-    std::size_t alignment;
-    explicit Alignment(std::size_t alignment) : alignment(alignment) {
-        throw_if <FailToParse> (!std::has_single_bit(alignment),
-            "Invalid alignment: \"{}\"", alignment);
-    }
-    void debug(std::ostream &os) const override {
-        os << "    .align " << std::countr_zero(alignment);
-    }
-};
-
-struct IntegerData : RealData {
-    Immediate data;
-    enum class Type {
-        // 1 << 0, 1 << 1, 1 << 2 Bytes
-        BYTE = 0, SHORT = 1, LONG = 2
-    } type;
-
-    IntegerData(std::string_view data, Type type) : data(data), type(type) {
-        runtime_assert(Type::BYTE <= type && type <= Type::LONG);
-    }
-
-    void debug(std::ostream &os) const override {
-        os << "    .";
-        switch (type) {
-            case Type::BYTE:  os << "byte "; break;
-            case Type::SHORT: os << "half "; break;
-            case Type::LONG:  os << "word "; break;
-        }
-        os << data.to_string();
-    }
-};
-
-struct ZeroBytes : RealData {
-    std::size_t size;
-    explicit ZeroBytes(std::size_t size) : size(size) {}
-    void debug(std::ostream &os) const override {
-        os << "    .zero " << size;
-    }
-};
-
-struct ASCIZ : RealData {
-    std::string data;
-    explicit ASCIZ(std::string str) : data(std::move(str)) {}
-    void debug(std::ostream &os) const override {
-        os << "    .asciz \"";
-        for (char c : data) {
-            switch (c) {
-                case '\n': os << "\\n"; break;
-                case '\t': os << "\\t"; break;
-                case '\r': os << "\\r"; break;
-                case '\0': os << "\\0"; break;
-                case '\\': os << "\\\\"; break;
-                case '\"': os << "\\\""; break;
-                default: os << c;
-            }
-        }
-        os << "\"";
-    }
 };
 
 /* Whether the character is a valid token character. */
@@ -325,6 +264,8 @@ std::string_view reg_to_sv(Register reg) {
 
 } // namespace dark
 
+// Implementation of debug
+
 namespace dark {
 
 void ArithmeticReg::debug(std::ostream &os) const {
@@ -416,5 +357,78 @@ void CallFunction::debug(std::ostream &os) const {
     os << std::format("    {} {}",
         buff, imm.to_string());
 }
+
+void Alignment::debug(std::ostream &os) const {
+    os << "    .align " << std::countr_zero(alignment);
+}
+
+void IntegerData::debug(std::ostream &os) const {
+    os << "    .";
+    switch (type) {
+        case Type::BYTE:  os << "byte "; break;
+        case Type::SHORT: os << "half "; break;
+        case Type::LONG:  os << "word "; break;
+    }
+    os << data.to_string();
+}
+
+void ZeroBytes::debug(std::ostream &os) const {
+    os << "    .zero " << size;
+}
+
+void ASCIZ::debug(std::ostream &os) const {
+    os << "    .asciz \"";
+    for (char c : data) {
+        switch (c) {
+            case '\n': os << "\\n"; break;
+            case '\t': os << "\\t"; break;
+            case '\r': os << "\\r"; break;
+            case '\0': os << "\\0"; break;
+            case '\\': os << "\\\\"; break;
+            case '\"': os << "\\\""; break;
+            default: os << c;
+        }
+    }
+    os << "\"";
+}
+
+} // namespace dark
+
+// Some constructors and member functions.
+
+namespace dark {
+
+RawImmediate::RawImmediate(std::string_view view)
+: data(std::make_unique <char[]> (view.size())),
+  size(view.size()) {
+    std::copy(view.begin(), view.end(), data.get());
+}
+
+std::string_view RawImmediate::to_string() const {
+    return std::string_view(data.get(), size);
+}
+
+Immediate::Immediate(std::string_view view) : data(std::make_unique <RawImmediate> (view)) {}
+
+std::string_view Immediate::to_string() const {
+    if (auto *raw = dynamic_cast <RawImmediate *> (data.get()))
+        return raw->to_string();
+    // This should never happen.
+    runtime_assert(false); __builtin_unreachable();
+}
+
+Alignment::Alignment(std::size_t alignment) : alignment(alignment) {
+    throw_if <FailToParse> (!std::has_single_bit(alignment),
+        "Invalid alignment: \"{}\"", alignment);
+}
+
+IntegerData::IntegerData(std::string_view data, Type type)
+    : data(data), type(type) {
+    runtime_assert(Type::BYTE <= type && type <= Type::LONG);
+}
+
+ZeroBytes::ZeroBytes(std::size_t size) : size(size) {}
+
+ASCIZ::ASCIZ(std::string str) : data(std::move(str)) {}
 
 } // namespace dark

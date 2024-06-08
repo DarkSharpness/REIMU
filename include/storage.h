@@ -1,12 +1,8 @@
 #pragma once
-#include "assembly.h"
-#include "register.h"
+#include <declarations.h>
+#include <register.h>
 
 namespace dark {
-
-struct Command : Assembler::Storage {
-    ~Command() override = default;
-};
 
 namespace __details {
 
@@ -27,15 +23,24 @@ enum class BranchOpcode : std::uint8_t {
 
 } // namespace __details
 
-struct Immediate {
-    std::unique_ptr <char[]> value;
+struct ImmediateBase { virtual ~ImmediateBase() = default; };
+
+struct RawImmediate : ImmediateBase {
+    std::unique_ptr <char[]> data;
     std::size_t size;
 
-    Immediate(std::string_view view) :
-        value(std::make_unique<char[]>(view.size())), size(view.size()) 
-    { for (std::size_t i = 0; i < size; ++i) value[i] = view[i]; }
+    explicit RawImmediate(std::string_view view);
+    std::string_view to_string() const;
+};
 
-    std::string_view to_string() const { return std::string_view(value.get(), size); }
+struct Immediate {
+    std::unique_ptr <ImmediateBase> data;
+    explicit Immediate(std::string_view view);
+    std::string_view to_string() const;
+};
+
+struct Command : Storage {
+    ~Command() override = default;
 };
 
 struct ArithmeticReg : Command {
@@ -106,7 +111,6 @@ struct Branch : Command {
     void debug(std::ostream &os) const override;
 };
 
-
 struct JumpRelative : Command {
     Register rd;
     Immediate imm;
@@ -174,5 +178,39 @@ struct AddUpperImmediatePC : Command {
 
     void debug(std::ostream &os) const override;
 };
+
+} // namespace dark
+
+namespace dark {
+
+struct RealData : Storage {};
+
+struct Alignment : RealData {
+    std::size_t alignment;
+    explicit Alignment(std::size_t alignment);
+    void debug(std::ostream &os) const override;
+};
+
+struct IntegerData : RealData {
+    Immediate data;
+    enum class Type {
+        BYTE = 0, SHORT = 1, LONG = 2
+    } type;
+    explicit IntegerData(std::string_view data, Type type);
+    void debug(std::ostream &os) const override;
+};
+
+struct ZeroBytes : RealData {
+    std::size_t size;
+    explicit ZeroBytes(std::size_t size);
+    void debug(std::ostream &os) const override;
+};
+
+struct ASCIZ : RealData {
+    std::string data;
+    explicit ASCIZ(std::string str);
+    void debug(std::ostream &os) const override;
+};
+
 
 } // namespace dark

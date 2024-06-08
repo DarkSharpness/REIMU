@@ -1,5 +1,4 @@
 #include <utility.h>
-#include <assembly/command.h>
 #include <assembly/assembly.h>
 #include <assembly/helper.h>
 #include <default_config.h>
