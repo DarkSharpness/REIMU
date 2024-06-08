@@ -398,15 +398,9 @@ void ASCIZ::debug(std::ostream &os) const {
 
 namespace dark {
 
-RawImmediate::RawImmediate(std::string_view view)
-: data(std::make_unique <char[]> (view.size())),
-  size(view.size()) {
-    std::copy(view.begin(), view.end(), data.get());
-}
+RawImmediate::RawImmediate(std::string_view view) : data(view) {}
 
-std::string_view RawImmediate::to_string() const {
-    return std::string_view(data.get(), size);
-}
+std::string_view RawImmediate::to_string() const { return data.to_sv(); }
 
 Immediate::Immediate(std::string_view view) : data(std::make_unique <RawImmediate> (view)) {}
 

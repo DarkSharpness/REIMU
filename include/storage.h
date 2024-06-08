@@ -1,6 +1,7 @@
 #pragma once
 #include <declarations.h>
 #include <register.h>
+#include <ustring.h>
 
 namespace dark {
 
@@ -26,9 +27,7 @@ enum class BranchOpcode : std::uint8_t {
 struct ImmediateBase { virtual ~ImmediateBase() = default; };
 
 struct RawImmediate : ImmediateBase {
-    std::unique_ptr <char[]> data;
-    std::size_t size;
-
+    unique_string data;
     explicit RawImmediate(std::string_view view);
     std::string_view to_string() const;
 };
