@@ -109,9 +109,9 @@ inline void runtime_assert(_Tp &&condition, std::source_location where = std::so
 }
 
 template <std::integral _Tp>
-auto sv_to_integer(std::string_view view) -> std::optional <_Tp> {
+auto sv_to_integer(std::string_view view, int base = 10) -> std::optional <_Tp> {
     _Tp result;
-    auto res = std::from_chars(view.data(), view.data() + view.size(), result);
+    auto res = std::from_chars(view.data(), view.data() + view.size(), result, base);
     if (res.ec == std::errc() && res.ptr == view.end())
         return result;
     else

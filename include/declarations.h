@@ -20,5 +20,6 @@ enum class Section : std::uint8_t {
 };
 
 using target_size_t = std::uint32_t;
+using target_ssize_t = std::int32_t;
 
 } // namespace dark

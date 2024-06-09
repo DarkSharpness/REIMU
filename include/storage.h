@@ -2,6 +2,7 @@
 #include <declarations.h>
 #include <register.h>
 #include <ustring.h>
+#include <vector>
 
 namespace dark {
 
@@ -26,16 +27,37 @@ enum class BranchOpcode : std::uint8_t {
 
 struct ImmediateBase { virtual ~ImmediateBase() = default; };
 
-struct RawImmediate : ImmediateBase {
-    unique_string data;
-    explicit RawImmediate(std::string_view view);
-    std::string_view to_string() const;
-};
-
 struct Immediate {
     std::unique_ptr <ImmediateBase> data;
+    explicit Immediate(std::nullptr_t) : data(nullptr) {}
     explicit Immediate(std::string_view view);
-    std::string_view to_string() const;
+    std::string to_string() const;
+};
+
+struct IntImmediate : ImmediateBase {
+    target_size_t data;
+    explicit IntImmediate(target_size_t data) : data(data) {}
+};
+
+struct StrImmediate : ImmediateBase  {
+    unique_string data;
+    explicit StrImmediate(std::string_view data);
+};
+
+struct RelImmediate : ImmediateBase {
+    enum class Operand {
+       HI, LO, PCREL_HI, PCREL_LO
+    } operand;
+    Immediate imm;
+    explicit RelImmediate(Operand operand, std::string_view imm) :
+        operand(operand), imm(imm) {}
+};
+
+struct TreeImmediate : ImmediateBase {
+    enum class Operator { ADD, SUB };
+    struct Pair { Immediate imm; Operator op; };
+    std::vector <Pair> data;
+    explicit TreeImmediate(std::vector <Pair> data) : data(std::move(data)) {}
 };
 
 struct Command : Storage {
