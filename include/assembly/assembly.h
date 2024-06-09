@@ -29,10 +29,10 @@ struct Assembler {
     explicit Assembler(std::string_view);
 
     struct StorageSlice {
-        std::span <const std::unique_ptr <Storage>> slice;
+        std::span <std::unique_ptr <Storage>> slice;
         Section section;
     };
-    auto split_by_section() const -> std::vector <StorageSlice>;
+    auto split_by_section() -> std::vector <StorageSlice>;
 
   private:
 
@@ -44,7 +44,7 @@ struct Assembler {
 
     auto parse_storage_impl(std::string_view, std::string_view) -> std::string_view;
     void parse_command_impl(std::string_view, std::string_view);
-    void debug(std::ostream &os) const;
+    void debug(std::ostream &os);
 };
 
 } // namespace dark

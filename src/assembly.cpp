@@ -60,7 +60,7 @@ void Assembler::set_section(Section section) {
     this->sections.emplace_back(this->storages.size(), section);
 }
 
-void Assembler::debug(std::ostream &os) const {
+void Assembler::debug(std::ostream &os) {
     if (this->sections.empty()) return;
     using _Pair_t = std::pair <std::size_t, const decltype(this->labels)::value_type *>;
     std::vector <_Pair_t> label_list;
@@ -475,7 +475,7 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
     throw FailToParse { std::format("Unknown command: \"{}\"", token) };
 }
 
-auto Assembler::split_by_section() const -> std::vector <StorageSlice> {
+auto Assembler::split_by_section() -> std::vector <StorageSlice> {
     std::vector <StorageSlice> slices;
     if (this->sections.empty()) return slices;
 
