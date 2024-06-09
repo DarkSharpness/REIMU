@@ -34,6 +34,8 @@ struct Assembler {
     };
     auto split_by_section() -> std::vector <StorageSlice>;
 
+    void debug(std::ostream &os);
+
   private:
 
     void set_section(Section);
@@ -44,7 +46,6 @@ struct Assembler {
 
     auto parse_storage_impl(std::string_view, std::string_view) -> std::string_view;
     void parse_command_impl(std::string_view, std::string_view);
-    void debug(std::ostream &os);
 };
 
 } // namespace dark

@@ -240,7 +240,7 @@ IntegerData::IntegerData(std::string_view data, Type type)
     runtime_assert(Type::BYTE <= type && type <= Type::LONG);
 }
 
-ZeroBytes::ZeroBytes(std::size_t size) : size(size) {}
+ZeroBytes::ZeroBytes(std::size_t count) : count(count) {}
 
 ASCIZ::ASCIZ(std::string str) : data(std::move(str)) {}
 

@@ -142,7 +142,7 @@ void IntegerData::debug(std::ostream &os) const {
 }
 
 void ZeroBytes::debug(std::ostream &os) const {
-    os << "    .zero " << size;
+    os << "    .zero " << count;
 }
 
 void ASCIZ::debug(std::ostream &os) const {
