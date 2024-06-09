@@ -29,7 +29,7 @@ struct ImmediateBase { virtual ~ImmediateBase() = default; };
 
 struct Immediate {
     std::unique_ptr <ImmediateBase> data;
-    explicit Immediate(std::nullptr_t) : data(nullptr) {}
+    explicit Immediate(std::unique_ptr <ImmediateBase> data) : data(std::move(data)) {}
     explicit Immediate(std::string_view view);
     std::string to_string() const;
 };
@@ -45,17 +45,18 @@ struct StrImmediate : ImmediateBase  {
 };
 
 struct RelImmediate : ImmediateBase {
+    Immediate imm;
     enum class Operand {
        HI, LO, PCREL_HI, PCREL_LO
     } operand;
-    Immediate imm;
-    explicit RelImmediate(Operand operand, std::string_view imm) :
-        operand(operand), imm(imm) {}
+    explicit RelImmediate(std::string_view imm, Operand op) : imm(imm), operand(op) {}
 };
 
 struct TreeImmediate : ImmediateBase {
-    enum class Operator { ADD, SUB };
-    struct Pair { Immediate imm; Operator op; };
+    enum class Operator { ADD, SUB, END };
+    struct Pair {
+        Immediate imm; Operator op;
+    };
     std::vector <Pair> data;
     explicit TreeImmediate(std::vector <Pair> data) : data(std::move(data)) {}
 };

@@ -52,7 +52,7 @@ Assembler::Assembler(std::string_view file_name) {
         last = std::move(line);
     }
 
-    // this->debug(std::cout);
+    this->debug(std::cout);
 }
 
 void Assembler::set_section(Section section) {

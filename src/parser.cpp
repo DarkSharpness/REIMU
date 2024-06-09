@@ -12,24 +12,45 @@ static void throw_invalid(std::string_view msg = "Invalid immediate format") {
     throw FailToParse { std::string(msg) };
 }
 
+static bool is_split_real(char c) {
+    return c == '+' || c == '-' || c == '(' || c == ')';
+}
+
 static bool is_split_char(char c) {
-    return std::isspace(c) || c == '+' || c == '-' || c == '(' || c == ')';
+    return std::isspace(c) || is_split_real(c);
 }
 
 static bool is_label_char(char c) {
     return std::isalnum(c) || c == '_' || c == '.' || c == '@';
 }
 
+static auto remove_front_whitespace(std::string_view str) -> std::string_view {
+    while (!str.empty() && std::isspace(str.front()))
+        str.remove_prefix(1);
+    return str;
+}
+
+static auto remove_back_whitespace(std::string_view str) -> std::string_view {
+    while (!str.empty() && std::isspace(str.back()))
+        str.remove_suffix(1);
+    return str;
+}
+
+
 static auto parse_relocation(std::string_view view) -> std::unique_ptr <ImmediateBase> {
     using enum RelImmediate::Operand;
+
+    if (!view.ends_with(')')) throw_invalid("Unmatched parentheses");  
+    view.remove_suffix(1);
+
     if (view.starts_with("hi(")) {
-        return std::make_unique <RelImmediate> (HI, view.substr(2));
+        return std::make_unique <RelImmediate> (view.substr(3), HI);
     } else if (view.starts_with("lo(")) {
-        return std::make_unique <RelImmediate> (LO, view.substr(2));
+        return std::make_unique <RelImmediate> (view.substr(3), LO);
     } else if (view.starts_with("pcrel_hi(")) {
-        return std::make_unique <RelImmediate> (PCREL_HI, view.substr(7));
+        return std::make_unique <RelImmediate> (view.substr(9), PCREL_HI);
     } else if (view.starts_with("pcrel_lo(")) {
-        return std::make_unique <RelImmediate> (PCREL_LO, view.substr(7));
+        return std::make_unique <RelImmediate> (view.substr(9), PCREL_LO);
     } else {
         throw_invalid("Invalid relocation format");
     }
@@ -37,8 +58,10 @@ static auto parse_relocation(std::string_view view) -> std::unique_ptr <Immediat
 
 static auto parse_integer(std::string_view view) -> std::unique_ptr <ImmediateBase> {
     if (view.starts_with('0')) {
-        std::size_t base = [&view]() {
-            view.remove_prefix(1);
+        view.remove_prefix(1);
+        if (view.empty()) return std::make_unique <IntImmediate> (0);
+
+        int base = [&view]() {
             if (view.starts_with('x'))
                 return view.remove_prefix(1), 16;
             if (view.starts_with('b'))
@@ -76,39 +99,148 @@ static auto parse_single(std::string_view view) -> std::unique_ptr <ImmediateBas
     }
 }
 
+static auto find_matching_parentheses(std::string_view view) -> const char * {
+    std::size_t count = 0;
+    for (auto &c : view) {
+        if (c == '(') ++count;
+        if (c == ')') 
+            if (--count == 0) return &c;
+            else if (count < 0) return nullptr;
+    }
+    return nullptr;
+}
+
+static auto split_by_real(std::string_view view, const char * hint)
+    -> std::pair <std::string_view, std::string_view> {
+    std::size_t length = hint - view.begin();
+    auto subview = view.substr(0, length);
+    auto pos = std::ranges::find_if(view.substr(length), is_split_real);
+    runtime_assert(pos != view.end());
+    return { subview , view.substr(pos - view.begin()) };
+}
+
+static auto find_new_single(std::string_view view) {
+    struct Result {
+        std::string_view data;
+        std::string_view rest;
+        bool is_single;
+        TreeImmediate::Operator op;
+    };
+    using enum TreeImmediate::Operator;
+
+    const char *end = std::ranges::find_if(view, is_split_char);
+    if (end == view.end())
+        return Result { view, {}, true, END };
+
+    auto [subview, remain] = split_by_real(view, end);
+    runtime_assert(!remain.empty());
+
+    if (remain.front() == '+')
+        return Result { subview, remain, true, ADD };
+    if (remain.front() == '-')
+        return Result { subview, remain, true, SUB };
+    if (const char *next {}; remain.front() == '('
+    && bool(next = find_matching_parentheses(remain))) {
+        std::size_t length = next - view.begin() + 1;
+
+        subview = view.substr(1, length - 2);
+        remain = remove_front_whitespace(view.substr(length));
+
+        if (remain.empty())
+            return Result { subview, {}, false, END };
+        if (remain.front() == '+')
+            return Result { subview, remain, false, ADD };
+        if (remain.front() == '-')
+            return Result { subview, remain, false, SUB };
+    }
+
+    throw_invalid();
+}
+
 /** May include add/sub expression. */
-static auto parse_expression(std::string_view view) -> std::unique_ptr <ImmediateBase> {
+static auto parse_expressions(std::string_view view) -> std::unique_ptr <ImmediateBase> {
     auto pos = std::ranges::find_if(view, is_split_char);
     // Integer or label.
     if (pos == view.end()) return parse_single(view);
     // Negative integer.
     if (pos == view.begin() && *pos == '-') return parse_integer(view);
 
-    throw_invalid("Invalid expression format");
+    std::vector <TreeImmediate::Pair> data;
+    std::cerr << "Debug\n";
+
+    // Precondition:
+    // 1. view has no prefix/suffix spaces.
+    // 2. pos is the first split char, which may be space or real splitter.
+
+    do {
+        auto [subview, remain, is_single, op] = find_new_single(view);
+        if (is_single) {
+            data.emplace_back(Immediate{parse_single(subview)}, op);
+        } else {
+            data.emplace_back(Immediate{subview}, op);
+        }
+        view = remain;
+        if (op == TreeImmediate::Operator::END) break;
+        view = remove_front_whitespace(view.substr(1));
+    } while (true);
+
+    if (!view.empty()) throw_invalid();
+    return std::make_unique <TreeImmediate> (std::move(data));
 }
 
 static auto parse_immediate(std::string_view view) -> std::unique_ptr <ImmediateBase> {
-    while (!view.empty() && std::isspace(view.front()))
-        view.remove_prefix(1);
-    while (!view.empty() && std::isspace(view.back()))
-        view.remove_suffix(1);
-
+    view = remove_back_whitespace(remove_front_whitespace(view));
     if (view.empty()) throw_invalid();
     if (view.starts_with('%')) {
         return parse_relocation(view.substr(1));
     } else {
-        if (view.starts_with('(')) {
-            if (!view.ends_with(')')) throw_invalid();
-            return parse_immediate(view.substr(1, view.size() - 2));
+        return parse_expressions(view);
+    }
+}
+
+static auto imm_to_string(ImmediateBase *imm) -> std::string {
+    if (auto ptr = dynamic_cast <IntImmediate *> (imm)) {
+        return std::to_string(static_cast <target_ssize_t> (ptr->data));
+    } else if (auto ptr = dynamic_cast <StrImmediate *> (imm)) {
+        return std::string(ptr->data.to_sv());
+    } else if (auto ptr = dynamic_cast <RelImmediate *> (imm)) {
+        std::string_view op;
+        switch (ptr->operand) {
+            using enum RelImmediate::Operand;
+            case HI: op = "hi"; break;
+            case LO: op = "lo"; break;
+            case PCREL_HI: op = "pcrel_hi"; break;
+            case PCREL_LO: op = "pcrel_lo"; break;
+            default: runtime_assert(false); __builtin_unreachable();
         }
-        return parse_expression(view);
+        std::string str = ptr->imm.to_string();
+        if (str.starts_with('(') && str.ends_with(')'))
+            return std::format("%{}{}", op, str);
+        return std::format("%{}({})", op, str);
+    } else if (auto ptr = dynamic_cast <TreeImmediate *> (imm)) {
+        std::vector <std::string> vec;
+        for (auto &[imm, op] : ptr->data) {
+            std::string_view op_str =
+                op == TreeImmediate::Operator::ADD ? " + " :
+                op == TreeImmediate::Operator::SUB ? " - " : "";
+            vec.push_back(std::format("{}{}", imm.to_string(), op_str));
+        }
+        std::size_t length {2};
+        std::string string {'('};
+        for (auto &str : vec) length += str.size();
+        string.reserve(length);
+        for (auto &str : vec) string += str;
+        string += ')';
+        return string;
+    } else {
+        runtime_assert(false); __builtin_unreachable();
     }
 }
 
 Immediate::Immediate(std::string_view view) : data(parse_immediate(view)) {}
 
 std::string Immediate::to_string() const {
-    throw_invalid();
+    return imm_to_string(data.get());
 }
 
 
