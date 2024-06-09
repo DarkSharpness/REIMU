@@ -10,13 +10,7 @@
 namespace dark {
 
 struct Assembler {
-    enum class Section : std::uint8_t {
-        UNKNOWN, // Invalid section
-        TEXT,   // Code
-        DATA,   // Initialized data
-        RODATA, // Read-only data
-        BSS     // Initialized to zero
-    } current_section { Section::UNKNOWN };
+    Section current_section { Section::UNKNOWN };
     struct LabelData {
         std::size_t line_number {};
         std::size_t data_index  {};

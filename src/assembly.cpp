@@ -55,7 +55,7 @@ Assembler::Assembler(std::string_view file_name) {
     // this->debug(std::cout);
 }
 
-void Assembler::set_section(Assembler::Section section) {
+void Assembler::set_section(Section section) {
     this->current_section = section;
     this->sections.emplace_back(this->storages.size(), section);
 }
@@ -76,10 +76,10 @@ void Assembler::debug(std::ostream &os) const {
         os << "    .section .";
         auto [slice, section] = data;
         switch (section) {
-            case Assembler::Section::TEXT:   os << "text\n"; break;
-            case Assembler::Section::DATA:   os << "data\n"; break;
-            case Assembler::Section::BSS:    os << "bss\n"; break;
-            case Assembler::Section::RODATA: os << "rodata\n"; break;
+            case Section::TEXT:   os << "text\n"; break;
+            case Section::DATA:   os << "data\n"; break;
+            case Section::BSS:    os << "bss\n"; break;
+            case Section::RODATA: os << "rodata\n"; break;
             default: os << "unknown\n";
         }
         for (auto &storage : slice) {
@@ -140,7 +140,7 @@ void Assembler::add_label(std::string_view label) {
         "First appearance at line {} in {}",
         label, iter->second.line_number, this->file_info);
 
-    throw_if <FailToParse> (this->current_section == Assembler::Section::UNKNOWN,
+    throw_if <FailToParse> (this->current_section == Section::UNKNOWN,
         "Label must be defined in a section");
 
     auto &label_info = iter->second;
@@ -179,7 +179,7 @@ void Assembler::parse_storage(std::string_view token, std::string_view rest) {
 
     if (match_string(token, { "section" })) {
         if (auto result = __parse_section(rest); !result.has_value()) {
-            return this->set_section(Assembler::Section::UNKNOWN);
+            return this->set_section(Section::UNKNOWN);
         } else {
             token = *result;
             rest = std::string_view {};
@@ -193,7 +193,7 @@ void Assembler::parse_storage(std::string_view token, std::string_view rest) {
 }
 
 auto Assembler::parse_storage_impl(std::string_view token, std::string_view rest) -> std::string_view {
-    constexpr auto __set_section = [](Assembler *ptr, std::string_view rest, Assembler::Section section) {
+    constexpr auto __set_section = [](Assembler *ptr, std::string_view rest, Section section) {
         ptr->set_section(section);
         return rest;
     };
@@ -245,12 +245,12 @@ auto Assembler::parse_storage_impl(std::string_view token, std::string_view rest
 
     switch (switch_hash_impl(token)) {
         // Data section
-        match_or_break("data",      __set_section, Assembler::Section::DATA);
-        match_or_break("sdata",     __set_section, Assembler::Section::DATA);
-        match_or_break("bss",       __set_section, Assembler::Section::BSS);
-        match_or_break("sbss",      __set_section, Assembler::Section::BSS);
-        match_or_break("rodata",    __set_section, Assembler::Section::RODATA);
-        match_or_break("text",      __set_section, Assembler::Section::TEXT);
+        match_or_break("data",      __set_section, Section::DATA);
+        match_or_break("sdata",     __set_section, Section::DATA);
+        match_or_break("bss",       __set_section, Section::BSS);
+        match_or_break("sbss",      __set_section, Section::BSS);
+        match_or_break("rodata",    __set_section, Section::RODATA);
+        match_or_break("text",      __set_section, Section::TEXT);
 
         // Real storage
         match_or_break("align",     __set_align);
