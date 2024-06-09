@@ -40,19 +40,17 @@ std::size_t real_size(_Data &storage) {
 } // namespace __details
 
 struct SizeEstimator final : StorageVisitor {
-    const std::size_t start;
-    std::size_t size;
+    std::size_t position = 0;
     static constexpr std::size_t kCommand = 4;
 
     void align_to(std::size_t alignment) {
         runtime_assert(std::has_single_bit(alignment));
         std::size_t bitmask = alignment - 1;
-        std::size_t current = this->start + this->size;
-        std::size_t aligned = (current + bitmask) & ~bitmask;
-        this->size = aligned - this->start;
+        std::size_t current = this->position;
+        this->position = (current + bitmask) & ~bitmask;
     }
 
-    explicit SizeEstimator(std::size_t start) : start(start), size(0) {}
+    explicit SizeEstimator(std::size_t start) : position(start) {}
 
     void visitStorage(ArithmeticReg &storage)   override { this->update(storage, 1); }
     void visitStorage(ArithmeticImm &storage)   override { this->update(storage, 1); }
@@ -72,14 +70,16 @@ struct SizeEstimator final : StorageVisitor {
     template <std::derived_from <RealData> _Data>
     void update(_Data &storage) {
         this->align_to(__details::align_size(storage));
-        this->size += __details::real_size(storage);
+        this->position += __details::real_size(storage);
     }
 
     template <std::derived_from <Command> _Command>
     void update(_Command &command, std::size_t count) {
         this->align_to(kCommand);
-        this->size += kCommand * count;
+        this->position += kCommand * count;
     }
+
+    std::size_t get_position() const { return this->position; }
 };
 
 } // namespace dark
