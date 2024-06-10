@@ -10,20 +10,34 @@
 namespace dark {
 
 struct Assembler {
-    Section current_section { Section::UNKNOWN };
     struct LabelData {
         std::size_t line_number {};
         std::size_t data_index  {};
         std::string_view label_name;
         bool    global  {};
         Section section {};
+        void define_at(std::size_t line, std::size_t index,
+            const std::string &name, Section section) {
+            this->line_number = line;
+            this->data_index = index;
+            this->label_name = name;
+            this->section = section;
+        }
+        void set_global(std::size_t line) {
+            if (!this->is_defined())
+                this->line_number = line;
+            this->global = true;
+        }
+        bool is_defined() const { return !this->label_name.empty(); }
     };
+
+    Section current_section;    // Current section
 
     std::unordered_map <std::string, LabelData> labels;
     std::vector <std::unique_ptr <Storage>> storages;
     std::vector <std::pair<std::size_t, Section>> sections;
 
-    std::string         file_info;      // Debug information
+    std::string         file_name;      // Debug information
     std::size_t         line_number;    // Debug information
 
     explicit Assembler(std::string_view);
@@ -34,7 +48,10 @@ struct Assembler {
     };
     auto split_by_section() -> std::vector <StorageSlice>;
 
-    void debug(std::ostream &os);
+    void debug(std::ostream &);
+
+    [[noreturn]]
+    void handle_at(std::size_t, std::string) const;
 
   private:
 

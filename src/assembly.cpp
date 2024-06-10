@@ -7,17 +7,12 @@
 
 namespace dark {
 
-Assembler::Assembler(std::string_view file_name) {
-    using enum __console::Color;
-    this->file_info = std::format("{}file: {}{}",
-        __console::color_code <YELLOW>, file_name, __console::color_code <RESET>);
-
-    std::ifstream file { std::string(file_name) };
-    panic_if(!file.is_open(), "Failed to open {}", this->file_info);
+Assembler::Assembler(std::string_view file_name)
+: current_section(Section::UNKNOWN), file_name(file_name), line_number(0) {
+    std::ifstream file { this->file_name };
+    panic_if(!file.is_open(), "Failed to open {}", file_name);
 
     this->line_number = 0;
-
-    std::string last;   // Last line
     std::string line;   // Current line
 
     while (std::getline(file, line)) {
@@ -25,33 +20,57 @@ Assembler::Assembler(std::string_view file_name) {
         try {
             this->parse_line(line);
         } catch (FailToParse &e) {
-            if (!e.inner.empty() && e.inner.back() != '\n')
-                e.inner += "\n";
-
-            constexpr auto make_line = [] (std::string_view line, std::size_t line_number) {
-                return std::format("{: >4}  |  {}", line_number, line);
-            };
-
-            std::string line_fmt = make_line(line, this->line_number);
-            if (this->line_number != 1)
-                line_fmt = std::format("{}\n{}",
-                    make_line(last, this->line_number - 1), line_fmt);
-            if (std::string temp; std::getline(file, temp))
-                line_fmt = std::format("{}\n{}",
-                    line_fmt, make_line(temp, this->line_number + 1));
-
-            panic("{:}Failed to parse {}:{}\n{}",
-                e.inner, this->file_info, this->line_number, line_fmt);
+            file.close();
+            this->handle_at(this->line_number, std::move(e.inner));
         } catch(std::exception &e) {
             std::cerr << std::format("Unexpected error: {}\n", e.what());
             runtime_assert(false);
         } catch(...) {
-            std::cerr << "Unexpected error\n";
+            std::cerr << "Unexpected error.\n";
             runtime_assert(false);
         }
-        last = std::move(line);
     }
 }
+
+void Assembler::handle_at(std::size_t which_line, std::string msg) const {
+    using enum __console::Color;
+
+    std::ifstream file { this->file_name };
+
+    runtime_assert(which_line != 0 && file.is_open());
+
+    const std::size_t windows[2] = {
+        which_line - 1 ? : 1,
+        which_line + 1
+    };
+
+    auto counter = windows[0];
+    auto line = std::string{};
+    while (--counter && std::getline(file, line));
+    runtime_assert(counter == 0);
+
+    std::string line_fmt_string;
+    for (std::size_t i = windows[0] ; i <= windows[1]; ++i) {
+        if (!std::getline(file, line)) break;
+        if (i == which_line)
+            line_fmt_string += std::format("{}{: >4}  |  {}{}\n",
+                __console::color_code <RED>, i, line,
+                __console::color_code <RESET>);
+        else
+            line_fmt_string += std::format("{: >4}  |  {}\n", i, line);
+    }
+
+    if (msg.size() != 0 && msg.back() != '\n') msg.push_back('\n');
+
+    panic("{:}Failed to parse {}{}:{}{}\n{}",
+        msg,
+        __console::color_code <YELLOW>,
+        this->file_name, which_line,
+        __console::color_code <RESET>,
+        line_fmt_string);
+}
+
+
 
 void Assembler::set_section(Section section) {
     this->current_section = section;
@@ -132,23 +151,19 @@ void Assembler::parse_line(std::string_view line) {
  */
 void Assembler::add_label(std::string_view label) {
     auto [iter, success] = this->labels.try_emplace(std::string(label));
+    auto &label_info = iter->second;
 
-    throw_if <FailToParse> (success == false && iter->second.line_number != 0,
+    throw_if <FailToParse> (success == false && label_info.is_defined(),
         "Label \"{}\" already exists\n"
         "First appearance at line {} in {}",
-        label, iter->second.line_number, this->file_info);
+        label, label_info.line_number, this->file_name);
 
     throw_if <FailToParse> (this->current_section == Section::UNKNOWN,
         "Label must be defined in a section");
 
-    auto &label_info = iter->second;
-    label_info = Assembler::LabelData {
-        .line_number = this->line_number,
-        .data_index = this->storages.size(),
-        .label_name = iter->first,
-        .global     = label_info.global,
-        .section    = this->current_section
-    };
+    label_info.define_at(
+        this->line_number, this->storages.size(),
+        iter->first, this->current_section);
 }
 
 /**
@@ -199,7 +214,7 @@ auto Assembler::parse_storage_impl(std::string_view token, std::string_view rest
         rest = remove_comments_when_no_string(rest);
         rest = remove_front_whitespace(rest);
         rest = remove_back_whitespace(rest);
-        ptr->labels[std::string(rest)].global = true;
+        ptr->labels[std::string(rest)].set_global(ptr->line_number);
         return std::string_view {};
     };
     constexpr auto __set_align = [](Assembler *ptr, std::string_view rest) {

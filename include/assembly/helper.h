@@ -1,8 +1,8 @@
 // Should be included only in assembly.cpp
 #include "assembly.h"
-#include "exception.h"
 #include <storage.h>
 #include <utility.h>
+#include <exception.h>
 
 // Some useful helper functions.
 
