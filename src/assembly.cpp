@@ -126,6 +126,9 @@ void Assembler::debug(std::ostream &os) {
 void Assembler::parse_line(std::string_view line) {
     line = remove_front_whitespace(line);
 
+    // Comment line case
+    if (line.starts_with('#')) return;
+
     // Whether the line starts with a label
     if (auto label = start_with_label(line); label.has_value())
         return this->add_label(*label);
