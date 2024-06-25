@@ -144,6 +144,13 @@ struct ArithmeticImm final : Command {
         rs1(sv_to_reg(rs1)),
         imm(imm) {}
 
+    explicit ArithmeticImm
+        (Opcode opcode, Register rd, Register rs1, Immediate imm) :
+        opcode(opcode),
+        rd(rd),
+        rs1(rs1),
+        imm(std::move(imm)) {}
+
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
 };
@@ -191,6 +198,9 @@ struct JumpRelative final : Command {
     explicit JumpRelative(std::string_view rd, std::string_view imm) :
         rd(sv_to_reg(rd)), imm(imm) {}
 
+    explicit JumpRelative(Register rd, Immediate imm) :
+        rd(rd), imm(std::move(imm)) {}
+
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
 };
@@ -235,6 +245,9 @@ struct LoadUpperImmediate final : Command {
 
     explicit LoadUpperImmediate(std::string_view rd, std::string_view imm) :
         rd(sv_to_reg(rd)), imm(imm) {}
+
+    explicit LoadUpperImmediate(Register rd, Immediate imm) :
+        rd(rd), imm(std::move(imm)) {}
 
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
