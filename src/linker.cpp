@@ -1,5 +1,6 @@
 #include <utility.h>
 #include <storage.h>
+#include <libc/libc.h>
 #include <linker/linker.h>
 #include <linker/estimate.h>
 #include <linker/relaxation.h>
@@ -8,6 +9,11 @@
 #include <algorithm>
 
 namespace dark {
+
+struct SymbolLocationLibc : Linker::SymbolLocation {
+    explicit SymbolLocationLibc(const std::size_t &position, const std::size_t &offset)
+        : Linker::SymbolLocation { &position, &offset } {}
+};
 
 /**
  * Memory Layout:
@@ -29,16 +35,20 @@ Linker::Linker(std::span <Assembler> data) {
     for (auto i : std::views::iota(0llu, data.size()))
         this->add_file(data[i], local_symbol_table[i]);
 
+    this->add_libc();
+
     this->make_estimate();
 
     this->make_relaxation();
 
     this->make_estimate();
+
+    for (auto &assembler : data)
+        assembler.debug(std::cout);
 }
 
-/**
- * Add a file to the linker.
- */
+
+/** Add a file to the linker. */
 void Linker::add_file(Assembler &assembler, _Symbol_Table_t &local_table) {
     using _Pair_t = std::pair <_Storage_t *, StorageDetails *>;
     using _Section_Map_t = struct : std::vector <_Pair_t> {
@@ -91,6 +101,35 @@ void Linker::add_file(Assembler &assembler, _Symbol_Table_t &local_table) {
     }
 }
 
+
+/**
+ * Add the libc functions to the global symbol table.
+ * It will set up the starting offset of the user functions.
+ */
+void Linker::add_libc() {
+    // Set the initial offset
+    // This is required by the RISC-V ABI
+    static constexpr std::size_t absolute = 0x10000;
+
+    // An additional bias is caused by the libc functions
+    static constexpr auto offset_table = []() {
+        std::array <std::size_t, std::size(libc::names)> array;
+        for (auto i : std::views::iota(0llu, std::size(libc::names)))
+            array[i] = i * sizeof(target_size_t);
+        return array;
+    } ();
+
+    std::size_t count = 0;
+    for (auto &name : libc::names) {
+        auto location = SymbolLocationLibc { absolute, offset_table[count++] };
+        auto [iter, success] = this->global_symbol_table.try_emplace(name, location);
+        panic_if(!success, "Global symbol \"{}\" conflicts with libc", name);
+    }
+
+    runtime_assert(libc::kLibcEnd == absolute + count * sizeof(target_size_t));
+}
+
+
 /**
  * Make the estimate of the linker.
  * 
@@ -102,9 +141,7 @@ void Linker::add_file(Assembler &assembler, _Symbol_Table_t &local_table) {
  * separation.
  */
 void Linker::make_estimate() {
-    // Set the initial offset
-    // This is required by the RISC-V ABI
-    SizeEstimator estimator { 0x10000 };
+    SizeEstimator estimator { libc::kLibcEnd };
 
     constexpr std::size_t kPageSize = 0x1000;
 

@@ -40,13 +40,18 @@ struct Linker {
      * and the pointer of the offset in the storage.
      */
     struct SymbolLocation {
-        std::size_t *position;
-        std::size_t *offset;
-
         explicit SymbolLocation(StorageDetails &details, std::size_t index)
             : position(&details.begin_position), offset(&details.offsets[index]) {}
 
         auto query_position() const { return std::make_pair(*position, *offset); }
+
+      protected:
+        const std::size_t *position;
+        const std::size_t *offset;
+
+        // Reserved for future extensions
+        explicit SymbolLocation(const std::size_t *pos, const std::size_t *off)
+            : position(pos), offset(off) {}
     };
 
     static constexpr auto kSections = static_cast<std::size_t>(Section::MAXCOUNT);
@@ -57,6 +62,7 @@ struct Linker {
     explicit Linker(std::span<Assembler>);
 
   private:
+    void add_libc();
     void add_file(Assembler &file, _Symbol_Table_t &table);
     auto get_section(Section section) -> _Details_Vec_t &;
     void make_estimate();
