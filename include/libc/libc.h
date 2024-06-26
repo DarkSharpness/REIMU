@@ -35,7 +35,8 @@ constexpr std::string_view names[] = {
     "strcmp",
 };
 
-constexpr auto kLibcEnd = 0x10000 + std::size(libc::names) * sizeof(target_size_t);
+constexpr auto kLibcStart = 0x10000;
+constexpr auto kLibcEnd = kLibcStart + std::size(libc::names) * sizeof(target_size_t);
 
 } // namespace libc
 

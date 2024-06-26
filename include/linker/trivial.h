@@ -1,4 +1,4 @@
-#pragma once
+// Should only be included once by relaxtion.h
 #include "linker.h"
 #include <utility.h>
 #include <storage.h>
@@ -18,6 +18,7 @@ struct TrivialPass {
      * such as folding the one-element tree.
      */
     template <typename ...Args>
+    requires (std::is_same_v <Args, Immediate> && ...)
     explicit TrivialPass(Args &...args) {
         [[maybe_unused]]
         bool result = (this->evaluate(args) & ...);

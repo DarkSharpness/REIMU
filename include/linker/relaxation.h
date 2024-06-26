@@ -1,3 +1,4 @@
+// Should only be included once by linker.cpp
 #include "trivial.h"
 #include "evaluate.h"
 #include <utility.h>
@@ -17,7 +18,8 @@ struct RelaxtionPass final : private Evaluator, StorageVisitor {
      * It will turn some of the calls into jumps, and try to shrink the code
      * size without changing the semantics of the code.
      */
-    explicit RelaxtionPass(_Table_t &global_table, Linker::_Details_Vec_t &vec) : Evaluator(global_table) {
+    explicit RelaxtionPass(const _Table_t &global_table, const Linker::_Details_Vec_t &vec)
+        : Evaluator(global_table) {
         for (auto &details : vec) {
             this->set_local(details.table);
             std::size_t index   = 0;
@@ -25,7 +27,7 @@ struct RelaxtionPass final : private Evaluator, StorageVisitor {
             for (auto &storage : details.storage) {
                 this->set_position(current + details.offsets[index++]);
                 this->visit(*storage);
-                if (retval) update(storage, std::move(retval));
+                if (retval) storage = std::move(retval);
             }
         }
     }
@@ -41,18 +43,15 @@ struct RelaxtionPass final : private Evaluator, StorageVisitor {
     void visitStorage(LoadUpperImmediate &storage)  override { TrivialPass{storage.imm}; }
     void visitStorage(AddUpperImmediatePC &storage) override { TrivialPass{storage.imm}; }
     void visitStorage(Alignment &storage)           override {}
-    void visitStorage(IntegerData &storage)         override {}
+    void visitStorage(IntegerData &storage)         override { TrivialPass{storage.data}; }
     void visitStorage(ZeroBytes &storage)           override {}
     void visitStorage(ASCIZ &storage)               override {}
 
-    void visitStorage(CallFunction &storage)        override
+    void visitStorage(CallFunction &storage) override
     { TrivialPass{storage.imm}; return visit_call(storage); }
-    void visitStorage(LoadImmediate &storage)       override
+
+    void visitStorage(LoadImmediate &storage) override
     { TrivialPass{storage.imm}; return visit_li(storage); }
-    
-    void update(_Storage_t &storage, _Storage_t new_storage) {
-        if (new_storage) storage = std::move(new_storage);
-    }
 
     void visit_call(CallFunction &call) {
         auto &imm = call.imm.data;

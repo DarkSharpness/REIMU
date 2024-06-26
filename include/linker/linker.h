@@ -9,14 +9,31 @@
 
 namespace dark {
 
+struct LinkResult {
+    // A table that maps the symbol to its final position.
+    std::unordered_map <std::string_view, std::size_t> position_table;
+    // A table which indicates the storage at given position.
+    // The vector should be 4 bytes aligned at least.
+    std::vector <std::byte *> storage_table;
+
+    // Section data.
+
+    std::size_t text_end;   // End of the text section
+    std::size_t data_end;   // End of static storage
+};
+
 struct Linker {
-    using _Storage_t = std::unique_ptr<dark::Storage>;
+    using _Storage_t = std::unique_ptr<Storage>;
 
     struct SymbolLocation;
     struct StorageDetails;
 
     using _Details_Vec_t    = std::deque<StorageDetails>;
     using _Symbol_Table_t   = std::unordered_map<std::string_view, SymbolLocation>;
+
+    explicit Linker(std::span<Assembler>);
+
+    void link();
 
     /**
      * Storage details, including the span area of the storage.
@@ -40,6 +57,7 @@ struct Linker {
      * and the pointer of the offset in the storage.
      */
     struct SymbolLocation {
+      public:
         explicit SymbolLocation(StorageDetails &details, std::size_t index)
             : position(&details.begin_position), offset(&details.offsets[index]) {}
 
@@ -54,14 +72,16 @@ struct Linker {
             : position(pos), offset(off) {}
     };
 
+    const auto &get_result() { return result; }
+
+  private:
     static constexpr auto kSections = static_cast<std::size_t>(Section::MAXCOUNT);
 
     _Details_Vec_t details_vec[kSections];
     _Symbol_Table_t global_symbol_table;
 
-    explicit Linker(std::span<Assembler>);
+    LinkResult result; // Result of the linking
 
-  private:
     void add_libc();
     void add_file(Assembler &file, _Symbol_Table_t &table);
     auto get_section(Section section) -> _Details_Vec_t &;

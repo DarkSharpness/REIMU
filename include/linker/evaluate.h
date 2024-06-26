@@ -16,15 +16,13 @@ struct Evaluator {
     const _Table_t *local_table;    // Table within a file.
     std::size_t position;
 
-  public:
+  protected:
     /**
      * An evaluator which can evaluate the immediate values.
      * It need global and local table to query the symbol position.
      */
     explicit Evaluator(const _Table_t &global_table)
         : global_table(global_table), local_table() {}
-
-  protected:
 
     void set_local(const _Table_t *local_table) {
         this->local_table = local_table;
@@ -49,7 +47,7 @@ struct Evaluator {
     }
 
     /* Evaluate the given immediate value. */
-    target_size_t evaluate_tree(const TreeImmediate &tree) {
+    auto evaluate_tree(const TreeImmediate &tree) -> target_size_t {
         using enum TreeImmediate::Operator;
         auto last_op = ADD;
         target_size_t result = 0;
@@ -66,7 +64,7 @@ struct Evaluator {
     }
 
     /* Evaluate the given immediate value. */
-    target_size_t evaluate(const ImmediateBase &imm) {
+    auto evaluate(const ImmediateBase &imm) -> target_size_t {
         if (auto *integer = dynamic_cast <const IntImmediate *> (&imm))
             return integer->data;
 

@@ -2,6 +2,7 @@
 #include <storage.h>
 #include <libc/libc.h>
 #include <linker/linker.h>
+#include <linker/locate.h>
 #include <linker/estimate.h>
 #include <linker/relaxation.h>
 #include <assembly/assembly.h>
@@ -42,6 +43,8 @@ Linker::Linker(std::span <Assembler> data) {
     this->make_relaxation();
 
     this->make_estimate();
+
+    this->link();
 
     for (auto &assembler : data)
         assembler.debug(std::cout);
@@ -157,9 +160,19 @@ void Linker::make_estimate() {
     estimator.align_to(kPageSize);
 }
 
+
 void Linker::make_relaxation() {
     for (auto &vec : this->details_vec)
         RelaxtionPass(this->global_symbol_table, vec);
+}
+
+/**
+ * Link these targeted files.
+ * It will translate all symbols into integer constants.
+ */
+void Linker::link() {
+    for (auto &vec : this->details_vec)
+        EvaluationPass(this->global_symbol_table, vec);
 }
 
 auto Linker::get_section(Section section) -> _Details_Vec_t & {
