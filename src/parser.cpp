@@ -20,6 +20,7 @@ static bool is_split_char(char c) {
     return std::isspace(c) || is_split_real(c);
 }
 
+[[maybe_unused]]
 static bool is_label_char(char c) {
     return std::isalnum(c) || c == '_' || c == '.' || c == '@';
 }
@@ -103,9 +104,10 @@ static auto find_matching_parentheses(std::string_view view) -> const char * {
     std::size_t count = 0;
     for (auto &c : view) {
         if (c == '(') ++count;
-        if (c == ')') 
-            if (--count == 0) return &c;
-            else if (count < 0) return nullptr;
+        if (c == ')') {
+            --count;
+            if (count == 0) return &c;
+        }
     }
     return nullptr;
 }

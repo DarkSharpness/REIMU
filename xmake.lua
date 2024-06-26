@@ -1,8 +1,9 @@
 add_requires("fmt")
+add_rules("mode.debug", "mode.release")
 
 target("simulator")
-    add_cxflags("-Ofast")
     set_kind("binary")
+    set_warnings("all", "error")
     add_includedirs("include/")
     add_files("src/*.cpp")
     set_toolchains("gcc")

@@ -84,10 +84,10 @@ struct TrivialPass {
     static bool evaluate(Immediate &data) {
         auto &imm = *data.data;
 
-        if (auto *integer = dynamic_cast <IntImmediate *> (&imm))
+        if (dynamic_cast <IntImmediate *> (&imm))
             return true;
 
-        if (auto *symbol = dynamic_cast <StrImmediate *> (&imm))
+        if (dynamic_cast <StrImmediate *> (&imm))
             return false;
 
         if (auto *relative = dynamic_cast <RelImmediate *> (&imm)) {

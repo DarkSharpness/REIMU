@@ -255,7 +255,6 @@ Options:
     };
 
     const auto __set_timeout = [&](std::string_view view) {
-        static constexpr const char kInvalid[]      = "Invalid timeout argument: {}";
         static constexpr const char kMissing[]      = "Missing timeout: {}";
         static constexpr const char kDuplicate[]    = "Duplicate timeout: {}";
         static constexpr const char kNonNegative[]  = "Timeout must be non-negative integer: {}";
@@ -282,7 +281,6 @@ Options:
     };
 
     const auto __set_memory = [&](std::string_view view) {
-        static constexpr const char kInvalid[]      = "Invalid memory argument: {}";
         static constexpr const char kMissing[]      = "Missing memory: {}";
         static constexpr const char kDuplicate[]    = "Duplicate memory: {}";
         static constexpr const char kNonNegative[]  = "Memory must be non-negative integer: {}";
