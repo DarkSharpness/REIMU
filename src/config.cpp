@@ -3,6 +3,7 @@
 #include <default_config.h>
 #include <ranges>
 #include <algorithm>
+#include <variant>
 
 namespace dark {
 

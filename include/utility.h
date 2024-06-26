@@ -2,7 +2,10 @@
 #include <vector>
 #include <iostream>
 #include <source_location>
-#include <format>
+#include <fmtlib>
+#include <optional>
+#include <charconv>
+#include <ranges>
 
 namespace dark {
 

@@ -19,7 +19,7 @@ std::size_t align_size(_Data &storage) {
     } else if constexpr (std::same_as <_Data, ASCIZ>) {
         return 1;
     } else {
-        static_assert(false, "Invalid type");
+        static_assert(sizeof(_Data) != sizeof(_Data), "Invalid type");
     }
 }
 
@@ -34,7 +34,7 @@ std::size_t real_size(_Data &storage) {
     } else if constexpr (std::same_as <_Data, ASCIZ>) {
         return storage.data.size() + 1; // Null terminator
     } else {
-        static_assert(false, "Invalid type");
+        static_assert(sizeof(_Data) != sizeof(_Data), "Invalid type");
     }
 }
 
