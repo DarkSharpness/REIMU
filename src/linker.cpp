@@ -2,10 +2,6 @@
 #include <storage.h>
 #include <libc/libc.h>
 #include <linker/linker.h>
-#include <linker/locate.h>
-#include <linker/estimate.h>
-#include <linker/relaxation.h>
-#include <linker/encoder.h>
 #include <assembly/assembly.h>
 #include <ranges>
 #include <algorithm>
@@ -162,60 +158,6 @@ void Linker::add_libc() {
     }
 
     runtime_assert(libc::kLibcEnd == absolute + count * sizeof(target_size_t));
-}
-
-
-/**
- * Make the estimate of the linker.
- * 
- * This will estimate the size of the sections and
- * align each section to the page size.
- * 
- * Currently, bss, rodata, and data sections are
- * merged to be in the same section, without any
- * separation.
- */
-void Linker::make_estimate() {
-    SizeEstimator estimator { libc::kLibcEnd };
-
-    constexpr std::size_t kPageSize = 0x1000;
-
-    estimator.estimate_section(this->get_section(Section::TEXT));
-
-    estimator.align_to(kPageSize);
-
-    estimator.estimate_section(this->get_section(Section::DATA));
-    estimator.estimate_section(this->get_section(Section::RODATA));
-    estimator.estimate_section(this->get_section(Section::UNKNOWN));
-    estimator.estimate_section(this->get_section(Section::BSS));
-
-    estimator.align_to(kPageSize);
-}
-
-
-void Linker::make_relaxation() {
-    for (auto &vec : this->details_vec)
-        RelaxtionPass(this->global_symbol_table, vec);
-}
-
-/**
- * Link these targeted files.
- * It will translate all symbols into integer constants.
- */
-void Linker::link() {
-    for (auto &vec : this->details_vec)
-        EvaluationPass(this->global_symbol_table, vec);
-
-    auto &result = this->result.emplace();
-
-    for (auto &[name, location] : this->global_symbol_table)
-        result.position_table.emplace(name, location.get_location());
-
-    EncodingPass(result.text, this->get_section(Section::TEXT));
-    EncodingPass(result.data, this->get_section(Section::DATA));
-    EncodingPass(result.rodata, this->get_section(Section::RODATA));
-    EncodingPass(result.unknown, this->get_section(Section::UNKNOWN));
-    EncodingPass(result.bss, this->get_section(Section::BSS));
 }
 
 auto Linker::get_section(Section section) -> _Details_Vec_t & {

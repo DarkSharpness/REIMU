@@ -1,6 +1,7 @@
 #pragma once
 #include <bit>
 #include <cstdint>
+#include <concepts>
 
 namespace dark::command {
 

@@ -1,16 +1,61 @@
-// Should only be included in linker.cpp
-#include "linker.h"
-#include "helper.h"
-#include <utility.h>
 #include <command.h>
+#include <storage.h>
+#include <linker/linker.h>
+#include <linker/evaluate.h>
+#include <linker/estimate.h>
 
 namespace dark {
+
+struct EvaluationPass final : Evaluator, StorageVisitor {
+  public:
+    /**
+     * A pass which will replace all the immediate values with their actual values.
+     * After this pass, all immediate values will be replaced with integer constants.
+     */
+    explicit EvaluationPass(const _Table_t &global_table, const Linker::_Details_Vec_t &vec)
+        : Evaluator(global_table) {
+        for (auto &details : vec) {
+            this->set_local(details.get_local_table());
+            for (auto &&[storage, position] : details) {
+                this->set_position(position);
+                this->visit(*storage);
+            }
+        }
+    }
+
+    void evaluate(Immediate &imm) {
+        auto value = Evaluator::evaluate(*imm.data);
+        imm.data = std::make_unique <IntImmediate> (value);
+    }
+
+  private:
+
+    void visitStorage(ArithmeticReg &storage)       override {}
+    void visitStorage(ArithmeticImm &storage)       override { this->evaluate(storage.imm); }
+    void visitStorage(LoadStore &storage)           override { this->evaluate(storage.imm); }
+    void visitStorage(Branch &storage)              override { this->evaluate(storage.imm); }
+    void visitStorage(JumpRelative &storage)        override { this->evaluate(storage.imm); }
+    void visitStorage(JumpRegister &storage)        override { this->evaluate(storage.imm); }
+    void visitStorage(CallFunction &storage)        override { this->evaluate(storage.imm); }
+    void visitStorage(LoadImmediate &storage)       override { this->evaluate(storage.imm); }
+    void visitStorage(LoadUpperImmediate &storage)  override { this->evaluate(storage.imm); }
+    void visitStorage(AddUpperImmediatePC &storage) override { this->evaluate(storage.imm); }
+    void visitStorage(Alignment &storage)           override {}
+    void visitStorage(IntegerData &storage)         override { this->evaluate(storage.data); }
+    void visitStorage(ZeroBytes &storage)           override {}
+    void visitStorage(ASCIZ &storage)               override {}
+};
+
 
 struct EncodingPass final : StorageVisitor {
     using Section_t = Linker::LinkResult::Section;
     Section_t &data;
     std::size_t position;
 
+    /**
+     * An encoding pass which will encode actual command/data
+     * into real binary data in form of byte array.
+     */
     explicit EncodingPass(Section_t &data, const Linker::_Details_Vec_t &details) : data(data) {
         for (auto &detail : details) {
             data.start = detail.get_start();
@@ -335,5 +380,25 @@ struct EncodingPass final : StorageVisitor {
         while (size --> 0) this->push_byte(storage.data[size]);
     }
 };
+
+/**
+ * Link these targeted files.
+ * It will translate all symbols into integer constants.
+ */
+void Linker::link() {
+    for (auto &vec : this->details_vec)
+        EvaluationPass(this->global_symbol_table, vec);
+
+    auto &result = this->result.emplace();
+
+    for (auto &[name, location] : this->global_symbol_table)
+        result.position_table.emplace(name, location.get_location());
+
+    EncodingPass(result.text, this->get_section(Section::TEXT));
+    EncodingPass(result.data, this->get_section(Section::DATA));
+    EncodingPass(result.rodata, this->get_section(Section::RODATA));
+    EncodingPass(result.unknown, this->get_section(Section::UNKNOWN));
+    EncodingPass(result.bss, this->get_section(Section::BSS));
+}
 
 } // namespace dark
