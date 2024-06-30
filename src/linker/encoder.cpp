@@ -130,6 +130,16 @@ struct EncodingPass final : StorageVisitor {
             match_and_set(SRA);
             match_and_set(OR);
             match_and_set(AND);
+
+            match_and_set(MUL);
+            match_and_set(MULH);
+            match_and_set(MULHSU);
+            match_and_set(MULHU);
+            match_and_set(DIV);
+            match_and_set(DIVU);
+            match_and_set(REM);
+            match_and_set(REMU);
+
             default: runtime_assert(false);
         }
 
