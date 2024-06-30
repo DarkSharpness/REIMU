@@ -1,6 +1,6 @@
 #include <utility.h>
-#include <config.h>
-#include <default_config.h>
+#include <utility/config.h>
+#include <weight.h>
 #include <ranges>
 #include <algorithm>
 #include <variant>

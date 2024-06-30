@@ -1,4 +1,4 @@
-#include <config.h>
+#include <utility/config.h>
 #include <interpreter/interpreter.h>
 #include <assembly/assembly.h>
 #include <linker/linker.h>

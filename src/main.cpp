@@ -1,5 +1,5 @@
-#include "config.h"
-#include "interpreter/interpreter.h"
+#include <utility/config.h>
+#include <interpreter/interpreter.h>
 #include <iostream>
 #include <algorithm>
 #include <chrono>

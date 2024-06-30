@@ -1,8 +1,8 @@
+#include <utility.h>
+#include <libc/libc.h>
 #include <linker/linker.h>
 #include <linker/estimate.h>
-#include <libc/libc.h>
-#include <utility.h>
-#include <storage.h>
+#include <assembly/storage.h>
 
 namespace dark {
 
@@ -99,6 +99,5 @@ void Linker::make_estimate() {
 
     estimator.align_to(kPageSize);
 }
-
 
 } // namespace dark

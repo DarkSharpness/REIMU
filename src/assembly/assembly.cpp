@@ -1,7 +1,7 @@
 #include <utility.h>
 #include <assembly/assembly.h>
 #include <assembly/helper.h>
-#include <default_config.h>
+#include <weight.h>
 #include <fstream>
 #include <algorithm>
 

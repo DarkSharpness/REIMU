@@ -1,11 +1,10 @@
+#pragma once
 #include <declarations.h>
 #include <string_view>
 
-namespace dark {
+namespace dark::libc {
 
-namespace libc {
-
-constexpr std::string_view names[] = {
+inline static constexpr std::string_view names[] = {
     // IO functions
     "puts",
     "putchar",
@@ -35,10 +34,7 @@ constexpr std::string_view names[] = {
     "strcmp",
 };
 
-constexpr auto kLibcStart = 0x10000;
-constexpr auto kLibcEnd = kLibcStart + std::size(libc::names) * sizeof(target_size_t);
+inline static constexpr auto kLibcStart = 0x10000;
+inline static constexpr auto kLibcEnd = kLibcStart + std::size(libc::names) * sizeof(target_size_t);
 
-} // namespace libc
-
-
-} // namespace dark
+} // namespace dark::libc

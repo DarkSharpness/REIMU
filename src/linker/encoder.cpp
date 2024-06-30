@@ -1,5 +1,5 @@
-#include <command.h>
-#include <storage.h>
+#include <riscv/command.h>
+#include <assembly/storage.h>
 #include <linker/linker.h>
 #include <linker/evaluate.h>
 #include <linker/estimate.h>

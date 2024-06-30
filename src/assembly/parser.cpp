@@ -1,6 +1,5 @@
-#include <storage.h>
 #include <utility.h>
-#include <exception.h>
+#include <assembly/storage.h>
 
 namespace dark {
 
@@ -18,11 +17,6 @@ static bool is_split_real(char c) {
 
 static bool is_split_char(char c) {
     return std::isspace(c) || is_split_real(c);
-}
-
-[[maybe_unused]]
-static bool is_label_char(char c) {
-    return std::isalnum(c) || c == '_' || c == '.' || c == '@';
 }
 
 static auto remove_front_whitespace(std::string_view str) -> std::string_view {

@@ -1,7 +1,7 @@
 #pragma once
 #include <declarations.h>
-#include <register.h>
-#include <ustring.h>
+#include <riscv/register.h>
+#include <utility/ustring.h>
 #include <vector>
 
 // Immediate
@@ -311,5 +311,7 @@ struct ASCIZ final : RealData {
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
 };
+
+bool is_label_char(char c);
 
 } // namespace dark

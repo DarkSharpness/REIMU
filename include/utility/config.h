@@ -11,7 +11,7 @@ struct Config {
     std::string_view output_file;                   // Output file
     std::vector <std::string_view> assembly_files;  // Assembly files
 
-    inline static constexpr std::size_t uninitialized = std::size_t(-1);
+    static constexpr std::size_t uninitialized = std::size_t(-1);
 
     std::size_t storage_size = uninitialized;     // Memory storage 
     std::size_t maximum_time = uninitialized;     // Maximum time

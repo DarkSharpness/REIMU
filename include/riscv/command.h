@@ -16,7 +16,7 @@ struct crtp {
 };
 
 template <std::size_t _Len, std::unsigned_integral _Tp>
-constexpr _Tp sign_extend(_Tp value) {
+inline constexpr _Tp sign_extend(_Tp value) {
     static_assert(_Len <= sizeof(_Tp) * 8, "N must be less than the size of the type");
     using _Vp = std::make_signed_t <_Tp>;
     struct { _Vp x : _Len; } s;
