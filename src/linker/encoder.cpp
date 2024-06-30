@@ -179,7 +179,12 @@ struct EncodingPass final : StorageVisitor {
 
         cmd.rd  = reg_to_int(storage.rd);
         cmd.rs1 = reg_to_int(storage.rs1);
-        cmd.set_imm(imm_to_int(storage.imm));
+        auto imm = imm_to_int(storage.imm);
+        if (storage.opcode != SRA) {
+            cmd.set_imm(imm);
+        } else { // SRA has a different encoding
+            cmd.set_imm(imm | command::i_type::Funct7::SRA << 5);
+        }
 
         this->push_command(cmd.to_integer());
     }
