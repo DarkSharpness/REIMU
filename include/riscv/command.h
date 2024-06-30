@@ -11,8 +11,9 @@ template <typename _Derived>
 struct crtp {
     constexpr auto to_integer() const -> std::uint32_t {
         auto &derived = static_cast<const _Derived&>(*this);
-        return std::bit_cast<std::uint32_t>(static_cast<const _Derived&>(derived));
+        return std::bit_cast<std::uint32_t>(derived);
     }
+    static constexpr auto from_integer(std::uint32_t cmd) -> _Derived;
 };
 
 template <std::size_t _Len, std::unsigned_integral _Tp>
@@ -74,6 +75,20 @@ enum Funct : std::uint32_t {
 };
 
 } // namespace Arith_Funct7
+
+// A layout without considering immediate values
+struct standard_layout {
+    std::uint32_t opcode : 7;
+    std::uint32_t rd     : 5;
+    std::uint32_t funct3 : 3;
+    std::uint32_t rs1    : 5;
+    std::uint32_t rs2    : 5;
+    std::uint32_t funct7 : 7;
+};
+
+inline constexpr auto make_std(std::uint32_t cmd) -> standard_layout {
+    return std::bit_cast <standard_layout> (cmd);
+}
 
 } // namespace __details
 
@@ -313,5 +328,26 @@ struct jal : __details::crtp <jal> {
         imm_20 = imm >> 20;
     }
 };
+
+inline constexpr auto get_opcode(std::uint32_t cmd) {
+    return __details::make_std(cmd).opcode;
+}
+
+inline constexpr auto get_funct3(std::uint32_t cmd) {
+    return __details::make_std(cmd).funct3;
+}
+
+inline constexpr auto get_funct7(std::uint32_t cmd) {
+    return __details::make_std(cmd).funct7;
+}
+
+namespace __details {
+    
+template <typename _Derived>
+constexpr auto crtp <_Derived>::from_integer(std::uint32_t cmd)
+-> _Derived { return std::bit_cast <_Derived> (cmd); }
+
+} // namespace __details
+
 
 } // namespace dark::command

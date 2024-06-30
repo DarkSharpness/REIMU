@@ -51,6 +51,8 @@ Interpreter::Interpreter(const Config &config) {
 
     if (config.option_table.at("detail")) print_link_result(result);
 
+    // Reset the memory storage
+    assemblies = decltype(assemblies) {};
 }
 
 
