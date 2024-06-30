@@ -7,15 +7,15 @@
 
 namespace dark {
 
-using weight::kWeightCount;
 using weight::weight_ranges;
-using weight::kOther;
-
+using weight::kManual;
+using weight::kWeightCount;
+using weight::parse_manual;
 
 using _Option_Map_t = decltype(Config::option_table);
 using _Weight_Map_t = decltype(Config::weight_table);
 
-static constexpr std::array option_list = []() {
+static constexpr auto option_list = []() {
     using _Pair_t = std::pair <std::string_view, bool>;
     return std::array {
         _Pair_t("debug",    false),
@@ -24,25 +24,15 @@ static constexpr std::array option_list = []() {
     };
 } ();
 
-static constexpr std::array weight_list = []() {
+static constexpr auto weight_list = []() {
     using _Pair_t = std::pair <std::string_view, std::size_t>;
     std::array <_Pair_t, kWeightCount> table {};
     std::size_t which {};
     for (const auto &[name, list, weight] : weight_ranges) {
-        if (weight != kOther) {
-            for (auto item : list)
-                table[which++] = { item, weight };
+        if (weight != kManual) {
+            for (auto item : list) table[which++] = { item, weight };
         } else {
-            for (auto item : list) {
-                auto pos = item.find('=');
-                std::size_t weight = 0;
-                for (auto c : item.substr(pos + 1)) {
-                    if (c < '0' || c > '9') throw;
-                    weight = weight * 10 + c - '0';
-                }
-                item = item.substr(0, pos);
-                table[which++] = { item, weight };
-            }
+            for (auto item : list) table[which++] = parse_manual(item);
         }
     }
     if (which != kWeightCount) throw;
@@ -132,14 +122,14 @@ void Config::print_in_detail() const {
     std::cout << "  Weights:\n";
     for (const auto& [name, list, weight] : weight_ranges) {
         std::cout << "    " << name << ":\n";
-        if (weight != kOther) {
+        if (weight != kManual) {
             for (auto iter : list) {
-            std::cout << std::format(kFormat, iter, this->weight_table.at(iter));
+                std::cout << std::format(kFormat, iter, this->weight_table.at(iter));
             }
         } else {
             for (auto iter : list) {
-                auto view = iter.substr(0, iter.find('='));
-                std::cout << std::format(kFormat, view, this->weight_table.at(view));
+                auto name = parse_manual(iter).first;
+                std::cout << std::format(kFormat, name, this->weight_table.at(name));
             }
         }
     }
