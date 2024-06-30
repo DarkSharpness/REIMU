@@ -1,5 +1,6 @@
 #pragma once
 #include <declarations.h>
+#include <general.h>
 #include <riscv/register.h>
 #include <utility/ustring.h>
 #include <vector>
@@ -91,29 +92,10 @@ struct StorageVisitor {
 
 namespace dark {
 
-namespace __details {
-
-enum class ArithOpcode : std::uint8_t {
-    // Normal arithmetic
-    ADD, SUB, AND, OR, XOR, SLL, SRL, SRA, SLT, SLTU,
-    // Multiplication and division extension
-    MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM, REMU
-};
-
-enum class MemoryOpcode : std::uint8_t {
-    LB, LH, LW, LBU, LHU, SB, SH, SW
-};
-
-enum class BranchOpcode : std::uint8_t {
-    BEQ, BNE, BLT, BGE, BLTU, BGEU
-};
-
-} // namespace __details
-
 struct Command : Storage {};
 
 struct ArithmeticReg final : Command {
-    using Opcode = __details::ArithOpcode;
+    using Opcode = general::ArithOp;
     Opcode opcode;
     Register rd;
     Register rs1;
@@ -131,7 +113,7 @@ struct ArithmeticReg final : Command {
 };
 
 struct ArithmeticImm final : Command {
-    using Opcode = __details::ArithOpcode;
+    using Opcode = general::ArithOp;
     Opcode opcode;
     Register rd;
     Register rs1;
@@ -156,7 +138,7 @@ struct ArithmeticImm final : Command {
 };
 
 struct LoadStore final : Command {
-    using Opcode = __details::MemoryOpcode;
+    using Opcode = general::MemoryOp;
     Opcode opcode;
     Register rd;
     Register rs1;
@@ -179,7 +161,7 @@ struct LoadStore final : Command {
 };
 
 struct Branch final : Command {
-    using Opcode = __details::BranchOpcode;
+    using Opcode = general::BranchOp;
     Opcode opcode;
     Register rs1;
     Register rs2;

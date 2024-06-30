@@ -4,7 +4,7 @@
 #include <string_view>
 
 /* Some weight configurations. */
-namespace dark::__config {
+namespace dark::weight {
 
 static constexpr std::size_t kArith     = 1;
 static constexpr std::size_t kBitwise   = 1;
@@ -69,4 +69,4 @@ static constexpr std::size_t kWeightCount = []() {
 static constexpr std::size_t kMaxAlign = 20;
 static constexpr std::size_t kMaxZeros = 1ull << 32;
 
-} // namespace dark::__config
+} // namespace dark::weight

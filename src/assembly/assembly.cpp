@@ -1,7 +1,6 @@
 #include <utility.h>
 #include <assembly/assembly.h>
 #include <assembly/helper.h>
-#include <weight.h>
 #include <fstream>
 #include <algorithm>
 
@@ -221,7 +220,7 @@ auto Assembler::parse_storage_impl(std::string_view token, std::string_view rest
         return std::string_view {};
     };
     constexpr auto __set_align = [](Assembler *ptr, std::string_view rest) {
-        using __config::kMaxAlign;
+        constexpr std::size_t kMaxAlign = 20;
         auto [num_str, new_rest] = find_first_token(rest);
         auto num = sv_to_integer <std::size_t> (num_str).value_or(kMaxAlign);
         throw_if <FailToParse> (num >= kMaxAlign, "Invalid alignment value: \"{}\"", rest);
@@ -240,7 +239,7 @@ auto Assembler::parse_storage_impl(std::string_view token, std::string_view rest
     };
     constexpr auto __set_zeros = [](Assembler *ptr, std::string_view rest) {
         auto [num_str, new_rest] = find_first_token(rest);
-        using __config::kMaxZeros;
+        constexpr std::size_t kMaxZeros = std::size_t{1} << 20;
         auto num = sv_to_integer <std::size_t> (num_str).value_or(kMaxZeros);
         throw_if <FailToParse> (num >= kMaxZeros, "Invalid zero count: \"{}\"", num_str);
         ptr->storages.push_back(std::make_unique <ZeroBytes> (num));
