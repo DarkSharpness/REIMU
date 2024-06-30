@@ -23,11 +23,11 @@ struct Linker {
 
     explicit Linker(std::span<Assembler>);
 
-    const auto &get_result() { return *result; }
+    [[nodiscard]] auto get_result() && { return std::move(result.value()); }
 
     struct LinkResult {
         // A table that maps the symbol to its final position.
-        std::unordered_map <std::string_view, std::size_t> position_table;
+        std::unordered_map <std::string, std::size_t> position_table;
         // A table which indicates the storage at given position.
         // The vector should be 4 bytes aligned at least.
         struct Section {

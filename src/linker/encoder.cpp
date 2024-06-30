@@ -57,9 +57,10 @@ struct EncodingPass final : StorageVisitor {
      * into real binary data in form of byte array.
      */
     explicit EncodingPass(Section_t &data, const Linker::_Details_Vec_t &details) : data(data) {
+        if (details.empty()) return;
+        data.start = details.front().get_start();
         for (auto &detail : details) {
-            data.start = detail.get_start();
-            this->position = data.start;
+            this->position = detail.get_start();
             for (auto &&[storage, position] : detail) {
                 runtime_assert(position == this->position);
                 this->visit(*storage);
