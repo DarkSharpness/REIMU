@@ -246,6 +246,20 @@ auto Assembler::parse_storage_impl(std::string_view token, std::string_view rest
         ptr->storages.push_back(std::make_unique <ZeroBytes> (num));
         return new_rest;
     };
+    constexpr auto __set_label = [](Assembler *ptr, std::string_view rest) {
+        auto [label, new_rest] = find_first_token(rest);
+        throw_if <FailToParse> (!new_rest.starts_with(','));
+        new_rest.remove_prefix(1);
+        new_rest = remove_front_whitespace(new_rest);
+        new_rest = remove_back_whitespace(new_rest);
+        /* Allow new rest = . or . + 0 */
+        if (new_rest == "." || new_rest == ". + 0") {
+            ptr->add_label(label);
+            return std::string_view {};
+        }
+        throw FailToParse {};
+    };
+
     // Warn once for those known yet ignored attributes.
     constexpr auto __warn_once = [](std::string_view str) {
         static std::unordered_set <std::string> ignored_attributes;
@@ -282,6 +296,7 @@ auto Assembler::parse_storage_impl(std::string_view token, std::string_view rest
         match_or_break("asciz",     __set_asciz);
         match_or_break("zero",      __set_zeros);
         match_or_break("globl",     __set_globl);
+        match_or_break("set",       __set_label);
     }
     #undef match_or_break
 
@@ -397,6 +412,10 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
         split_command <0> (rest);
         ptr->storages.push_back(std::make_unique <JumpRegister> ("zero", "ra", "0"));
     };
+    constexpr auto __insert_lla = [](Assembler *ptr, std::string_view rest) {
+        auto [rd, label] = split_command <2> (rest);
+        ptr->storages.push_back(std::make_unique <LoadImmediate> (rd, label));
+    };
 
     using namespace ::dark::__hash;
 
@@ -486,6 +505,8 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
         match_or_break("jr",    __insert_jr);
         match_or_break("ret",   __insert_ret);
 
+        match_or_break("la",    __insert_lla);
+        match_or_break("lla",   __insert_lla);
     }
 
     throw FailToParse { std::format("Unknown command: \"{}\"", token) };
