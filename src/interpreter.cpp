@@ -12,7 +12,6 @@ Interpreter::Interpreter(const Config &config) {
         assemblies.emplace_back(file);
 
     Linker linker { assemblies };
-
 }
 
 

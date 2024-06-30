@@ -40,9 +40,9 @@ struct Evaluator {
      */
     auto get_symbol_position(std::string_view str) const {
         if (auto it = this->local_table->find(str); it != this->local_table->end())
-            return it->second.query_position();
+            return it->second.get_location();
         if (auto it = this->global_table.find(str); it != this->global_table.end())
-            return it->second.query_position();
+            return it->second.get_location();
         panic("Unknown symbol \"{}\"", str);
     }
 
@@ -68,23 +68,21 @@ struct Evaluator {
         if (auto *integer = dynamic_cast <const IntImmediate *> (&imm))
             return integer->data;
 
-        if (auto *symbol = dynamic_cast <const StrImmediate *> (&imm)) {
-            auto [absolute, relative] =
-                this->get_symbol_position(symbol->data.to_sv());
-            return absolute + relative;
-        }
+        if (auto *symbol = dynamic_cast <const StrImmediate *> (&imm))
+            return this->get_symbol_position(symbol->data.to_sv());
 
         if (auto *relative = dynamic_cast <const RelImmediate *> (&imm))
-            switch (relative->operand) {
+            switch (auto value = evaluate(*relative->imm.data); relative->operand) {
                 using enum RelImmediate::Operand;
-                case HI: return evaluate(*relative->imm.data) >> 12;
-                case LO: return evaluate(*relative->imm.data) & 0xFFF;
+                case HI: return split_lo_hi(value).hi;
+                case LO: return split_lo_hi(value).lo;
                 case PCREL_HI:
-                    return (evaluate(*relative->imm.data) - this->position) >> 12;
+                    return (value - this->position) >> 12;
                 case PCREL_LO:
-                    return (evaluate(*relative->imm.data) - this->position) & 0xFFF;
+                    return (value - this->position) & 0xFFF;
                 default: runtime_assert(false);
             }
+
 
         return this->evaluate_tree(dynamic_cast <const TreeImmediate &> (imm));
     }

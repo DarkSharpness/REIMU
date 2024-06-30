@@ -5,11 +5,49 @@
 #include <linker/locate.h>
 #include <linker/estimate.h>
 #include <linker/relaxation.h>
+#include <linker/encoder.h>
 #include <assembly/assembly.h>
 #include <ranges>
 #include <algorithm>
 
 namespace dark {
+
+using Iterator = Linker::StorageDetails::Iterator;
+
+bool operator == (const Iterator &lhs, const Iterator &rhs) {
+    return lhs.storage == rhs.storage;
+}
+
+Iterator &Iterator::operator ++() {
+    ++this->storage;
+    this->location.next_offset();
+    return *this;
+}
+
+Linker::StorageDetails::StorageDetails(_Slice_t storage, _Symbol_Table_t &table)
+    : storage(storage), begin_position(),
+      offsets(std::make_unique <std::size_t[]> (storage.size() + 1)),
+      table(&table) {}
+
+auto Linker::StorageDetails::begin() const -> Iterator {
+    return Iterator {
+        .storage    = this->storage.data(),
+        .location   = SymbolLocation { *this, 0 }
+    };
+}
+
+auto Linker::StorageDetails::end() const -> Iterator {
+    return Iterator {
+        .storage    = this->storage.data() + this->storage.size(),
+        .location   = SymbolLocation { *this, this->storage.size() }
+    };
+}
+
+Linker::SymbolLocation::SymbolLocation(const StorageDetails &details, std::size_t index)
+    : absolute(&details.begin_position), offset(details.offsets.get() + index) {
+    // Allow to be at the end, due to zero-size storage
+    runtime_assert(index <= details.storage.size());
+}
 
 struct SymbolLocationLibc : Linker::SymbolLocation {
     explicit SymbolLocationLibc(const std::size_t &position, const std::size_t &offset)
@@ -45,9 +83,6 @@ Linker::Linker(std::span <Assembler> data) {
     this->make_estimate();
 
     this->link();
-
-    for (auto &assembler : data)
-        assembler.debug(std::cout);
 }
 
 
@@ -68,9 +103,6 @@ void Linker::add_file(Assembler &assembler, _Symbol_Table_t &local_table) {
 
             // Index of the element
             std::size_t index = pointer - iter->first;
-
-            // Allow to be equal since the last object may be zero-sized
-            runtime_assert(index <= iter->second->storage.size());
 
             return SymbolLocation { *iter->second, index };
         }
@@ -154,8 +186,8 @@ void Linker::make_estimate() {
 
     estimator.estimate_section(this->get_section(Section::DATA));
     estimator.estimate_section(this->get_section(Section::RODATA));
-    estimator.estimate_section(this->get_section(Section::BSS));
     estimator.estimate_section(this->get_section(Section::UNKNOWN));
+    estimator.estimate_section(this->get_section(Section::BSS));
 
     estimator.align_to(kPageSize);
 }
@@ -173,6 +205,17 @@ void Linker::make_relaxation() {
 void Linker::link() {
     for (auto &vec : this->details_vec)
         EvaluationPass(this->global_symbol_table, vec);
+
+    auto &result = this->result.emplace();
+
+    for (auto &[name, location] : this->global_symbol_table)
+        result.position_table.emplace(name, location.get_location());
+
+    EncodingPass(result.text, this->get_section(Section::TEXT));
+    EncodingPass(result.data, this->get_section(Section::DATA));
+    EncodingPass(result.rodata, this->get_section(Section::RODATA));
+    EncodingPass(result.unknown, this->get_section(Section::UNKNOWN));
+    EncodingPass(result.bss, this->get_section(Section::BSS));
 }
 
 auto Linker::get_section(Section section) -> _Details_Vec_t & {

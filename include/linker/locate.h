@@ -9,11 +9,9 @@ struct EvaluationPass final : Evaluator, StorageVisitor {
     explicit EvaluationPass(const _Table_t &global_table, const Linker::_Details_Vec_t &vec)
         : Evaluator(global_table) {
         for (auto &details : vec) {
-            this->set_local(details.table);
-            std::size_t index   = 0;
-            std::size_t current = details.begin_position;
-            for (auto &storage : details.storage) {
-                this->set_position(current + details.offsets[index++]);
+            this->set_local(details.get_local_table());
+            for (auto &&[storage, position] : details) {
+                this->set_position(position);
                 this->visit(*storage);
             }
         }

@@ -1,44 +1,11 @@
 // Should only be included once by linker.cpp
 #include "linker.h"
+#include "helper.h"
 #include <utility.h>
 #include <storage.h>
 #include <ustring.h>
 
 namespace dark {
-
-namespace __details {
-
-template <std::derived_from <RealData> _Data>
-std::size_t align_size(_Data &storage) {
-    if constexpr (std::same_as <_Data, Alignment>) {
-        return storage.alignment;
-    } else if constexpr (std::same_as <_Data, IntegerData>) {
-        return std::size_t(1) << static_cast <int> (storage.type);
-    } else if constexpr (std::same_as <_Data, ZeroBytes>) {
-        return 1;
-    } else if constexpr (std::same_as <_Data, ASCIZ>) {
-        return 1;
-    } else {
-        static_assert(sizeof(_Data) != sizeof(_Data), "Invalid type");
-    }
-}
-
-template <std::derived_from <RealData> _Data>
-std::size_t real_size(_Data &storage) {
-    if constexpr (std::same_as <_Data, Alignment>) {
-        return 0;
-    } else if constexpr (std::same_as <_Data, IntegerData>) {
-        return align_size(storage) * 1;
-    } else if constexpr (std::same_as <_Data, ZeroBytes>) {
-        return storage.count;
-    } else if constexpr (std::same_as <_Data, ASCIZ>) {
-        return storage.data.size() + 1; // Null terminator
-    } else {
-        static_assert(sizeof(_Data) != sizeof(_Data), "Invalid type");
-    }
-}
-
-} // namespace __details
 
 /**
  * A pessimistic size estimator for the linker.
@@ -62,13 +29,14 @@ struct SizeEstimator final : StorageVisitor {
 
     void estimate_section(Linker::_Details_Vec_t &vec) {
         for (auto &details : vec) {
-            details.offsets[0] = 0;
+            auto offsets = details.get_offsets();
+            offsets[0] = 0;
             const auto start = this->get_position();
-            details.begin_position = start;
-            auto *pointer = details.offsets.get();
-            for (auto &storage : details.storage) {
+            details.set_start(start);
+            std::size_t index = 0;
+            for (auto &&[storage, _] : details) {
                 this->visit(*storage);
-                *++pointer = this->get_position() - start;
+                offsets[++index] = this->get_position() - start;
             }
         }
     }

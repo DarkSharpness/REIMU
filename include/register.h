@@ -1,5 +1,4 @@
 #pragma once
-#include <declarations.h>
 #include <cstdint>
 #include <string_view>
 
@@ -38,11 +37,19 @@ enum class Register : std::uint8_t {
     t3 = 28,
     t4 = 29,
     t5 = 30,
-    t6 = 31
+    t6 = 31,
 };
 
 // Convert a string to a register
 Register sv_to_reg(std::string_view);
 std::string_view reg_to_sv(Register);
+
+inline constexpr std::uint32_t reg_to_int(Register reg) {
+    return static_cast <std::uint32_t> (reg);
+}
+
+inline constexpr Register int_to_reg(std::uint32_t reg) {
+    return static_cast <Register> (reg);
+}
 
 } // namespace dark

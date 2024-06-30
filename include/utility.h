@@ -1,4 +1,5 @@
 #pragma once
+#include <declarations.h>
 #include <vector>
 #include <iostream>
 #include <source_location>
@@ -112,13 +113,24 @@ inline void runtime_assert(_Tp &&condition, std::source_location where = std::so
 }
 
 template <std::integral _Tp>
-auto sv_to_integer(std::string_view view, int base = 10) -> std::optional <_Tp> {
+inline auto sv_to_integer(std::string_view view, int base = 10) -> std::optional <_Tp> {
     _Tp result;
     auto res = std::from_chars(view.data(), view.data() + view.size(), result, base);
     if (res.ec == std::errc() && res.ptr == view.end())
         return result;
     else
         return std::nullopt;
+}
+
+inline constexpr auto split_lo_hi(target_size_t num) {
+    struct Result {
+        target_size_t lo;
+        target_size_t hi;
+    };
+    return Result {
+        .lo = num & 0xFFF,
+        .hi = num >> 12
+    };
 }
 
 namespace __hash {

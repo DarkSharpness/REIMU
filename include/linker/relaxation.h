@@ -21,11 +21,9 @@ struct RelaxtionPass final : private Evaluator, StorageVisitor {
     explicit RelaxtionPass(const _Table_t &global_table, const Linker::_Details_Vec_t &vec)
         : Evaluator(global_table) {
         for (auto &details : vec) {
-            this->set_local(details.table);
-            std::size_t index   = 0;
-            std::size_t current = details.begin_position;
-            for (auto &storage : details.storage) {
-                this->set_position(current + details.offsets[index++]);
+            this->set_local(details.get_local_table());
+            for (auto &&[storage, position] : details) {
+                this->set_position(position);
                 this->visit(*storage);
                 if (retval) storage = std::move(retval);
             }
@@ -59,8 +57,7 @@ struct RelaxtionPass final : private Evaluator, StorageVisitor {
 
         auto &str = static_cast <StrImmediate &> (*imm);
         auto current = Evaluator::get_current_location();
-        auto [absolute, relative] = Evaluator::get_symbol_position(str.data.to_sv());
-        auto destination = absolute + relative;
+        auto destination = Evaluator::get_symbol_position(str.data.to_sv());
 
         // Maybe we should not optimize libc calls.
         // if (destination <= libc::kLibcEnd) return;
@@ -76,7 +73,7 @@ struct RelaxtionPass final : private Evaluator, StorageVisitor {
 
         if (kJumpMin / 2 <= distance && distance <= kJumpMax / 2) {
             using enum Register;
-            if (call.tail) {
+            if (call.is_tail_call()) {
                 retval = std::make_unique <JumpRelative> (zero, std::move(call.imm));
             } else {
                 retval = std::make_unique <JumpRelative> (ra, std::move(call.imm));

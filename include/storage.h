@@ -171,6 +171,11 @@ struct LoadStore final : Command {
 
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
+
+    bool is_load() const {
+        return opcode == Opcode::LB || opcode == Opcode::LH || opcode == Opcode::LW ||
+               opcode == Opcode::LBU || opcode == Opcode::LHU;
+    }
 };
 
 struct Branch final : Command {
@@ -218,7 +223,9 @@ struct JumpRegister final : Command {
 };
 
 struct CallFunction final : Command {
+  private:
     bool tail;
+  public:
     Immediate imm;
 
     explicit CallFunction(bool is_tail, std::string_view imm) :
@@ -226,6 +233,8 @@ struct CallFunction final : Command {
 
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
+
+    bool is_tail_call() const { return tail; }
 };
 
 struct LoadImmediate final : Command {
