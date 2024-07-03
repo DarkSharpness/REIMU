@@ -2,6 +2,7 @@
 #include "assembly.h"
 #include "storage.h"
 #include <utility.h>
+#include "exception.h"
 
 // Some useful helper functions.
 

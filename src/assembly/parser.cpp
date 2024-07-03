@@ -1,5 +1,6 @@
 #include <utility.h>
 #include <assembly/storage.h>
+#include <assembly/exception.h>
 
 namespace dark {
 
