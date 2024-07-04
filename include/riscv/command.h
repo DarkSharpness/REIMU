@@ -253,7 +253,7 @@ struct auipc : __details::crtp <auipc> {
     }
 
     void set_imm(std::uint32_t imm) {
-        this->imm = imm >> 12;
+        this->imm = imm;
     }
 };
 
@@ -273,7 +273,7 @@ struct lui : __details::crtp <lui> {
     }
 
     void set_imm(std::uint32_t imm) {
-        this->imm = imm >> 12;
+        this->imm = imm;
     }
 };
 

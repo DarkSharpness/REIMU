@@ -340,7 +340,7 @@ struct EncodingPass final : StorageVisitor {
 
         cmd_0.rd = rd;
         cmd_0.set_imm(hi);
-        cmd_1.funct3 = 0b011;
+        cmd_1.funct3 = command::i_type::Funct3::ADD;
         cmd_1.rd = rd;
         cmd_1.rs1 = rd;
         cmd_1.set_imm(lo);
