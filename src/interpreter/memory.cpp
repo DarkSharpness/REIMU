@@ -19,7 +19,7 @@ using u8    = std::uint8_t;
 using u16   = std::uint16_t;
 using u32   = std::uint32_t;
 
-struct Memory_Impl_Data {
+struct Memory_Impl_Meta {
     target_size_t text_start;
     target_size_t text_finish;
     target_size_t mem_start;
@@ -28,21 +28,19 @@ struct Memory_Impl_Data {
     std::vector <Executable> exes;
 };
 
-struct Memory::Impl : Memory, Memory_Impl_Data {
-    std::byte *get_storage() { return reinterpret_cast <std::byte *> (this); }
+/**
+ * Real Memory layout:
+ * - Libc text
+ * - Text
+ * - Data
+ * - RoData
+ * - Bss
+ * - Heap
+ */
+struct Memory::Impl : Memory, Memory_Impl_Meta {
+    explicit Impl(const Config &, const MemoryLayout &);
 
-    template <std::integral _Int>
-    auto checked_access(target_size_t addr) -> _Int {
-        if (addr < this->mem_start || addr > this->mem_finish - sizeof(_Int))
-            throw FailToInterpret { Error::LoadOutOfBound, addr, sizeof(_Int) };
-
-        if (addr % sizeof(_Int) != 0)
-            throw FailToInterpret { Error::LoadMisAligned, addr, sizeof(_Int) };
-
-        return *reinterpret_cast <_Int *> (this->get_storage() + addr);
-    }
-
-    auto checked_access_cmd(target_size_t addr) -> target_size_t {
+    auto checked_fetch_cmd(target_size_t addr) -> target_size_t {
         static_assert(sizeof(target_size_t) == 4);
 
         if (addr < this->text_start || addr > this->text_finish - 4)
@@ -52,6 +50,17 @@ struct Memory::Impl : Memory, Memory_Impl_Data {
             throw FailToInterpret { Error::InsMisAligned, addr, 4 };
 
         return *reinterpret_cast <target_size_t *> (this->get_storage() + addr);
+    }
+
+    template <std::integral _Int>
+    auto checked_read(target_size_t addr) -> _Int {
+        if (addr < this->mem_start || addr > this->mem_finish - sizeof(_Int))
+            throw FailToInterpret { Error::LoadOutOfBound, addr, sizeof(_Int) };
+
+        if (addr % sizeof(_Int) != 0)
+            throw FailToInterpret { Error::LoadMisAligned, addr, sizeof(_Int) };
+
+        return *reinterpret_cast <_Int *> (this->get_storage() + addr);
     }
 
     template <std::integral _Int>
@@ -67,9 +76,13 @@ struct Memory::Impl : Memory, Memory_Impl_Data {
 
     auto fetch_exe(target_size_t) ->Executable &;
     auto fetch_exe_libc(target_size_t) -> Executable &;
+
+    /** Return start address of storage (with some bias).  */
+    std::byte *get_storage() { return this->storage - kTextStart; }
+    std::byte storage[];
 };
 
-static_assert(sizeof(Memory::Impl) <= libc::kLibcStart,
+static_assert(sizeof(Memory::Impl) <= kTextStart,
     "Memory::Impl is too large, which overlaps with the real program");
 
 auto Memory::get_impl() -> Impl & {
@@ -77,31 +90,31 @@ auto Memory::get_impl() -> Impl & {
 }
 
 auto Memory::load_i8(target_size_t addr) -> std::int8_t {
-    return this->get_impl().checked_access <i8> (addr);
+    return this->get_impl().checked_read <i8> (addr);
 }
 
 auto Memory::load_i16(target_size_t addr) -> std::int16_t {
-    return this->get_impl().checked_access <i16> (addr);
+    return this->get_impl().checked_read <i16> (addr);
 }
 
 auto Memory::load_i32(target_size_t addr) -> std::int32_t {
-    return this->get_impl().checked_access <i32> (addr);
+    return this->get_impl().checked_read <i32> (addr);
 }
 
 auto Memory::load_u8(target_size_t addr) -> std::uint8_t {
-    return this->get_impl().checked_access <u8> (addr);
+    return this->get_impl().checked_read <u8> (addr);
 }
 
 auto Memory::load_u16(target_size_t addr) -> std::uint16_t {
-    return this->get_impl().checked_access <u16> (addr);
+    return this->get_impl().checked_read <u16> (addr);
 }
 
 auto Memory::load_u32(target_size_t addr) -> u32 {
-    return this->get_impl().checked_access <u32> (addr);
+    return this->get_impl().checked_read <u32> (addr);
 }
 
 auto Memory::load_cmd(target_size_t addr) -> u32 {
-    return this->get_impl().checked_access_cmd(addr);
+    return this->get_impl().checked_fetch_cmd(addr);
 }
 
 void Memory::store_u8(target_size_t addr, u8 value) {
@@ -117,54 +130,61 @@ void Memory::store_u32(target_size_t addr, u32 value) {
 }
 
 auto Memory::create(const Config &config, const MemoryLayout &result) -> std::unique_ptr <Memory> {
-    // Extra sizeof(target_size_t) zero bytes for safe string operations
-    const auto length = result.bss.end() + sizeof(target_size_t);
-    auto *mem = new std::byte[length];
-    std::ranges::fill_n(mem, length, std::byte{});
+    const auto static_length = result.bss.end() - kTextStart;
+    const auto length = sizeof(Memory::Impl) + static_length;
 
+    auto *mem = new std::byte[length] {};
     auto *ptr = std::launder(reinterpret_cast <Memory::Impl *> (mem));
-    new (ptr) Memory::Impl;
 
-    // Initialize the memory layout
-    runtime_assert(result.text.start == libc::kLibcEnd);
-    // The memory must be at least aligned to the size of target_size_t
-    runtime_assert(reinterpret_cast <std::size_t> (mem) % alignof(target_size_t) == 0);
-
-    ptr->text_start = result.text.begin();
-    ptr->text_finish = result.text.end();
-
-    static_assert(sizeof(std::byte) == sizeof(char));
-    std::ranges::copy(result.text.storage, mem + result.text.begin());
-
-    ptr->mem_start = result.data.begin();
-    ptr->mem_finish = config.storage_size;
-    ptr->heap_start = result.bss.end();
-
-    std::ranges::copy(result.data.storage, mem + result.data.begin());
-    std::ranges::copy(result.rodata.storage, mem + result.rodata.begin());
-    std::ranges::copy(result.bss.storage, mem + result.bss.begin());
-
-    ptr->exes.resize((ptr->text_finish - ptr->text_start) / sizeof(target_size_t));
+    new (ptr) Memory::Impl { config, result };
 
     return std::unique_ptr <Memory> { ptr };
 }
 
+Memory::Impl::Impl(const Config &config, const MemoryLayout &result) {
+    runtime_assert(result.text.begin() == libc::kLibcEnd);
+    static_assert(alignof(target_size_t) == 4);
+    runtime_assert(reinterpret_cast <std::size_t> (this->get_storage()) % 4 == 0);
+
+    auto *storage = this->get_storage();
+
+    // Text section.
+    this->text_start = result.text.begin();
+    this->text_finish = result.text.end();
+
+    std::ranges::copy(result.text.storage, storage + result.text.begin());
+
+    // Data section.
+    this->mem_start = result.data.begin();
+    this->mem_finish = config.storage_size;
+    this->heap_start = result.bss.end();
+
+    std::ranges::copy(result.data.storage, storage + result.data.begin());
+    std::ranges::copy(result.rodata.storage, storage + result.rodata.begin());
+    std::ranges::copy(result.bss.storage, storage + result.bss.begin());
+
+    auto text_size = this->text_finish - this->text_start;
+    this->exes.resize(text_size / sizeof(target_size_t));
+}
+
 Memory::~Memory() {
-    static_cast <Memory_Impl_Data &> (this->get_impl()).~Memory_Impl_Data();
+    static_cast <Memory_Impl_Meta &> (this->get_impl()).~Memory_Impl_Meta();
 }
 
 auto Memory::fetch_executable(target_size_t pc) -> Executable & {
     return this->get_impl().fetch_exe(pc); 
 }
 
+/**
+ * 2 cases:
+ * - 1. Builtin libc functions, return a user-written handle.
+ * - 2. User-defined functions, return the actual function handle.
+ */
 auto Memory::Impl::fetch_exe(target_size_t pc) -> Executable & {
-    // 2 cases:
-    // - 1. builtin libc functions, return a dummy handle.
-    // - 2. user-defined functions, return the actual function handle.
-    if (pc >= libc::kLibcStart && pc <= libc::kLibcEnd - sizeof(target_size_t))
+    if (pc >= kTextStart && pc <= libc::kLibcEnd - sizeof(target_size_t))
         return this->fetch_exe_libc(pc);
 
-    this->checked_access_cmd(pc);
+    this->checked_fetch_cmd(pc);
 
     auto which = (pc - this->text_start) / sizeof(target_size_t);
     return this->exes.at(which);
@@ -172,7 +192,7 @@ auto Memory::Impl::fetch_exe(target_size_t pc) -> Executable & {
 
 auto Memory::Impl::fetch_exe_libc(target_size_t pc) -> Executable & {
     using _Array_t = std::array <Executable, std::size(libc::funcs)>;
-    static auto libc_exe = []() {
+    static auto libc_exe = []() -> _Array_t {
         _Array_t result;
         std::size_t i = 0;
         for (auto *fn : libc::funcs)
@@ -183,7 +203,7 @@ auto Memory::Impl::fetch_exe_libc(target_size_t pc) -> Executable & {
     if (pc % sizeof(target_size_t) != 0)
         throw FailToInterpret { Error::InsMisAligned, pc, sizeof(target_size_t) };
 
-    auto which = (pc - libc::kLibcStart) / sizeof(target_size_t);
+    auto which = (pc - kTextStart) / sizeof(target_size_t);
     return libc_exe.at(which);
 }
 

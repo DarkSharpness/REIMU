@@ -2,6 +2,7 @@
 #include <declarations.h>
 #include <array>
 #include <string_view>
+#include <riscv/abi.h>
 #include <interpreter/forward.h>
 #include <utility/magic.h>
 
@@ -46,7 +47,6 @@ register_functions(
 using details::funcs;
 using details::names;
 
-inline static constexpr auto kLibcStart = 0x10000;
-inline static constexpr auto kLibcEnd = kLibcStart + std::size(names) * sizeof(target_size_t);
+inline static constexpr auto kLibcEnd = kTextStart + std::size(names) * sizeof(target_size_t);
 
 } // namespace dark::libc

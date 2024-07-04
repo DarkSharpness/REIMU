@@ -146,8 +146,7 @@ struct Branch : __details::crtp <Branch> {
         }
 
         dev.predict(rf.get_pc(), result);
-        auto &pc = rf.get_pc();
-        pc += (result ? imm : 4);
+        rf.set_pc(rf.get_pc() + (result ? imm : 4));
     }
 };
 
@@ -160,7 +159,7 @@ struct Jump : __details::crtp <Jump> {
         auto imm = jump.imm;
         auto new_pc = rd + imm;
         rd = rf.get_pc() + 4;
-        rf.get_pc() = new_pc;
+        rf.set_pc(new_pc);
         dev.counter.jal++;
     }
 };
@@ -176,7 +175,7 @@ struct Jalr : __details::crtp <Jalr> {
         auto imm = jalr.imm;
         auto new_pc = (rs1 + imm) & ~1;
         rd = rf.get_pc() + 4;
-        rf.get_pc() = new_pc;
+        rf.set_pc(new_pc);
         dev.counter.jalr++;
     }
 };
