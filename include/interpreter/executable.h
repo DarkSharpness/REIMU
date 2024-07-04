@@ -19,9 +19,9 @@ struct Executable {
     std::size_t data = 0;   // Some in hand data.
 
   public:
-    explicit Executable() = default;
+    constexpr explicit Executable() = default;
 
-    void set_handle(_Func_t *func, std::size_t data) {
+    constexpr void set_handle(_Func_t *func, std::size_t data) {
         this->func = func;
         this->data = data;
     }

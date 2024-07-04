@@ -1,5 +1,6 @@
 #pragma once
 #include <declarations.h>
+#include <linker/memory.h>
 #include <span>
 #include <deque>
 #include <vector>
@@ -14,7 +15,7 @@ struct Linker {
     using _Storage_t = std::unique_ptr<Storage>;
     using _Slice_t  = std::span<_Storage_t>;
 
-    struct LinkResult;
+    using LinkResult = MemoryLayout;
     struct SymbolLocation;
     struct StorageDetails;
 
@@ -24,23 +25,6 @@ struct Linker {
     explicit Linker(std::span<Assembler>);
 
     [[nodiscard]] auto get_result() && { return std::move(result.value()); }
-
-    struct LinkResult {
-        // A table that maps the symbol to its final position.
-        std::unordered_map <std::string, std::size_t> position_table;
-        // A table which indicates the storage at given position.
-        // The vector should be 4 bytes aligned at least.
-        struct Section {
-            std::size_t start;
-            std::vector <std::byte> storage;
-        };
-
-        Section text;
-        Section data;
-        Section rodata;
-        Section unknown;
-        Section bss;
-    };
 
     /**
      * Location of the symbol in the storage

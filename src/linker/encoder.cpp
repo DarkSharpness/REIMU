@@ -397,6 +397,12 @@ struct EncodingPass final : StorageVisitor {
     }
 };
 
+static void connect(EncodingPass::Section_t &prev, EncodingPass::Section_t &next) {
+    if (next.storage.empty())
+        next.start = prev.start + prev.storage.size();
+}
+
+
 /**
  * Link these targeted files.
  * It will translate all symbols into integer constants.
@@ -415,6 +421,11 @@ void Linker::link() {
     EncodingPass(result.rodata, this->get_section(Section::RODATA));
     EncodingPass(result.unknown, this->get_section(Section::UNKNOWN));
     EncodingPass(result.bss, this->get_section(Section::BSS));
+
+    connect(result.text, result.data);
+    connect(result.data, result.rodata);
+    connect(result.rodata, result.unknown);
+    connect(result.unknown, result.bss);
 }
 
 } // namespace dark

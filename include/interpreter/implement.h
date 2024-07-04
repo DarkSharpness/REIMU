@@ -5,6 +5,7 @@
 #include <interpreter/device.h>
 #include <interpreter/memory.h>
 #include <interpreter/register.h>
+#include <interpreter/exception.h>
 #include <interpreter/executable.h>
 #include <bit>
 
@@ -24,27 +25,27 @@ inline void arith_impl(target_size_t &rd, target_size_t rs1, target_size_t rs2, 
 
     using enum general::ArithOp;
     #define check_zero \
-        rs2 == 0 ? handle::div_by_zero()
+        rs2 == 0 ? throw FailToInterpret { Error::DivideByZero }
 
     switch (op) {
-        case ADD:   rd = rs1 + rs2; dev.counter.add++; break;
-        case SUB:   rd = rs1 - rs2; dev.counter.sub++; break;
-        case AND:   rd = rs1 & rs2; dev.counter.and_++; break;
-        case OR:    rd = rs1 | rs2; dev.counter.or_++; break;
-        case XOR:   rd = rs1 ^ rs2; dev.counter.xor_++; break;
-        case SLL:   rd = rs1 << rs2; dev.counter.sll++; break;
-        case SRL:   rd = u32(rs1) >> rs2; dev.counter.srl++; break;
-        case SRA:   rd = i32(rs1) >> rs2; dev.counter.sra++; break;
-        case SLT:   rd = i32(rs1) < i32(rs2); dev.counter.slt++; break;
-        case SLTU:  rd = u32(rs1) < u32(rs2); dev.counter.sltu++; break;
-        case MUL:   rd = rs1 * rs2; dev.counter.mul++; break;
-        case MULH:  rd = (i64(rs1) * i64(rs2)) >> 32; dev.counter.mulh++; break;
-        case MULHSU:rd = (i64(rs1) * u64(rs2)) >> 32; dev.counter.mulhsu++; break;
-        case MULHU: rd = (u64(rs1) * u64(rs2)) >> 32; dev.counter.mulhu++; break;
-        case DIV:   rd = check_zero : i32(rs1) / i32(rs2); dev.counter.div++; break;
-        case DIVU:  rd = check_zero : u32(rs1) / u32(rs2); dev.counter.divu++; break;
-        case REM:   rd = check_zero : i32(rs1) % i32(rs2); dev.counter.rem++; break;
-        case REMU:  rd = check_zero : u32(rs1) % u32(rs2); dev.counter.remu++; break;
+        case ADD:   rd = rs1 + rs2; dev.counter.add++; return;
+        case SUB:   rd = rs1 - rs2; dev.counter.sub++; return;
+        case AND:   rd = rs1 & rs2; dev.counter.and_++; return;
+        case OR:    rd = rs1 | rs2; dev.counter.or_++; return;
+        case XOR:   rd = rs1 ^ rs2; dev.counter.xor_++; return;
+        case SLL:   rd = rs1 << rs2; dev.counter.sll++; return;
+        case SRL:   rd = u32(rs1) >> rs2; dev.counter.srl++; return;
+        case SRA:   rd = i32(rs1) >> rs2; dev.counter.sra++; return;
+        case SLT:   rd = i32(rs1) < i32(rs2); dev.counter.slt++; return;
+        case SLTU:  rd = u32(rs1) < u32(rs2); dev.counter.sltu++; return;
+        case MUL:   rd = rs1 * rs2; dev.counter.mul++; return;
+        case MULH:  rd = (i64(rs1) * i64(rs2)) >> 32; dev.counter.mulh++; return;
+        case MULHSU:rd = (i64(rs1) * u64(rs2)) >> 32; dev.counter.mulhsu++; return;
+        case MULHU: rd = (u64(rs1) * u64(rs2)) >> 32; dev.counter.mulhu++; return;
+        case DIV:   rd = check_zero : i32(rs1) / i32(rs2); dev.counter.div++; return;
+        case DIVU:  rd = check_zero : u32(rs1) / u32(rs2); dev.counter.divu++; return;
+        case REM:   rd = check_zero : i32(rs1) % i32(rs2); dev.counter.rem++; return;
+        case REMU:  rd = check_zero : u32(rs1) % u32(rs2); dev.counter.remu++; return;
     }
     #undef check_zero
 
@@ -102,15 +103,17 @@ struct LoadStore : __details::crtp <LoadStore> {
         using enum general::MemoryOp;
 
         switch (op) {
-            case LB:    rd = mem.load_i8(addr); dev.counter.lb++; break;
-            case LH:    rd = mem.load_i16(addr); dev.counter.lh++; break;
-            case LW:    rd = mem.load_i32(addr); dev.counter.lw++; break;
-            case LBU:   rd = mem.load_u8(addr); dev.counter.lbu++; break;
-            case LHU:   rd = mem.load_u16(addr); dev.counter.lhu++; break;
-            case SB:    mem.store_i8(addr, rd); dev.counter.sb++; break;
-            case SH:    mem.store_i16(addr, rd); dev.counter.sh++; break;
-            case SW:    mem.store_i32(addr, rd); dev.counter.sw++; break;
+            case LB:    rd = mem.load_i8(addr); dev.counter.lb++; return;
+            case LH:    rd = mem.load_i16(addr); dev.counter.lh++; return;
+            case LW:    rd = mem.load_i32(addr); dev.counter.lw++; return;
+            case LBU:   rd = mem.load_u8(addr); dev.counter.lbu++; return;
+            case LHU:   rd = mem.load_u16(addr); dev.counter.lhu++; return;
+            case SB:    mem.store_u8(addr, rd); dev.counter.sb++; return;
+            case SH:    mem.store_u16(addr, rd); dev.counter.sh++; return;
+            case SW:    mem.store_u32(addr, rd); dev.counter.sw++; return;
         }
+
+        runtime_assert(false);
     }
 };
 
@@ -139,10 +142,12 @@ struct Branch : __details::crtp <Branch> {
             case BGE:   result = (i32(rs1) >= i32(rs2)); dev.counter.bge++; break;
             case BLTU:  result = (u32(rs1) <  u32(rs2)); dev.counter.bltu++; break;
             case BGEU:  result = (u32(rs1) >= u32(rs2)); dev.counter.bgeu++; break;
+            default:    runtime_assert(false);
         }
 
         dev.predict(rf.get_pc(), result);
-        rf.set_pc(result ? rf.get_pc() + imm : rf.get_pc() + 4);
+        auto &pc = rf.get_pc();
+        pc += (result ? imm : 4);
     }
 };
 
@@ -155,7 +160,7 @@ struct Jump : __details::crtp <Jump> {
         auto imm = jump.imm;
         auto new_pc = rd + imm;
         rd = rf.get_pc() + 4;
-        rf.set_pc(new_pc);
+        rf.get_pc() = new_pc;
         dev.counter.jal++;
     }
 };
@@ -171,7 +176,7 @@ struct Jalr : __details::crtp <Jalr> {
         auto imm = jalr.imm;
         auto new_pc = (rs1 + imm) & ~1;
         rd = rf.get_pc() + 4;
-        rf.set_pc(new_pc);
+        rf.get_pc() = new_pc;
         dev.counter.jalr++;
     }
 };
@@ -207,7 +212,7 @@ constexpr auto crtp <_Derived>::to_data() const -> std::size_t {
     struct {
         alignas(std::size_t) _Derived data;
     } d = { .data = static_cast<const _Derived &>(*this) };
-    return *reinterpret_cast<const std::size_t *>(&d);
+    return std::bit_cast<std::size_t>(d);
 }
 
 } // namespace __details

@@ -1,5 +1,6 @@
 #include <utility.h>
 #include <riscv/command.h>
+#include <interpreter/exception.h>
 #include <interpreter/executable.h>
 #include <interpreter/device.h>
 #include <interpreter/memory.h>
@@ -12,6 +13,11 @@ using _Pair_t = std::pair <Executable::_Func_t *, std::size_t>;
 
 static auto parse_cmd(std::uint32_t cmd) -> _Pair_t;
 
+[[noreturn]]
+static void handle_unknown_instruction(std::uint32_t cmd) {
+    throw FailToInterpret { Error::InsUnknown, cmd };
+}
+
 /**
  * A function which will parse the command at runtime,
  * and reset the executable function pointer.
@@ -21,10 +27,14 @@ static auto parse_cmd(std::uint32_t cmd) -> _Pair_t;
  * Subsequent executions will not require parsing.
  */
 void Executable::fn(Executable &exe, RegisterFile &rf, Memory &mem, Device &dev) {
-    auto cmd = mem.load_cmd(rf.get_pc());
-    auto [func, data] = parse_cmd(cmd);
+    const auto pc = rf.get_pc();
+    dev.counter.iparse += 1;
+
+    const auto cmd = mem.load_cmd(pc);
+
+    const auto [func, data] = parse_cmd(cmd);
     exe.set_handle(func, data);
-    dev.iparse_count++;
+
     return exe(rf, mem, dev);
 }
 
@@ -70,7 +80,7 @@ static auto parse_r_type(std::uint32_t cmd) -> _Pair_t {
     }
     #undef match_and_return
 
-    handle::unknown_instruction(cmd);
+    handle_unknown_instruction(cmd);
 }
 
 static auto parse_i_type(std::uint32_t cmd) -> _Pair_t {
@@ -107,7 +117,7 @@ static auto parse_i_type(std::uint32_t cmd) -> _Pair_t {
 
     #undef match_and_return
 
-    handle::unknown_instruction(cmd);
+    handle_unknown_instruction(cmd);
 }
 
 static auto parse_s_type(std::uint32_t cmd) -> _Pair_t {
@@ -129,7 +139,7 @@ static auto parse_s_type(std::uint32_t cmd) -> _Pair_t {
     }
 
     #undef match_and_return
-    handle::unknown_instruction(cmd);
+    handle_unknown_instruction(cmd);
 }
 
 static auto parse_l_type(std::uint32_t cmd) -> _Pair_t {
@@ -153,7 +163,7 @@ static auto parse_l_type(std::uint32_t cmd) -> _Pair_t {
     }
 
     #undef match_and_return
-    handle::unknown_instruction(cmd);
+    handle_unknown_instruction(cmd);
 }
 
 static auto parse_b_type(std::uint32_t cmd) -> _Pair_t {
@@ -178,7 +188,7 @@ static auto parse_b_type(std::uint32_t cmd) -> _Pair_t {
     }
 
     #undef match_and_return
-    handle::unknown_instruction(cmd);
+    handle_unknown_instruction(cmd);
 }
 
 static auto parse_auipc(std::uint32_t cmd) -> _Pair_t {

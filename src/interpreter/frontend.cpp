@@ -7,15 +7,15 @@
 
 namespace dark {
 
-static auto get_start_end(const Linker::LinkResult::Section &section) {
-    return std::make_pair(section.start, section.start + section.storage.size());
-}
+static void check_no_overlap(const MemoryLayout &result) {
+    constexpr auto get_range = [](const auto &section) {
+        return std::make_pair(section.begin(), section.end());
+    };
 
-static void check_no_overlap(const Linker::LinkResult &result) {
-    auto [text_start, text_end] = get_start_end(result.text);
-    auto [data_start, data_end] = get_start_end(result.data);
-    auto [rodata_start, rodata_end] = get_start_end(result.rodata);
-    auto [bss_start, bss_end] = get_start_end(result.bss);
+    auto [text_start, text_end] = get_range(result.text);
+    auto [data_start, data_end] = get_range(result.data);
+    auto [rodata_start, rodata_end] = get_range(result.rodata);
+    auto [bss_start, bss_end] = get_range(result.bss);
 
     runtime_assert(
         text_end <= data_start &&
@@ -53,7 +53,8 @@ Interpreter::Interpreter(const Config &config) {
 
     // Reset the memory storage
     assemblies = decltype(assemblies) {};
-}
 
+    this->interpret(config, std::move(result));
+}
 
 } // namespace dark
