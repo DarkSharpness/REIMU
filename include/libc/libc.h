@@ -1,40 +1,52 @@
 #pragma once
 #include <declarations.h>
+#include <array>
 #include <string_view>
+#include <interpreter/forward.h>
+#include <utility/magic.h>
 
 namespace dark::libc {
 
-inline static constexpr std::string_view names[] = {
-    // IO functions
-    "puts",
-    "putchar",
-    "printf",
-    "sprintf",
-    "getchar",
-    "scanf",
-    "sscanf",
+namespace details {
 
-    // Memory management
-    "malloc",
-    "calloc",
-    "realloc",
-    "free",
+template <std::size_t _Nm, auto _Val, auto ...Rest>
+consteval void nameofs_aux(std::array <std::string_view, _Nm> &names) {
+    std::size_t index = _Nm - 1 - sizeof...(Rest);
+    names[index] = meta::nameof <_Val> () | meta::remove_scope;
+    if constexpr (sizeof...(Rest) != 0)
+        return nameofs_aux <_Nm, Rest...> (names);
+}
 
-    // Memory manipulation
-    "memcpy",
-    "memset",
-    "memmove",
-    "memcmp",
+template <auto ..._Vals>
+consteval auto nameofs() {
+    std::array <std::string_view, sizeof...(_Vals)> names;
+    if constexpr (sizeof...(_Vals) != 0)
+        nameofs_aux <sizeof...(_Vals), _Vals...> (names);
+    return names;
+}
 
-    // Strings manipulation
-    "strcpy",
-    "strlen",
-    "strnlen_s",
-    "strcat",
-    "strcmp",
-};
+using _Fn_t = void (Executable &, RegisterFile &, Memory &, Device &);
+
+#define register_functions(...) \
+    _Fn_t __VA_ARGS__; \
+    inline constexpr _Fn_t *funcs[] = { __VA_ARGS__ }; \
+    inline constexpr auto names = nameofs <__VA_ARGS__>()
+
+register_functions(
+    puts, putchar, printf, sprintf, getchar, scanf, sscanf, // IO functions
+    malloc, calloc, realloc, free, // Memory management
+    memset, memcmp, memcpy, memmove, // Memory manipulation
+    strcpy, strlen, strcat, strcmp, strncmp // Strings manipulation
+);
+
+#undef register_functions
+
+} // namespace details
+
+using details::funcs;
+using details::names;
 
 inline static constexpr auto kLibcStart = 0x10000;
-inline static constexpr auto kLibcEnd = kLibcStart + std::size(libc::names) * sizeof(target_size_t);
+inline static constexpr auto kLibcEnd = kLibcStart + std::size(names) * sizeof(target_size_t);
 
 } // namespace dark::libc
