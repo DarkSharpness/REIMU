@@ -1,6 +1,7 @@
 #pragma once
 #include <interpreter/forward.h>
 #include <memory>
+#include <span>
 
 namespace dark {
 
@@ -18,12 +19,22 @@ struct Memory {
     auto load_i32(target_size_t addr) -> std::int32_t;
     auto load_u8(target_size_t addr)  -> std::uint8_t;
     auto load_u16(target_size_t addr) -> std::uint16_t;
-    auto load_u32(target_size_t addr) -> std::uint32_t;
     auto load_cmd(target_size_t addr) -> std::uint32_t;
+
+    [[deprecated]]
+    auto load_u32(target_size_t addr) -> std::uint32_t;
 
     void store_u8(target_size_t addr, std::uint8_t value);
     void store_u16(target_size_t addr, std::uint16_t value);
     void store_u32(target_size_t addr, std::uint32_t value);
+
+    auto init_sp() -> target_size_t;
+
+    // For malloc use.
+    auto sbrk(target_ssize_t) -> target_size_t;
+
+    // For libc functions.
+    auto get_memory(target_size_t) -> std::span<std::byte>;
 
     ~Memory();
 

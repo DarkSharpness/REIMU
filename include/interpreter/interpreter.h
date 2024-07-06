@@ -1,14 +1,13 @@
 #pragma once
 #include <declarations.h>
+#include <linker/memory.h>
 
 namespace dark {
 
-struct MemoryLayout;
-
 struct Interpreter {
+    MemoryLayout layout;
     explicit Interpreter(const Config &);
-
-    static void interpret(const Config &config, MemoryLayout source);
+    void interpret(const Config &config);
 };
 
 } // namespace dark

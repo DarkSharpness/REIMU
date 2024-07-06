@@ -13,8 +13,9 @@ struct Config {
 
     static constexpr std::size_t uninitialized = std::size_t(-1);
 
-    std::size_t storage_size = uninitialized;     // Memory storage 
-    std::size_t maximum_time = uninitialized;     // Maximum time
+    std::size_t storage_size = uninitialized;       // Memory storage 
+    std::size_t maximum_time = uninitialized;       // Maximum time
+    std::size_t stack_size   = 4096;                // Maximum stack
 
     // The additional configuration table provided by the user.
     std::unordered_map <std::string_view, bool> option_table;

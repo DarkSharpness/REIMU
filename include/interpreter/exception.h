@@ -5,14 +5,14 @@
 namespace dark {
 
 enum class Error {
-    InsMisAligned,
-    InsOutOfBound,
-    InsUnknown,
-
     LoadMisAligned,
     LoadOutOfBound,
     StoreMisAligned,
     StoreOutOfBound,
+
+    InsMisAligned,
+    InsOutOfBound,
+    InsUnknown,
 
     DivideByZero,
 

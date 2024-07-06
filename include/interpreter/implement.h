@@ -157,7 +157,7 @@ struct Jump : __details::crtp <Jump> {
         auto &jump = exe.get_data <Jump>();
         auto &rd = rf[jump.rd];
         auto imm = jump.imm;
-        auto new_pc = rd + imm;
+        auto new_pc = rf.get_pc() + imm;
         rd = rf.get_pc() + 4;
         rf.set_pc(new_pc);
         dev.counter.jal++;

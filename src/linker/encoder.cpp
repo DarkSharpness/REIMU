@@ -270,9 +270,12 @@ struct EncodingPass final : StorageVisitor {
 
         #undef match_and_set
 
+        const auto target   = imm_to_int(storage.imm);
+        const auto distance = target - this->position;
+
         cmd.rs1 = reg_to_int(storage.rs1);
         cmd.rs2 = reg_to_int(storage.rs2);
-        cmd.set_imm(imm_to_int(storage.imm));
+        cmd.set_imm(distance);
 
         this->push_command(cmd.to_integer());
     }
@@ -281,8 +284,11 @@ struct EncodingPass final : StorageVisitor {
         this->command_align();
         command::jal cmd {};
 
-        cmd.rd  = reg_to_int(storage.rd);
-        cmd.set_imm(imm_to_int(storage.imm));
+        const auto target   = imm_to_int(storage.imm);
+        const auto distance = target - this->position;
+
+        cmd.rd = reg_to_int(storage.rd);
+        cmd.set_imm(distance);
 
         this->push_command(cmd.to_integer());
     }
@@ -301,9 +307,8 @@ struct EncodingPass final : StorageVisitor {
     void visitStorage(CallFunction &storage) {
         this->command_align();
         // Into 2 commands: auipc and jalr
-        const auto pc = this->position;
         const auto target = imm_to_int(storage.imm);
-        const auto distance = target - pc;
+        const auto distance = target - this->position;
 
         const auto [lo, hi] = split_lo_hi(distance);
 

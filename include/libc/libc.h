@@ -47,6 +47,7 @@ register_functions(
 using details::funcs;
 using details::names;
 
+inline static constexpr auto kLibcStart = kTextStart;
 inline static constexpr auto kLibcEnd = kTextStart + std::size(names) * sizeof(target_size_t);
 
 } // namespace dark::libc

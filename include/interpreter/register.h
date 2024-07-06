@@ -12,8 +12,11 @@ struct RegisterFile {
     target_size_t pc;
     target_size_t new_pc;
 
+    static constexpr target_size_t end_pc = 0x2;
+
   public:
-    explicit RegisterFile() = default;
+    explicit RegisterFile(target_size_t, const Config &);
+
     /* Return reference to given register. */
     auto &operator[](Register reg) {
         return this->regs[static_cast<std::size_t>(reg)];
@@ -22,8 +25,13 @@ struct RegisterFile {
     auto get_pc() { return this->pc; }
     /* Set new program counter. */
     void set_pc(target_size_t pc) { this->new_pc = pc; }
-    /* Complete after one cycle. */
-    auto advance() { this->pc = this->new_pc; this->new_pc += 4; return this->pc; }
+    /* Complete after one instruction. */
+    bool advance() {
+        this->pc = this->new_pc;
+        this->new_pc = this->pc + 4;
+        (*this)[Register::zero] = 0;
+        return this->pc != this->end_pc;
+    }
 };
 
 } // namespace dark

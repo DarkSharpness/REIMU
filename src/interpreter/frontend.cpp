@@ -54,7 +54,7 @@ Interpreter::Interpreter(const Config &config) {
     // Reset the memory storage
     assemblies = decltype(assemblies) {};
 
-    this->interpret(config, std::move(result));
+    this->layout = std::move(result);
 }
 
 } // namespace dark

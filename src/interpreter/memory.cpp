@@ -1,10 +1,9 @@
+#include <interpreter/area.h>
 #include <interpreter/memory.h>
 #include <interpreter/exception.h>
 #include <interpreter/executable.h>
-#include <linker/memory.h>
 #include <libc/libc.h>
 #include <utility.h>
-#include <utility/config.h>
 #include <cstddef>
 #include <array>
 #include <ranges>
@@ -19,67 +18,36 @@ using u8    = std::uint8_t;
 using u16   = std::uint16_t;
 using u32   = std::uint32_t;
 
-struct Memory_Impl_Meta {
-    target_size_t text_start;
-    target_size_t text_finish;
-    target_size_t mem_start;
-    target_size_t mem_finish;
-    target_size_t heap_start;
-    std::vector <Executable> exes;
-};
+template <std::integral _Int>
+static _Int &int_cast(std::byte *ptr) {
+    return *reinterpret_cast <_Int *> (ptr);
+}
 
 /**
  * Real Memory layout:
  * - Libc text
  * - Text
- * - Data
- * - RoData
- * - Bss
- * - Heap
+ * - Data | RoData | Bss | Heap
  */
-struct Memory::Impl : Memory, Memory_Impl_Meta {
-    explicit Impl(const Config &, const MemoryLayout &);
+struct Memory_Impl : StaticArea, HeapArea, StackArea {
+    explicit Memory_Impl(const Config &config, const MemoryLayout &layout)
+        : StaticArea(layout), HeapArea(layout), StackArea(config) {}
 
-    auto checked_fetch_cmd(target_size_t addr) -> target_size_t {
-        static_assert(sizeof(target_size_t) == 4);
-
-        if (addr < this->text_start || addr > this->text_finish - 4)
-            throw FailToInterpret { Error::InsOutOfBound, addr, 4 };
-
-        if (addr % 4 != 0)
-            throw FailToInterpret { Error::InsMisAligned, addr, 4 };
-
-        return *reinterpret_cast <target_size_t *> (this->get_storage() + addr);
-    }
+    auto checked_ifetch(target_size_t) -> target_size_t;
 
     template <std::integral _Int>
-    auto checked_read(target_size_t addr) -> _Int {
-        if (addr < this->mem_start || addr > this->mem_finish - sizeof(_Int))
-            throw FailToInterpret { Error::LoadOutOfBound, addr, sizeof(_Int) };
+    auto checked_load(target_size_t) -> _Int;
+ 
+    template <std::unsigned_integral _Int>
+    void check_store(target_size_t, _Int);
 
-        if (addr % sizeof(_Int) != 0)
-            throw FailToInterpret { Error::LoadMisAligned, addr, sizeof(_Int) };
-
-        return *reinterpret_cast <_Int *> (this->get_storage() + addr);
-    }
-
-    template <std::integral _Int>
-    void checked_write(target_size_t addr, _Int value) {
-        if (addr < this->mem_start || addr > this->mem_finish - sizeof(_Int))
-            throw FailToInterpret { Error::StoreOutOfBound, addr, sizeof(_Int) };
-
-        if (addr % sizeof(_Int) != 0)
-            throw FailToInterpret { Error::StoreMisAligned, addr, sizeof(_Int) };
-
-        *reinterpret_cast <u32 *> (this->get_storage() + addr) = value;
-    }
-
-    auto fetch_exe(target_size_t) ->Executable &;
+    auto fetch_exe(target_size_t) -> Executable &;
     auto fetch_exe_libc(target_size_t) -> Executable &;
+};
 
-    /** Return start address of storage (with some bias).  */
-    std::byte *get_storage() { return this->storage - kTextStart; }
-    std::byte storage[];
+struct Memory::Impl : Memory, Memory_Impl {
+    explicit Impl(const Config &config, const MemoryLayout &layout) :
+        Memory(), Memory_Impl(config, layout) {}
 };
 
 static_assert(sizeof(Memory::Impl) <= kTextStart,
@@ -90,89 +58,100 @@ auto Memory::get_impl() -> Impl & {
 }
 
 auto Memory::load_i8(target_size_t addr) -> std::int8_t {
-    return this->get_impl().checked_read <i8> (addr);
+    return this->get_impl().checked_load <i8> (addr);
 }
 
 auto Memory::load_i16(target_size_t addr) -> std::int16_t {
-    return this->get_impl().checked_read <i16> (addr);
+    return this->get_impl().checked_load <i16> (addr);
 }
 
 auto Memory::load_i32(target_size_t addr) -> std::int32_t {
-    return this->get_impl().checked_read <i32> (addr);
+    return this->get_impl().checked_load <i32> (addr);
 }
 
 auto Memory::load_u8(target_size_t addr) -> std::uint8_t {
-    return this->get_impl().checked_read <u8> (addr);
+    return this->get_impl().checked_load <u8> (addr);
 }
 
 auto Memory::load_u16(target_size_t addr) -> std::uint16_t {
-    return this->get_impl().checked_read <u16> (addr);
+    return this->get_impl().checked_load <u16> (addr);
 }
 
 auto Memory::load_u32(target_size_t addr) -> u32 {
-    return this->get_impl().checked_read <u32> (addr);
+    return this->get_impl().checked_load <u32> (addr);
 }
 
 auto Memory::load_cmd(target_size_t addr) -> u32 {
-    return this->get_impl().checked_fetch_cmd(addr);
+    return this->get_impl().checked_ifetch(addr);
 }
 
 void Memory::store_u8(target_size_t addr, u8 value) {
-    this->get_impl().checked_write(addr, value);
+    this->get_impl().check_store(addr, value);
 }
 
 void Memory::store_u16(target_size_t addr, u16 value) {
-    this->get_impl().checked_write(addr, value);
+    this->get_impl().check_store(addr, value);
 }
 
 void Memory::store_u32(target_size_t addr, u32 value) {
-    this->get_impl().checked_write(addr, value);
+    this->get_impl().check_store(addr, value);
 }
 
-auto Memory::create(const Config &config, const MemoryLayout &result) -> std::unique_ptr <Memory> {
-    const auto static_length = result.bss.end() - kTextStart;
-    const auto length = sizeof(Memory::Impl) + static_length;
-
-    auto *mem = new std::byte[length] {};
-    auto *ptr = std::launder(reinterpret_cast <Memory::Impl *> (mem));
-
-    new (ptr) Memory::Impl { config, result };
-
-    return std::unique_ptr <Memory> { ptr };
-}
-
-Memory::Impl::Impl(const Config &config, const MemoryLayout &result) {
-    runtime_assert(result.text.begin() == libc::kLibcEnd);
-    static_assert(alignof(target_size_t) == 4);
-    runtime_assert(reinterpret_cast <std::size_t> (this->get_storage()) % 4 == 0);
-
-    auto *storage = this->get_storage();
-
-    // Text section.
-    this->text_start = result.text.begin();
-    this->text_finish = result.text.end();
-
-    std::ranges::copy(result.text.storage, storage + result.text.begin());
-
-    // Data section.
-    this->mem_start = result.data.begin();
-    this->mem_finish = config.storage_size;
-    this->heap_start = result.bss.end();
-
-    std::ranges::copy(result.data.storage, storage + result.data.begin());
-    std::ranges::copy(result.rodata.storage, storage + result.rodata.begin());
-    std::ranges::copy(result.bss.storage, storage + result.bss.begin());
-
-    auto text_size = this->text_finish - this->text_start;
-    this->exes.resize(text_size / sizeof(target_size_t));
+auto Memory::create(const Config &config, const MemoryLayout &result)
+-> std::unique_ptr <Memory> {
+    return std::unique_ptr <Memory> { new Memory::Impl { config, result } };
 }
 
 Memory::~Memory() {
-    static_cast <Memory_Impl_Meta &> (this->get_impl()).~Memory_Impl_Meta();
+    static_cast <Memory_Impl &> (this->get_impl()).~Memory_Impl();
 }
 
 auto Memory::fetch_executable(target_size_t pc) -> Executable & {
     return this->get_impl().fetch_exe(pc); 
+}
+
+auto Memory_Impl::checked_ifetch(target_size_t pc) -> target_size_t {
+    if (pc % alignof(pc) != 0)
+        throw FailToInterpret { Error::InsMisAligned, pc, alignof(pc) };
+
+    if (!this->in_text(pc, pc + sizeof(pc)))
+        throw FailToInterpret { Error::InsOutOfBound, pc };
+
+    return int_cast <target_size_t> (this->get_static(pc));
+}
+
+template <std::integral _Int>
+auto Memory_Impl::checked_load(target_size_t addr) -> _Int {
+    if (addr % alignof(_Int) != 0)
+        throw FailToInterpret { Error::LoadMisAligned, addr, alignof(_Int) };
+
+    if (this->in_data(addr, addr + sizeof(_Int)))
+        return int_cast <_Int> (this->get_static(addr));
+
+    if (this->in_heap(addr, addr + sizeof(_Int)))
+        return int_cast <_Int> (this->get_heap(addr));
+
+    if (this->in_stack(addr, addr + sizeof(_Int)))
+        return int_cast <_Int> (this->get_stack(addr));
+
+    throw FailToInterpret { Error::LoadOutOfBound, addr };
+}
+
+template <std::unsigned_integral _Int>
+void Memory_Impl::check_store(target_size_t addr, _Int val) {
+    if (addr % alignof(_Int) != 0)
+        throw FailToInterpret { Error::StoreMisAligned, addr, alignof(_Int) };
+
+    if (this->in_data(addr, addr + sizeof(_Int)))
+        return void(int_cast <_Int> (this->get_static(addr)) = val);
+
+    if (this->in_heap(addr, addr + sizeof(_Int)))
+        return void(int_cast <_Int> (this->get_heap(addr)) = val);
+
+    if (this->in_stack(addr, addr + sizeof(_Int)))
+        return void(int_cast <_Int> (this->get_stack(addr)) = val);
+
+    throw FailToInterpret { Error::StoreOutOfBound, addr };
 }
 
 /**
@@ -180,31 +159,30 @@ auto Memory::fetch_executable(target_size_t pc) -> Executable & {
  * - 1. Builtin libc functions, return a user-written handle.
  * - 2. User-defined functions, return the actual function handle.
  */
-auto Memory::Impl::fetch_exe(target_size_t pc) -> Executable & {
-    if (pc >= kTextStart && pc <= libc::kLibcEnd - sizeof(target_size_t))
+auto Memory_Impl::fetch_exe(target_size_t pc) -> Executable & {
+    if (pc < libc::kLibcEnd)
         return this->fetch_exe_libc(pc);
 
-    this->checked_fetch_cmd(pc);
-
-    auto which = (pc - this->text_start) / sizeof(target_size_t);
-    return this->exes.at(which);
+    this->checked_ifetch(pc);
+    return this->unchecked_fetch_exe(pc);
 }
 
-auto Memory::Impl::fetch_exe_libc(target_size_t pc) -> Executable & {
-    using _Array_t = std::array <Executable, std::size(libc::funcs)>;
-    static auto libc_exe = []() -> _Array_t {
-        _Array_t result;
+auto Memory_Impl::fetch_exe_libc(target_size_t pc) -> Executable & {
+    if (pc % alignof(pc) != 0)
+        throw FailToInterpret { Error::InsMisAligned, pc, alignof(pc) };
+
+    if (pc < libc::kLibcStart)
+        throw FailToInterpret { Error::InsOutOfBound, pc, alignof(pc) };
+
+    static auto libc_exe = []() {
+        std::array <Executable, std::size(libc::funcs)> result;
         std::size_t i = 0;
-        for (auto *fn : libc::funcs)
-            result.at(i++).set_handle(fn, 0);
+        for (auto *fn : libc::funcs) result.at(i++).set_handle(fn, 0);
+        runtime_assert(i == std::size(libc::funcs));
         return result;
     }();
 
-    if (pc % sizeof(target_size_t) != 0)
-        throw FailToInterpret { Error::InsMisAligned, pc, sizeof(target_size_t) };
-
-    auto which = (pc - kTextStart) / sizeof(target_size_t);
-    return libc_exe.at(which);
+    return libc_exe.at((pc - libc::kLibcStart) / sizeof(pc));
 }
 
 } // namespace dark
