@@ -4,7 +4,7 @@
 #include <interpreter/register.h>
 #include <interpreter/executable.h>
 #include <linker/layout.h>
-#include <utility/config.h>
+#include <config/config.h>
 #include <utility.h>
 #include <map>
 #include <fstream>
@@ -33,14 +33,12 @@ struct LabelMap {
 
 RegisterFile::RegisterFile(target_size_t pc, const Config &config)
     : regs(), pc(), new_pc(pc) {
-    (*this)[Register::sp] = config.storage_size;
+    (*this)[Register::sp] = config.get_stack_top();
     (*this)[Register::ra] = this->end_pc;
 }
 
 void Interpreter::interpret(const Config &config) {
-    auto input  = std::ifstream { std::string(config.input_file) };
-    auto output = std::ofstream { std::string(config.output_file) };
-    auto device_ptr = Device::create(config, input, output);
+    auto device_ptr = Device::create(config);
     auto memory_ptr = Memory::create(config, this->layout);
 
     auto &device = *device_ptr;
@@ -53,15 +51,15 @@ void Interpreter::interpret(const Config &config) {
     for (auto &[label, pc] : layout.position_table)
         labels.add(pc, label);
 
-
     while (regfile.advance()) {
-        auto [label, offset] = labels.get(regfile.get_pc());
-        std::cout << std::format("Executing {}+0x{:x}\n", label, offset);
+        // auto [label, offset] = labels.get(regfile.get_pc());
+        // std::cout << std::format("Executing {}+0x{:x}\n", label, offset);
         auto &exe = memory.fetch_executable(regfile.get_pc());
         exe(regfile, memory, device);
     }
 
-    std::cout << std::format("Program returned: 0x{:x}\n", regfile[Register::a0]);
+    // const auto exit_code = regfile[Register::a0];
+
 }
 
 } // namespace dark

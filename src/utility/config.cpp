@@ -1,30 +1,70 @@
 #include <utility.h>
-#include <utility/config.h>
+#include <config/config.h>
+#include <config/default.h>
 #include <weight.h>
 #include <ranges>
 #include <algorithm>
+#include <unordered_set>
+#include <unordered_map>
 #include <variant>
+#include <fstream>
+#include <memory>
 
 namespace dark {
+
+using _Option_Set_t = std::unordered_set <std::string_view>;
+using _Weight_Map_t = std::unordered_map <std::string_view, std::size_t>;
+
+struct Config_Impl {
+    std::istream *input_stream;
+    std::ostream *output_stream;
+
+    static constexpr std::size_t uninitialized = std::size_t();
+
+    std::size_t storage_size = uninitialized;       // Memory storage 
+    std::size_t maximum_time = uninitialized;       // Maximum time
+    std::size_t stack_size   = uninitialized;       // Maximum stack
+
+    std::vector <std::string_view> assembly_files;  // Assembly files
+
+    // The additional configuration table provided by the user.
+    _Option_Set_t option_table;
+    // The additional weight table provided by the user.
+    _Weight_Map_t weight_table;
+
+    std::string_view input_file;    // Input file
+    std::string_view output_file;   // Output file
+
+    explicit Config_Impl(int argc, char** argv);
+
+    ~Config_Impl() {
+        if (this->input_stream != &std::cin)    delete this->input_stream;
+        if (this->output_stream != &std::cout)  delete this->output_stream;
+    }
+
+    void initialize_with_check();
+    void print_in_detail() const;
+
+    bool has_option(std::string_view) const;
+};
+
+struct Config::Impl : Config, Config_Impl {
+    explicit Impl(int argc, char** argv) : Config_Impl(argc, argv) {}
+    using Config_Impl::has_option;
+};
+
+Config::~Config() {
+    auto *impl_ptr = static_cast <Impl*> (this);
+    std::destroy_at <Config_Impl> (impl_ptr);
+}
 
 using weight::weight_ranges;
 using weight::kManual;
 using weight::kWeightCount;
 using weight::parse_manual;
 
-using _Option_Map_t = decltype(Config::option_table);
-using _Weight_Map_t = decltype(Config::weight_table);
-
-static constexpr auto option_list = []() {
-    using _Pair_t = std::pair <std::string_view, bool>;
-    return std::array {
-        _Pair_t("debug",    false),
-        _Pair_t("cache",    false),
-        _Pair_t("detail",   false),
-    };
-} ();
-
-static constexpr auto weight_list = []() {
+// The weight list is generated automatically by the weight ranges.
+static constexpr auto kWeightList = []() {
     using _Pair_t = std::pair <std::string_view, std::size_t>;
     std::array <_Pair_t, kWeightCount> table {};
     std::size_t which {};
@@ -39,16 +79,9 @@ static constexpr auto weight_list = []() {
     return table;
 } ();
 
-static void check_option(_Option_Map_t &table) {
-    _Option_Map_t default_options { std::begin(option_list), std::end(option_list) };
-    for (const auto &[key, value] : table) {
-        panic_if(default_options.count(key) == 0, "Unknown option: {}", key);
-    }
-    for (const auto &[key, value] : default_options) {
-        table.try_emplace(key, value);
-    }
-}
-
+/**
+ * @return Whether a give name is a name of a weight range.
+ */
 static auto find_weight_range(std::string_view need)
 -> std::optional <std::span <const std::string_view>> {
     for (const auto &[name, list, _] : weight_ranges)
@@ -57,56 +90,86 @@ static auto find_weight_range(std::string_view need)
 }
 
 static void check_weight(_Weight_Map_t &table) {
-    _Weight_Map_t default_weights { std::begin(weight_list), std::end(weight_list) };
+    _Weight_Map_t default_weights {
+        std::begin(kWeightList), std::end(kWeightList)
+    };
 
     for (const auto &[key, value] : table) {
+        // Name of a specific weight, ok.
         if (default_weights.count(key) != 0) continue; 
-
-        auto list = find_weight_range(key);
-        panic_if(!list.has_value(), "Unknown weight range: {}", key);
-
-        for (const auto &item : *list) {
-            default_weights[item] = value;
+        // Name of a range weight, and set all the weights in the range.
+        if (auto list = find_weight_range(key); list.has_value()) {
+            for (const auto &name : *list) default_weights[name] = value;
+        } else {
+            panic("Unknown weight: {}", key);
         }
     }
 
-    for (const auto &[key, value] : default_weights) {
-        table.try_emplace(key, value);
-    }
+    for (const auto &pair : default_weights) table.insert(pair);
 }
 
-void Config::initialize_with_check() {
+/**
+ * @brief Check if the option is supported.
+ * If not supported, just panic.
+ */
+static void check_option(_Option_Set_t &table) {
+    const _Option_Set_t default_set = {
+        std::begin(config::kSupportedOptions),
+        std::end  (config::kSupportedOptions)
+    };
+
+    for (const auto &key : table)
+        panic_if(default_set.count(key) == 0, "Unknown option: {}", key);
+}
+
+void Config_Impl::initialize_with_check() {
     if (this->input_file.empty())
-        this->input_file = "test.in";
+        this->input_file = config::kInitStdin;
+    if (this->input_file == "<stdin>")
+        this->input_stream = &std::cin;
+    else
+        this->input_stream = new std::ifstream(std::string(this->input_file));
+
     if (this->output_file.empty())
-        this->output_file = "test.out";
+        this->output_file = config::kInitStdout;
+    if (this->output_file == "<stdout>")
+        this->output_stream = &std::cout;
+    else
+        this->output_stream = new std::ofstream(std::string(this->output_file));
+
     if (this->assembly_files.empty())
-        this->assembly_files = { "test.s", "builtin.s" };
+        this->assembly_files.assign(
+            std::begin(config::kInitAssemblyFiles),
+            std::end  (config::kInitAssemblyFiles)
+        );
 
-    if (storage_size == Config::uninitialized)
-        storage_size = 256 * 1024 * 1024;
+    if (this->storage_size == this->uninitialized)
+        this->storage_size = config::kInitMemorySize;
 
-    // Will not time out by default
-    if (maximum_time == Config::uninitialized)
-        maximum_time = Config::uninitialized;
+    if (this->maximum_time ==this->uninitialized)
+        this->maximum_time = config::kInitTimeOut;
+
+    if (this->stack_size == this->uninitialized)
+        this->stack_size = config::kInitStackSize;
 
     check_option(this->option_table);
     check_weight(this->weight_table);
 }
 
-void Config::print_in_detail() const {
+void Config_Impl::print_in_detail() const {
     std::cout << std::format("{:=^80}\n", " Configuration details ");
 
     std::cout << std::format("  Input file: {}\n", this->input_file);
     std::cout << std::format("  Output file: {}\n", this->output_file);
     std::cout << std::format("  Assembly files: ");
+
     for (const auto& file : this->assembly_files)
         std::cout << file << ' ';
 
     std::cout << std::format("\n  Storage size: {} bytes ({:.2f} MB)\n",
         this->storage_size, double(this->storage_size) / (1024 * 1024));
 
-    if (this->maximum_time == Config::uninitialized) {
+    if (this->maximum_time == config::kInitTimeOut) {
         std::cout << "  Maximum time: no limit\n";
     } else {
         std::cout << std::format("  Maximum time: {} cycles\n", this->maximum_time);
@@ -116,11 +179,11 @@ void Config::print_in_detail() const {
     static constexpr char kFormat[] = "    - {:<8} = {}\n";
 
     std::cout << "  Options:\n";
-    for (const auto& [key, value] : this->option_table)
-        std::cout << std::format(kFormat, key, value);
+    for (const auto &key : this->option_table)
+        std::cout << std::format(kFormat, key, "enabled");
 
     std::cout << "  Weights:\n";
-    for (const auto& [name, list, weight] : weight_ranges) {
+    for (const auto &[name, list, weight] : weight_ranges) {
         std::cout << "    " << name << ":\n";
         if (weight != kManual) {
             for (auto iter : list) {
@@ -137,10 +200,8 @@ void Config::print_in_detail() const {
     std::cout << std::format("{:=^80}\n", "");
 }
 
-auto Config::parse(int argc, char** argv) -> Config {
+Config_Impl::Config_Impl(int argc, char** argv) {
     static constexpr const char kInvalid[] = "Invalid command line argument: {}";
-
-    Config config {};
 
     enum class CastError {
         Invalid,    //  Invalid argument
@@ -179,9 +240,9 @@ Options:
   -h, --help                                Display help information.
   -v, --version                             Display version information.
 
-  -en-<option>, -enable-<option>            Enable a option.
-  -dis-<option>, -disable-<option>          Disable a option.
-                                            * Available options: detail, debug, cache
+  --detail                                  Print the configuration details.
+  --debug                                   Use built-in gdb.
+  --cache                                   Enable cache simulation.
 
   -w<name>=<value>, -weight-<name>=<value>  Set weight (cycles) for a specific assembly command.
                                             The name can be either a opcode name or a group name.
@@ -193,8 +254,14 @@ Options:
                                             We support K/M suffix for kilobytes/megabytes.
                                             Note that the memory has a hard limit of 1GB.
                                             Example: -m=114K -m=514M -mem=1919 -memory=810
+  -s=<mem>, -stack=<mem>                    Set stack size (bytes) for the simulator, default 1MB.
+                                            We support K/M suffix for kilobytes/megabytes.
+                                            Note that the stack has a hard limit of 1GB.
+
   -i=<file>, -input=<file>                  Set input file for the simulator.
+                                            If <file> is <stdin>, the simulator will read from stdin.
   -o=<file>, -output=<file>                 Set output file for the simulator.
+                                            If <file> is <stdout>, the simulator will write to stdout.
   -f=<file>,... -file=<file>,...            Set input files as the assembly code.
 )";
         std::exit(EXIT_SUCCESS);
@@ -205,10 +272,10 @@ Options:
         std::exit(EXIT_SUCCESS);
     };
 
-    const auto __set_option = [&](std::string_view view, bool enable) {
+    const auto __set_option = [&](std::string_view view) {
         panic_if(view.empty(), "Invalid option: {}", view);
-        auto &table = config.option_table;
-        panic_if(table.try_emplace(view, enable).second == false, "Duplicate option: {}", view);
+        auto &table = this->option_table;
+        panic_if(table.insert(view).second == false, "Duplicate option: {}", view);
     };
 
     const auto __set_weight = [&](std::string_view view) {
@@ -238,7 +305,7 @@ Options:
                     runtime_assert(false);
             }
         } else {
-            auto &table = config.weight_table;
+            auto &table = this->weight_table;
             auto  value = std::get <std::size_t> (weight);
             panic_if(table.try_emplace(name, value).second == false, kDuplicate, name);
         }
@@ -265,12 +332,12 @@ Options:
                     runtime_assert(false);
             }
         } else {
-            panic_if(config.maximum_time != config.uninitialized, kDuplicate, view);
-            config.maximum_time = std::get <std::size_t> (timeout);
+            panic_if(this->maximum_time != this->uninitialized, kDuplicate, view);
+            this->maximum_time = std::get <std::size_t> (timeout);
         }
     };
 
-    const auto __set_memory = [&](std::string_view view) {
+    const auto __set_memory = [&](std::string_view view, bool stack = false) {
         static constexpr const char kMissing[]      = "Missing memory: {}";
         static constexpr const char kDuplicate[]    = "Duplicate memory: {}";
         static constexpr const char kNonNegative[]  = "Memory must be non-negative integer: {}";
@@ -300,15 +367,20 @@ Options:
                     runtime_assert(false);
             }
         } else {
-            panic_if(config.storage_size != config.uninitialized, kDuplicate, view);
-            config.storage_size = std::get <std::size_t> (memory) * factor;
+            if (stack) {
+                panic_if(this->stack_size != this->uninitialized, kDuplicate, view);
+                this->stack_size = std::get <std::size_t> (memory) * factor;
+            } else {
+                panic_if(this->storage_size != this->uninitialized, kDuplicate, view);
+                this->storage_size = std::get <std::size_t> (memory) * factor;
+            }
         }
     };
 
     const auto __set_assembly = [&](std::string_view view) {
-        panic_if(view.empty(), "Invalid input file: {}", view);
-        auto &files = config.assembly_files;
-        panic_if(!files.empty(), "Duplicate input file: {}", view);
+        panic_if(view.empty(), "Invalid input assembly file: {}", view);
+        auto &files = this->assembly_files;
+        panic_if(!files.empty(), "Duplicate input assembly file: {}", view);
 
         std::size_t next = view.find_first_of(',');
         while (next != std::string_view::npos) {
@@ -318,9 +390,11 @@ Options:
         }
         files.emplace_back(view);
 
-        std::ranges::sort(config.assembly_files);
-        std::size_t rest = std::ranges::unique(files).size();
-        files.resize(files.size() - rest);
+        std::unordered_set <std::string_view> set;
+        for (const auto &name : files) {
+            panic_if(set.insert(name).second == false,
+                "Duplicate input assembly file: {}", name);
+        }
     };
 
     for (int i = 1 ; i < argc ; ++i) {
@@ -328,26 +402,32 @@ Options:
         if (view.size() < 2 || view.front() != '-') {
             panic(kInvalid, view);
         } else switch (view[1]) {
-            case 'h':   __match_string(view, {"-help", "-h"});
+            case '-':
+                if (view == "--help")       __help(view);
+                if (view == "--version")    __version(view);
+                __set_option(view.substr(2));
+                break;
+
+            // Short form options
+
+            case 'h':   __match_string(view, {"-h"});
                         __help(view);     break;
-            case 'v':   __match_string(view, {"-version", "-v"});
+            case 'v':   __match_string(view, {"-v"});
                         __version(view);  break;
-            case 'e':   __match_prefix(view, {"-enable-", "-en-"});
-                        __set_option(view, true); break;
-            case 'd':   __match_prefix(view, {"-disable-", "-dis-"});
-                        __set_option(view, false); break;
             case 'w':   __match_prefix(view, {"-weight-", "-w"});
                         __set_weight(view); break;
             case 't':   __match_prefix(view, {"-time=", "-t="});
                         __set_timeout(view); break;
             case 'm':   __match_prefix(view, {"-memory=", "-mem=", "-m="});
                         __set_memory(view); break;
+            case 's':   __match_prefix(view, {"-stack=", "-s="});
+                        __set_memory(view, true); break;
             case 'i':   __match_prefix(view, {"-input=", "-i="});
-                        panic_if(!config.input_file.empty(), "Duplicate input file: {}", view);
-                        config.input_file = view; break;
+                        panic_if(!this->input_file.empty(), "Duplicate input file: {}", view);
+                        this->input_file = view; break;
             case 'o':   __match_prefix(view, {"-output=", "-o="});
-                        panic_if(!config.output_file.empty(), "Duplicate output file: {}", view);
-                        config.output_file = view; break;
+                        panic_if(!this->output_file.empty(), "Duplicate output file: {}", view);
+                        this->output_file = view; break;
             case 'f':   __match_prefix(view, {"-file=", "-f="});
                         __set_assembly(view); break;
 
@@ -355,11 +435,48 @@ Options:
         }
     }
 
-    config.initialize_with_check();
-    if (config.option_table["detail"]) config.print_in_detail();
-
-    return config;
+    this->initialize_with_check();
+    if (this->has_option("detail")) this->print_in_detail();
 }
 
+bool Config_Impl::has_option(std::string_view name) const {
+    return this->option_table.count(name) != 0;
+}
+
+auto Config::parse(int argc, char** argv) -> std::unique_ptr <Config> {
+    return std::unique_ptr <Config> (new Impl {argc, argv});
+}
+
+auto Config::has_option(std::string_view name) const -> bool {
+    return this->get_impl().has_option(name);
+}
+
+auto Config::get_impl() const -> const Impl & {
+    return *static_cast <const Impl*> (this);
+}
+
+auto Config::get_input_stream() const -> std::istream& {
+    return *this->get_impl().input_stream;
+}
+
+auto Config::get_output_stream() const -> std::ostream& {
+    return *this->get_impl().output_stream;
+}
+
+auto Config::get_stack_top() const -> target_size_t {
+    return this->get_impl().storage_size;
+}
+
+auto Config::get_stack_low() const -> target_size_t {
+    return this->get_impl().storage_size - this->get_impl().stack_size;
+}
+
+auto Config::get_timeout() const -> std::size_t {
+    return this->get_impl().maximum_time;
+}
+
+auto Config::get_assembly_names() const -> std::span <const std::string_view> {
+    return this->get_impl().assembly_files;
+}
 
 } // namespace dark

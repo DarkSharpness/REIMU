@@ -1,5 +1,5 @@
 #include <utility.h>
-#include <utility/config.h>
+#include <config/config.h>
 #include <interpreter/interpreter.h>
 #include <assembly/assembly.h>
 #include <linker/linker.h>
@@ -41,15 +41,16 @@ static void print_link_result(const Linker::LinkResult &result) {
 
 Interpreter::Interpreter(const Config &config) {
     std::vector <Assembler> assemblies;
-    assemblies.reserve(config.assembly_files.size());
-    for (const auto &file : config.assembly_files)
+
+    assemblies.reserve(config.get_assembly_names().size());
+    for (const auto &file : config.get_assembly_names())
         assemblies.emplace_back(file);
 
     auto result = Linker{ assemblies }.get_result();
     panic_if(result.position_table.count("main") == 0, "No main function found");
     check_no_overlap(result);
 
-    if (config.option_table.at("detail")) print_link_result(result);
+    if (config.has_option("detail")) print_link_result(result);
 
     // Reset the memory storage
     assemblies = decltype(assemblies) {};

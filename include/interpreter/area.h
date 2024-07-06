@@ -1,6 +1,6 @@
 // Should only be included in memory.cpp
 #include <declarations.h>
-#include <utility/config.h>
+#include <config/config.h>
 #include <interpreter/executable.h>
 #include <linker/layout.h>
 #include <memory>
@@ -82,8 +82,8 @@ struct StackArea {
     std::byte * const storage;
   public:
     explicit StackArea(const Config &config) :
-        stack_start(config.storage_size - config.stack_size),
-        stack_finish(config.storage_size),
+        stack_start(config.get_stack_low()),
+        stack_finish(config.get_stack_top()),
         storage(new std::byte[stack_finish - stack_start] {} - stack_start)
     {}
 

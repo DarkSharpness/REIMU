@@ -8,8 +8,6 @@ namespace dark {
 struct MemoryLayout;
 
 struct Memory {
-    struct Impl;
-
     auto fetch_executable(target_size_t pc) -> Executable &;
 
     static auto create(const Config &, const MemoryLayout &) -> std::unique_ptr<Memory>;
@@ -39,7 +37,7 @@ struct Memory {
     ~Memory();
 
   private:
-
+    struct Impl;
     Impl &get_impl();
 };
 

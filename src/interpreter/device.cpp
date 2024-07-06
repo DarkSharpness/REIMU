@@ -1,15 +1,40 @@
 #include <interpreter/device.h>
-#include <utility/config.h>
+#include <config/config.h>
 
 namespace dark {
 
-auto Device::create(const Config &config, std::istream &in, std::ostream &out)
+// Some hidden implementation data.
+struct Device_Impl {
+
+};
+
+struct Device::Impl : Device_Impl, Device {
+    explicit Impl(const Config &config)
+        : Device_Impl {
+        }, Device {
+            .counter = {},
+            .in = config.get_input_stream(),
+            .out = config.get_output_stream(),
+        } {}
+
+};
+
+auto Device::create(const Config &config)
 -> std::unique_ptr <Device> {
-    return std::make_unique <Device> (Counter {}, in, out);
+    return std::unique_ptr <Device> (new Device::Impl {config});
 }
 
 void Device::predict(target_size_t, bool) {
     // Do nothing now.
 }
+
+Device::~Device() {
+    std::destroy_at <Device_Impl> (&this->get_impl());
+}
+
+auto Device::get_impl() -> Impl & {
+    return *static_cast <Impl *> (this);
+}
+
 
 } // namespace dark

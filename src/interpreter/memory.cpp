@@ -50,9 +50,6 @@ struct Memory::Impl : Memory, Memory_Impl {
         Memory(), Memory_Impl(config, layout) {}
 };
 
-static_assert(sizeof(Memory::Impl) <= kTextStart,
-    "Memory::Impl is too large, which overlaps with the real program");
-
 auto Memory::get_impl() -> Impl & {
     return static_cast <Impl &> (*this);
 }
