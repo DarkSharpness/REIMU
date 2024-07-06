@@ -2,7 +2,7 @@
 #include <declarations.h>
 #include <utility/config.h>
 #include <interpreter/executable.h>
-#include <linker/memory.h>
+#include <linker/layout.h>
 #include <memory>
 #include <vector>
 #include <ranges>

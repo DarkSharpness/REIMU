@@ -3,7 +3,7 @@
 #include <interpreter/device.h>
 #include <interpreter/register.h>
 #include <interpreter/executable.h>
-#include <linker/memory.h>
+#include <linker/layout.h>
 #include <utility/config.h>
 #include <utility.h>
 #include <map>

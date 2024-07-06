@@ -1,6 +1,6 @@
 #pragma once
 #include <declarations.h>
-#include <linker/memory.h>
+#include <linker/layout.h>
 
 namespace dark {
 
