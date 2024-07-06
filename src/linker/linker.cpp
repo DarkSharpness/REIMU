@@ -22,7 +22,7 @@ Iterator &Iterator::operator ++() {
 
 Linker::StorageDetails::StorageDetails(_Slice_t storage, _Symbol_Table_t &table)
     : storage(storage), begin_position(),
-      offsets(std::make_unique <std::size_t[]> (storage.size() + 1)),
+      offsets(std::make_unique <target_size_t[]> (storage.size() + 1)),
       table(&table) {}
 
 auto Linker::StorageDetails::begin() const -> Iterator {
@@ -46,7 +46,7 @@ Linker::SymbolLocation::SymbolLocation(const StorageDetails &details, std::size_
 }
 
 struct SymbolLocationLibc : Linker::SymbolLocation {
-    explicit SymbolLocationLibc(const std::size_t &position, const std::size_t &offset)
+    explicit SymbolLocationLibc(const target_size_t &position, const target_size_t &offset)
         : Linker::SymbolLocation { &position, &offset } {}
 };
 
@@ -138,26 +138,23 @@ void Linker::add_file(Assembler &assembler, _Symbol_Table_t &local_table) {
  * It will set up the starting offset of the user functions.
  */
 void Linker::add_libc() {
-    // Set the initial offset
-    // This is required by the RISC-V ABI
-    static constexpr std::size_t absolute = 0x10000;
-
     // An additional bias is caused by the libc functions
-    static constexpr auto offset_table = []() {
-        std::array <std::size_t, std::size(libc::names)> array;
+    static constexpr auto libc_offset = []() {
+        std::array <target_size_t, std::size(libc::names)> array;
         for (auto i : std::views::iota(0llu, std::size(libc::names)))
             array[i] = i * sizeof(target_size_t);
         return array;
     } ();
 
     std::size_t count = 0;
+
     for (auto &name : libc::names) {
-        auto location = SymbolLocationLibc { absolute, offset_table[count++] };
+        auto location = SymbolLocationLibc { libc::kLibcStart, libc_offset[count++] };
         auto [iter, success] = this->global_symbol_table.try_emplace(name, location);
         panic_if(!success, "Global symbol \"{}\" conflicts with libc", name);
     }
 
-    runtime_assert(libc::kLibcEnd == absolute + count * sizeof(target_size_t));
+    runtime_assert(libc::kLibcEnd == libc::kLibcStart + count * sizeof(target_size_t));
 }
 
 auto Linker::get_section(Section section) -> _Details_Vec_t & {

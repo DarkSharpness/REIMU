@@ -13,7 +13,7 @@ struct Evaluator {
   private:
     const _Table_t &global_table;   // Table of global symbols.
     const _Table_t *local_table;    // Table within a file.
-    std::size_t position;
+    target_size_t position;
 
   protected:
     /**
@@ -27,11 +27,15 @@ struct Evaluator {
         this->local_table = local_table;
     }
 
-    void set_position(std::size_t position) {
+    void set_position(target_size_t position) {
         this->position = position;
     }
 
-    std::size_t get_current_location() const { return this->position; }
+    void inc_position(target_size_t increment) {
+        this->position += increment;
+    }
+
+    auto get_current_position() const { return this->position; }
 
     /**
      * Get the position of the symbol.
@@ -49,7 +53,7 @@ struct Evaluator {
     auto evaluate_tree(const TreeImmediate &tree) -> target_size_t {
         using enum TreeImmediate::Operator;
         auto last_op = ADD;
-        target_size_t result = 0;
+        auto result  = target_size_t {};
         for (auto &[sub, op] : tree.data) {
             auto value = evaluate(*sub.data);
             switch (last_op) {
@@ -81,7 +85,6 @@ struct Evaluator {
                     return (value - this->position) & 0xFFF;
                 default: runtime_assert(false);
             }
-
 
         return this->evaluate_tree(dynamic_cast <const TreeImmediate &> (imm));
     }

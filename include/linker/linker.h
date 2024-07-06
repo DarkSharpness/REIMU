@@ -38,12 +38,12 @@ struct Linker {
         void next_offset() { ++offset; }
 
       protected:
-        explicit SymbolLocation(const std::size_t *pos, const std::size_t *off)
+        explicit SymbolLocation(const target_size_t *pos, const target_size_t *off)
             : absolute(pos), offset(off) {}
 
       private:
-        const std::size_t *absolute;
-        const std::size_t *offset;
+        const target_size_t *absolute;
+        const target_size_t *offset;
     };
 
     /**
@@ -60,7 +60,7 @@ struct Linker {
             SymbolLocation location;
             friend bool operator == (const Iterator &lhs, const Iterator &rhs);
             Iterator &operator ++();
-            auto operator *() const -> std::pair <_Storage_t &, std::size_t> {
+            auto operator *() const -> std::pair <_Storage_t &, target_size_t> {
                 return { *storage, location.get_location() };
             }
         };
@@ -69,17 +69,17 @@ struct Linker {
         auto end()   const -> Iterator;
 
         auto get_start() const { return begin_position; }
-        void set_start(std::size_t start) { begin_position = start; }
+        void set_start(target_size_t start) { begin_position = start; }
         auto *get_local_table() const { return table; }
-        auto get_offsets() const -> std::span <std::size_t> {
+        auto get_offsets() const -> std::span <target_size_t> {
             return { offsets.get(), storage.size() + 1 };
         }
 
       private:
         friend class SymbolLocation;
         _Slice_t    storage;                    // Storage in the section
-        std::size_t begin_position;             // Position in the output file
-        std::unique_ptr<std::size_t[]> offsets; // Sizes of sections in the storage
+        target_size_t begin_position;             // Position in the output file
+        std::unique_ptr<target_size_t[]> offsets; // Sizes of sections in the storage
         _Symbol_Table_t *table;                 // Local symbol table
     };
 

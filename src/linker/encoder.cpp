@@ -6,63 +6,32 @@
 
 namespace dark {
 
-struct EvaluationPass final : Evaluator, StorageVisitor {
-  public:
-    /**
-     * A pass which will replace all the immediate values with their actual values.
-     * After this pass, all immediate values will be replaced with integer constants.
-     */
-    explicit EvaluationPass(const _Table_t &global_table, const Linker::_Details_Vec_t &vec)
-        : Evaluator(global_table) {
-        for (auto &details : vec) {
-            this->set_local(details.get_local_table());
-            for (auto &&[storage, position] : details) {
-                this->set_position(position);
-                this->visit(*storage);
-            }
-        }
-    }
+template <int _Nm>
+static bool within_bits(target_size_t value) {
+    static_assert(_Nm > 0 && _Nm < 32);
+    constexpr auto min = static_cast <target_size_t> (-1) << (_Nm - 1);
+    constexpr auto max = ~min;
+    return value >= min && value <= max;
+}
 
-    void evaluate(Immediate &imm) {
-        auto value = Evaluator::evaluate(*imm.data);
-        imm.data = std::make_unique <IntImmediate> (value);
-    }
-
-  private:
-
-    void visitStorage(ArithmeticReg &storage)       override {}
-    void visitStorage(ArithmeticImm &storage)       override { this->evaluate(storage.imm); }
-    void visitStorage(LoadStore &storage)           override { this->evaluate(storage.imm); }
-    void visitStorage(Branch &storage)              override { this->evaluate(storage.imm); }
-    void visitStorage(JumpRelative &storage)        override { this->evaluate(storage.imm); }
-    void visitStorage(JumpRegister &storage)        override { this->evaluate(storage.imm); }
-    void visitStorage(CallFunction &storage)        override { this->evaluate(storage.imm); }
-    void visitStorage(LoadImmediate &storage)       override { this->evaluate(storage.imm); }
-    void visitStorage(LoadUpperImmediate &storage)  override { this->evaluate(storage.imm); }
-    void visitStorage(AddUpperImmediatePC &storage) override { this->evaluate(storage.imm); }
-    void visitStorage(Alignment &storage)           override {}
-    void visitStorage(IntegerData &storage)         override { this->evaluate(storage.data); }
-    void visitStorage(ZeroBytes &storage)           override {}
-    void visitStorage(ASCIZ &storage)               override {}
-};
-
-
-struct EncodingPass final : StorageVisitor {
-    using Section_t = Linker::LinkResult::Section;
-    Section_t &data;
-    std::size_t position;
+struct EncodingPass final : Evaluator, StorageVisitor {
+    using Section = Linker::LinkResult::Section;
+    Section &data;
 
     /**
      * An encoding pass which will encode actual command/data
      * into real binary data in form of byte array.
      */
-    explicit EncodingPass(Section_t &data, const Linker::_Details_Vec_t &details) : data(data) {
+    explicit EncodingPass(const _Table_t &global_table, 
+        Section &data, const Linker::_Details_Vec_t &details)
+            : Evaluator(global_table), data(data) {
         if (details.empty()) return;
         data.start = details.front().get_start();
         for (auto &detail : details) {
-            this->position = detail.get_start();
+            this->set_local(detail.get_local_table());
+            this->set_position(detail.get_start());
             for (auto &&[storage, position] : detail) {
-                runtime_assert(position == this->position);
+                runtime_assert(position == this->get_current_position());
                 this->visit(*storage);
             }
         }
@@ -70,33 +39,33 @@ struct EncodingPass final : StorageVisitor {
 
   private:
 
-    void align_to(std::size_t alignment) {
+    void align_to(target_size_t alignment) {
         runtime_assert(std::has_single_bit(alignment));
         auto bitmask = alignment - 1;
-        auto current = this->position;
+        auto current = this->get_current_position();
         auto new_pos = (current + bitmask) & ~bitmask;
-        for (std::size_t i = current; i < new_pos; ++i)
+        while (current++ < new_pos)
             data.storage.push_back(std::byte(0));
-        this->position = new_pos;
+        this->set_position(new_pos);
     }
 
-    static auto imm_to_int(Immediate &imm) -> target_size_t {
-        return dynamic_cast <IntImmediate &> (*imm.data).data;
+    auto imm_to_int(Immediate &imm) -> target_size_t {
+        return this->evaluate(*imm.data);
     }
 
     void command_align() {
-        panic_if(position % 4 != 0, "Command is not aligned");
+        panic_if(this->get_current_position() % 4 != 0, "Command is not aligned");
     }
 
     void push_byte(std::uint8_t byte) {
         data.storage.push_back(std::byte(byte));
-        position += 1;
+        this->inc_position(1);
     }
 
     void push_half(std::uint16_t half) {
         data.storage.push_back(std::byte((half >> 0) & 0xFF));
         data.storage.push_back(std::byte((half >> 8) & 0xFF));
-        position += 2;
+        this->inc_position(2);
     }
 
     void push_word(std::uint32_t word) {
@@ -104,7 +73,7 @@ struct EncodingPass final : StorageVisitor {
         data.storage.push_back(std::byte((word >> 8) & 0xFF));
         data.storage.push_back(std::byte((word >> 16) & 0xFF));
         data.storage.push_back(std::byte((word >> 24) & 0xFF));
-        position += 4;
+        this->inc_position(4);
     }
 
     void push_command(std::uint32_t raw) { return this->push_word(raw); }
@@ -172,6 +141,7 @@ struct EncodingPass final : StorageVisitor {
             match_and_set(SRA);
             match_and_set(OR);
             match_and_set(AND);
+
             default: runtime_assert(false);
         }
 
@@ -180,6 +150,7 @@ struct EncodingPass final : StorageVisitor {
         cmd.rd  = reg_to_int(storage.rd);
         cmd.rs1 = reg_to_int(storage.rs1);
         auto imm = imm_to_int(storage.imm);
+
         if (storage.opcode != SRA) {
             cmd.set_imm(imm);
         } else { // SRA has a different encoding
@@ -271,7 +242,7 @@ struct EncodingPass final : StorageVisitor {
         #undef match_and_set
 
         const auto target   = imm_to_int(storage.imm);
-        const auto distance = target - this->position;
+        const auto distance = target - this->get_current_position();
 
         cmd.rs1 = reg_to_int(storage.rs1);
         cmd.rs2 = reg_to_int(storage.rs2);
@@ -285,7 +256,7 @@ struct EncodingPass final : StorageVisitor {
         command::jal cmd {};
 
         const auto target   = imm_to_int(storage.imm);
-        const auto distance = target - this->position;
+        const auto distance = target - this->get_current_position();
 
         cmd.rd = reg_to_int(storage.rd);
         cmd.set_imm(distance);
@@ -308,7 +279,7 @@ struct EncodingPass final : StorageVisitor {
         this->command_align();
         // Into 2 commands: auipc and jalr
         const auto target = imm_to_int(storage.imm);
-        const auto distance = target - this->position;
+        const auto distance = target - this->get_current_position();
 
         const auto [lo, hi] = split_lo_hi(distance);
 
@@ -402,30 +373,26 @@ struct EncodingPass final : StorageVisitor {
     }
 };
 
-static void connect(EncodingPass::Section_t &prev, EncodingPass::Section_t &next) {
+static void connect(EncodingPass::Section &prev, EncodingPass::Section &next) {
     if (next.storage.empty())
         next.start = prev.start + prev.storage.size();
 }
-
 
 /**
  * Link these targeted files.
  * It will translate all symbols into integer constants.
  */
 void Linker::link() {
-    for (auto &vec : this->details_vec)
-        EvaluationPass(this->global_symbol_table, vec);
-
     auto &result = this->result.emplace();
 
     for (auto &[name, location] : this->global_symbol_table)
         result.position_table.emplace(name, location.get_location());
 
-    EncodingPass(result.text, this->get_section(Section::TEXT));
-    EncodingPass(result.data, this->get_section(Section::DATA));
-    EncodingPass(result.rodata, this->get_section(Section::RODATA));
-    EncodingPass(result.unknown, this->get_section(Section::UNKNOWN));
-    EncodingPass(result.bss, this->get_section(Section::BSS));
+    EncodingPass(this->global_symbol_table, result.text, this->get_section(Section::TEXT));
+    EncodingPass(this->global_symbol_table, result.data, this->get_section(Section::DATA));
+    EncodingPass(this->global_symbol_table, result.rodata, this->get_section(Section::RODATA));
+    EncodingPass(this->global_symbol_table, result.unknown, this->get_section(Section::UNKNOWN));
+    EncodingPass(this->global_symbol_table, result.bss, this->get_section(Section::BSS));
 
     connect(result.text, result.data);
     connect(result.data, result.rodata);

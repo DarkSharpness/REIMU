@@ -5,11 +5,11 @@
 namespace dark::__details {
 
 template <std::derived_from <RealData> _Data>
-inline constexpr std::size_t align_size(_Data &storage) {
+inline constexpr auto align_size(_Data &storage) -> target_size_t {
     if constexpr (std::same_as <_Data, Alignment>) {
         return storage.alignment;
     } else if constexpr (std::same_as <_Data, IntegerData>) {
-        return std::size_t(1) << static_cast <int> (storage.type);
+        return target_size_t(1) << static_cast <int> (storage.type);
     } else if constexpr (std::same_as <_Data, ZeroBytes>) {
         return 1;
     } else if constexpr (std::same_as <_Data, ASCIZ>) {
@@ -20,7 +20,7 @@ inline constexpr std::size_t align_size(_Data &storage) {
 }
 
 template <std::derived_from <RealData> _Data>
-inline constexpr std::size_t real_size(_Data &storage) {
+inline constexpr auto real_size(_Data &storage) -> target_size_t {
     if constexpr (std::same_as <_Data, Alignment>) {
         return 0;
     } else if constexpr (std::same_as <_Data, IntegerData>) {

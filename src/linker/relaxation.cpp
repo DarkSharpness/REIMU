@@ -156,7 +156,7 @@ struct RelaxtionPass final : private Evaluator, StorageVisitor {
         if (!dynamic_cast <StrImmediate *> (imm.get())) return;
 
         auto &str = static_cast <StrImmediate &> (*imm);
-        auto current = Evaluator::get_current_location();
+        auto current = Evaluator::get_current_position();
         auto destination = Evaluator::get_symbol_position(str.data.to_sv());
 
         // Maybe we should not optimize libc calls.

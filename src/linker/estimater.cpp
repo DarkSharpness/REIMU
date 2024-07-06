@@ -15,16 +15,17 @@ namespace dark {
  * 
  */
 struct SizeEstimator final : StorageVisitor {
-    static constexpr std::size_t kCommand = 4;
+    // Alignment and size of a command.
+    static constexpr target_size_t kCommand = 4;
 
-    void align_to(std::size_t alignment) {
+    void align_to(target_size_t alignment) {
         runtime_assert(std::has_single_bit(alignment));
-        std::size_t bitmask = alignment - 1;
-        std::size_t current = this->position;
+        auto bitmask = alignment - 1;
+        auto current = this->position;
         this->position = (current + bitmask) & ~bitmask;
     }
 
-    explicit SizeEstimator(std::size_t start) : position(start) {}
+    explicit SizeEstimator(target_size_t start) : position(start) {}
 
     void estimate_section(Linker::_Details_Vec_t &vec) {
         for (auto &details : vec) {
@@ -32,7 +33,7 @@ struct SizeEstimator final : StorageVisitor {
             offsets[0] = 0;
             const auto start = this->get_position();
             details.set_start(start);
-            std::size_t index = 0;
+            target_size_t index = 0;
             for (auto &&[storage, _] : details) {
                 this->visit(*storage);
                 offsets[++index] = this->get_position() - start;
@@ -41,7 +42,7 @@ struct SizeEstimator final : StorageVisitor {
     }
 
   private:
-    std::size_t position;
+    target_size_t position;
 
     void visitStorage(ArithmeticReg &storage)       override { this->update(storage, 1); }
     void visitStorage(ArithmeticImm &storage)       override { this->update(storage, 1); }
@@ -65,12 +66,12 @@ struct SizeEstimator final : StorageVisitor {
     }
 
     template <std::derived_from <Command> _Command>
-    void update(_Command &command, std::size_t count) {
+    void update(_Command &command, int count) {
         this->align_to(kCommand);
         this->position += kCommand * count;
     }
 
-    std::size_t get_position() const { return this->position; }
+    auto get_position() const -> decltype(this->position) { return this->position; }
 };
 
 /**
@@ -86,7 +87,7 @@ struct SizeEstimator final : StorageVisitor {
 void Linker::make_estimate() {
     SizeEstimator estimator { libc::kLibcEnd };
 
-    constexpr std::size_t kPageSize = 0x1000;
+    constexpr target_size_t kPageSize = 0x1000;
 
     estimator.estimate_section(this->get_section(Section::TEXT));
 
