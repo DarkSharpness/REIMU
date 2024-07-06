@@ -9,6 +9,25 @@
 #include <interpreter/executable.h>
 #include <bit>
 
+namespace dark {
+
+struct Executable::MetaData::PackData  {
+    target_size_t &rd;
+    target_size_t  rs1;
+    target_size_t  rs2;
+    target_size_t  imm;
+};
+
+auto Executable::MetaData::parse(RegisterFile &rf) const -> PackData {
+    auto &rd = rf[this->rd];
+    auto rs1 = rf[this->rs1];
+    auto rs2 = rf[this->rs2];
+    auto imm = this->imm;
+    return PackData { .rd = rd, .rs1 = rs1, .rs2 = rs2, .imm = imm };
+}
+
+} // namespace dark
+
 namespace dark::interpreter {
 
 namespace __details {
@@ -52,82 +71,50 @@ inline void arith_impl(target_size_t &rd, target_size_t rs1, target_size_t rs2, 
     runtime_assert(false);
 }
 
-template <typename _Derived>
-struct crtp {
-    constexpr auto to_data() const -> std::size_t;
-};
-
 } // namespace __details
 
-struct ArithReg : __details::crtp <ArithReg> {
-    Register rs1;
-    Register rs2;
-    Register rd;
-
+struct ArithReg {
     template <general::ArithOp op>
     static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
-        auto &arith = exe.get_data <ArithReg>();
-        auto &rd = rf[arith.rd];
-        auto rs1 = rf[arith.rs1];
-        auto rs2 = rf[arith.rs2];
+        auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         __details::arith_impl <op> (rd, rs1, rs2, dev);
     }
 };
 
-struct ArithImm : __details::crtp <ArithImm> {
-    Register rs1;
-    Register rd;
-    target_size_t imm;
-
+struct ArithImm {
     template <general::ArithOp op>
     static void fn(Executable &exe, RegisterFile &rf, Memory &mem, Device &dev) {
-        auto &arith = exe.get_data <ArithImm>();
-        auto &rd = rf[arith.rd];
-        auto rs1 = rf[arith.rs1];
-        auto imm = arith.imm;
+        auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         __details::arith_impl <op> (rd, rs1, imm, dev);
     }
 };
 
-struct LoadStore : __details::crtp <LoadStore> {
-    Register rs1;
-    Register rd;    // or rs2
-    target_size_t imm;
-
+struct LoadStore {
     template <general::MemoryOp op>
     static void fn(Executable &exe, RegisterFile &rf, Memory &mem, Device &dev) {
-        auto &ls = exe.get_data <LoadStore>();
-        auto &rd = rf[ls.rd]; // or rs2
-        auto addr = rf[ls.rs1] + ls.imm;
+        auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
+        auto addr = rs1 + imm;
 
         using enum general::MemoryOp;
-
         switch (op) {
             case LB:    rd = mem.load_i8(addr); dev.counter.lb++; return;
             case LH:    rd = mem.load_i16(addr); dev.counter.lh++; return;
             case LW:    rd = mem.load_i32(addr); dev.counter.lw++; return;
             case LBU:   rd = mem.load_u8(addr); dev.counter.lbu++; return;
             case LHU:   rd = mem.load_u16(addr); dev.counter.lhu++; return;
-            case SB:    mem.store_u8(addr, rd); dev.counter.sb++; return;
-            case SH:    mem.store_u16(addr, rd); dev.counter.sh++; return;
-            case SW:    mem.store_u32(addr, rd); dev.counter.sw++; return;
+            case SB:    mem.store_u8(addr, rs2); dev.counter.sb++; return;
+            case SH:    mem.store_u16(addr, rs2); dev.counter.sh++; return;
+            case SW:    mem.store_u32(addr, rs2); dev.counter.sw++; return;
         }
 
         runtime_assert(false);
     }
 };
 
-struct Branch : __details::crtp <Branch> {
-    Register rs1;
-    Register rs2;
-    target_size_t imm;
-
+struct Branch {
     template <general::BranchOp op>
     static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
-        auto &branch = exe.get_data <Branch>();
-        auto rs1 = rf[branch.rs1];
-        auto rs2 = rf[branch.rs2];
-        auto imm = branch.imm;
+        auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
 
         using i32 = std::int32_t;
         using u32 = std::uint32_t;
@@ -150,70 +137,42 @@ struct Branch : __details::crtp <Branch> {
     }
 };
 
-struct Jump : __details::crtp <Jump> {
-    Register rd;
-    target_size_t imm;
+struct Jump {
     static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
-        auto &jump = exe.get_data <Jump>();
-        auto &rd = rf[jump.rd];
-        auto imm = jump.imm;
-        auto new_pc = rf.get_pc() + imm;
+        auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
+
         rd = rf.get_pc() + 4;
-        rf.set_pc(new_pc);
+        rf.set_pc(rf.get_pc() + imm);
+
         dev.counter.jal++;
     }
 };
 
-struct Jalr : __details::crtp <Jalr> {
-    Register rs1;
-    Register rd;
-    target_size_t imm;
+struct Jalr {
     static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
-        auto &jalr = exe.get_data <Jalr>();
-        auto &rd = rf[jalr.rd];
-        auto rs1 = rf[jalr.rs1];
-        auto imm = jalr.imm;
-        auto new_pc = (rs1 + imm) & ~1;
+        auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
+
         rd = rf.get_pc() + 4;
-        rf.set_pc(new_pc);
+        rf.set_pc((rs1 + imm) & ~1);
+
         dev.counter.jalr++;
     }
 };
 
-struct Lui : __details::crtp <Lui> {
-    Register rd;
-    target_size_t imm;
+struct Lui {
     static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
-        auto &lui = exe.get_data <Lui>();
-        auto &rd = rf[lui.rd];
-        auto imm = lui.imm;
+        auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         rd = imm;
         dev.counter.lui++;
     }
 };
 
-struct Auipc : __details::crtp <Auipc> {
-    Register rd;
-    target_size_t imm;
+struct Auipc {
     static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
-        auto &auipc = exe.get_data <Auipc>();
-        auto &rd = rf[auipc.rd];
-        auto imm = auipc.imm;
+        auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         rd = rf.get_pc() + imm;
         dev.counter.auipc++;
     }
 };
-
-namespace __details {
-
-template <typename _Derived>
-constexpr auto crtp <_Derived>::to_data() const -> std::size_t {
-    struct {
-        alignas(std::size_t) _Derived data;
-    } d = { .data = static_cast<const _Derived &>(*this) };
-    return std::bit_cast<std::size_t>(d);
-}
-
-} // namespace __details
 
 } // namespace dark::interpreter

@@ -1,5 +1,6 @@
 #pragma once
 #include <interpreter/forward.h>
+#include <riscv/register.h>
 #include <new>
 
 namespace dark {
@@ -11,29 +12,34 @@ struct Executable {
   public:
     using _Func_t = decltype(fn);
 
+    struct MetaData {
+        struct PackData;
+        Register rd;
+        Register rs1;
+        Register rs2;
+        target_size_t imm;
+        auto parse(RegisterFile &) const -> PackData;
+    };
+
   private:
 
     static_assert(sizeof(_Func_t *) == sizeof(std::size_t));
 
     _Func_t *   func = fn;  // Function pointer.
-    std::size_t data = 0;   // Some in hand data.
+    MetaData    meta = {};  // Some in hand data.
 
   public:
     constexpr explicit Executable() = default;
 
-    constexpr void set_handle(_Func_t *func, std::size_t data) {
-        this->func = func;
-        this->data = data;
+    constexpr void set_handle(_Func_t *func, MetaData meta) {
+        this->func = func; this->meta = meta;
     }
 
     void operator()(RegisterFile &rf, Memory &mem, Device &dev) {
         this->func(*this, rf, mem, dev);
     }
 
-    template <typename _Tp>
-    const _Tp &get_data() const {
-        return *std::launder(reinterpret_cast<const _Tp *>(&this->data));
-    }
+    auto &get_meta() const { return this->meta; }
 };
 
 } // namespace dark

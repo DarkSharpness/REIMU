@@ -9,7 +9,7 @@
 
 namespace dark {
 
-using _Pair_t = std::pair <Executable::_Func_t *, std::size_t>;
+using _Pair_t = std::pair <Executable::_Func_t *, Executable::MetaData>;
 
 static auto parse_cmd(std::uint32_t cmd) -> _Pair_t;
 
@@ -49,9 +49,9 @@ static auto parse_r_type(std::uint32_t cmd) -> _Pair_t {
     auto rs1 = int_to_reg(r_type.rs1);
     auto rs2 = int_to_reg(r_type.rs2);
     auto rd  = int_to_reg(r_type.rd);
-    auto arg = interpreter::ArithReg {
-        .rs1 = rs1, .rs2 = rs2, .rd = rd
-    }.to_data();
+    auto arg = Executable::MetaData {
+        .rd = rd, .rs1 = rs1, .rs2 = rs2, .imm = {}
+    };
 
     #define match_and_return(a) \
         case join(command::r_type::Funct7::a, command::r_type::Funct3::a):  \
@@ -87,9 +87,9 @@ static auto parse_i_type(std::uint32_t cmd) -> _Pair_t {
     auto i_type = command::i_type::from_integer(cmd);
     auto rs1 = int_to_reg(i_type.rs1);
     auto rd  = int_to_reg(i_type.rd);
-    auto arg = interpreter::ArithImm {
-        .rs1 = rs1, .rd = rd, .imm = i_type.get_imm()
-    }.to_data();
+    auto arg = Executable::MetaData {
+        .rd = rd, .rs1 = rs1, .rs2 = {}, .imm = i_type.get_imm()
+    };
 
     #define match_and_return(a) \
         case command::i_type::Funct3::a: \
@@ -124,9 +124,9 @@ static auto parse_s_type(std::uint32_t cmd) -> _Pair_t {
     auto s_type = command::s_type::from_integer(cmd);
     auto rs1 = int_to_reg(s_type.rs1);
     auto rs2 = int_to_reg(s_type.rs2);
-    auto arg = interpreter::LoadStore {
-        .rs1 = rs1, .rd = rs2, .imm = s_type.get_imm()
-    }.to_data();
+    auto arg = Executable::MetaData {
+        .rd = {}, .rs1 = rs1, .rs2 = rs2, .imm = s_type.get_imm()
+    };
 
     #define match_and_return(a) \
         case command::s_type::Funct3::a: \
@@ -146,9 +146,9 @@ static auto parse_l_type(std::uint32_t cmd) -> _Pair_t {
     auto l_type = command::l_type::from_integer(cmd);
     auto rs1 = int_to_reg(l_type.rs1);
     auto rd  = int_to_reg(l_type.rd);
-    auto arg = interpreter::LoadStore {
-        .rs1 = rs1, .rd = rd, .imm = l_type.get_imm()
-    }.to_data();
+    auto arg = Executable::MetaData {
+        .rd = rd, .rs1 = rs1, .rs2 = {}, .imm = l_type.get_imm()
+    };
 
     #define match_and_return(a) \
         case command::l_type::Funct3::a: \
@@ -170,9 +170,9 @@ static auto parse_b_type(std::uint32_t cmd) -> _Pair_t {
     auto b_type = command::b_type::from_integer(cmd);
     auto rs1 = int_to_reg(b_type.rs1);
     auto rs2 = int_to_reg(b_type.rs2);
-    auto arg = interpreter::Branch {
-        .rs1 = rs1, .rs2 = rs2, .imm = b_type.get_imm()
-    }.to_data();
+    auto arg = Executable::MetaData {
+        .rd = {}, .rs1 = rs1, .rs2 = rs2, .imm = b_type.get_imm()
+    };
 
     #define match_and_return(a) \
         case command::b_type::Funct3::a: \
@@ -193,30 +193,30 @@ static auto parse_b_type(std::uint32_t cmd) -> _Pair_t {
 
 static auto parse_auipc(std::uint32_t cmd) -> _Pair_t {
     auto auipc = command::auipc::from_integer(cmd);
-    auto rd = int_to_reg(auipc.rd);
-    auto arg = interpreter::Auipc {
-        .rd = rd, .imm = auipc.get_imm()
-    }.to_data();
+    auto rd  = int_to_reg(auipc.rd);
+    auto arg = Executable::MetaData {
+        .rd = rd, .rs1 = {}, .rs2 = {}, .imm = auipc.get_imm()
+    };
 
     return { interpreter::Auipc::fn, arg };
 }
 
 static auto parse_lui(std::uint32_t cmd) -> _Pair_t {
     auto lui = command::lui::from_integer(cmd);
-    auto rd = int_to_reg(lui.rd);
-    auto arg = interpreter::Lui {
-        .rd = rd, .imm = lui.get_imm()
-    }.to_data();
+    auto rd  = int_to_reg(lui.rd);
+    auto arg = Executable::MetaData {
+        .rd = rd, .rs1 = {}, .rs2 = {}, .imm = lui.get_imm()
+    };
 
     return { interpreter::Lui::fn, arg };
 }
 
 static auto parse_jal(std::uint32_t cmd) -> _Pair_t {
     auto jal = command::jal::from_integer(cmd);
-    auto rd = int_to_reg(jal.rd);
-    auto arg = interpreter::Jump {
-        .rd = rd, .imm = jal.get_imm()
-    }.to_data();
+    auto rd  = int_to_reg(jal.rd);
+    auto arg = Executable::MetaData {
+        .rd = rd, .rs1 = {}, .rs2 = {}, .imm = jal.get_imm()
+    };
 
     return { interpreter::Jump::fn, arg };
 }
@@ -225,9 +225,9 @@ static auto parse_jalr(std::uint32_t cmd) -> _Pair_t {
     auto jalr = command::jalr::from_integer(cmd);
     auto rs1 = int_to_reg(jalr.rs1);
     auto rd  = int_to_reg(jalr.rd);
-    auto arg = interpreter::Jalr {
-        .rs1 = rs1, .rd = rd, .imm = jalr.get_imm()
-    }.to_data();
+    auto arg = Executable::MetaData {
+        .rd = rd, .rs1 = rs1, .rs2 = {}, .imm = jalr.get_imm()
+    };
 
     return { interpreter::Jalr::fn, arg };
 }

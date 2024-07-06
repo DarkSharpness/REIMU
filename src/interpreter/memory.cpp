@@ -177,7 +177,7 @@ auto Memory_Impl::fetch_exe_libc(target_size_t pc) -> Executable & {
     static auto libc_exe = []() {
         std::array <Executable, std::size(libc::funcs)> result;
         std::size_t i = 0;
-        for (auto *fn : libc::funcs) result.at(i++).set_handle(fn, 0);
+        for (auto *fn : libc::funcs) result.at(i++).set_handle(fn, {});
         runtime_assert(i == std::size(libc::funcs));
         return result;
     }();

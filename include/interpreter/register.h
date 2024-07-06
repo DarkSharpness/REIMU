@@ -22,7 +22,7 @@ struct RegisterFile {
         return this->regs[static_cast<std::size_t>(reg)];
     }
     /* Return old program counter. */
-    auto get_pc() { return this->pc; }
+    auto get_pc() const { return this->pc; }
     /* Set new program counter. */
     void set_pc(target_size_t pc) { this->new_pc = pc; }
     /* Complete after one instruction. */

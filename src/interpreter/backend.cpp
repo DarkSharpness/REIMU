@@ -49,7 +49,14 @@ void Interpreter::interpret(const Config &config) {
     target_size_t start_pc = layout.position_table.at("main");
     auto regfile = RegisterFile { start_pc, config };
 
+    auto labels = LabelMap {};
+    for (auto &[label, pc] : layout.position_table)
+        labels.add(pc, label);
+
+
     while (regfile.advance()) {
+        auto [label, offset] = labels.get(regfile.get_pc());
+        std::cout << std::format("Executing {}+0x{:x}\n", label, offset);
         auto &exe = memory.fetch_executable(regfile.get_pc());
         exe(regfile, memory, device);
     }
