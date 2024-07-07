@@ -6,73 +6,6 @@
 /* Some weight configurations. */
 namespace dark::weight {
 
-struct counter_arith {
-    std::size_t add     {};
-    std::size_t sub     {};
-    std::size_t lui     {};
-    std::size_t slt     {};
-    std::size_t sltu    {};
-    std::size_t auipc   {};
-};
-
-struct counter_bitwise {
-    std::size_t and_    {};
-    std::size_t or_     {};
-    std::size_t xor_    {};
-    std::size_t sll     {};
-    std::size_t srl     {};
-    std::size_t sra     {};
-};
-
-struct counter_branch {
-    std::size_t beq     {};
-    std::size_t bne     {};
-    std::size_t blt     {};
-    std::size_t bge     {};
-    std::size_t bltu    {};
-    std::size_t bgeu    {};
-};
-
-struct counter_memory {
-    std::size_t lb      {};
-    std::size_t lh      {};
-    std::size_t lw      {};
-    std::size_t lbu     {};
-    std::size_t lhu     {};
-    std::size_t sb      {};
-    std::size_t sh      {};
-    std::size_t sw      {};
-};
-
-struct counter_multiply {
-    std::size_t mul     {};
-    std::size_t mulh    {};
-    std::size_t mulhsu  {};
-    std::size_t mulhu   {};
-};
-
-struct counter_divide {
-    std::size_t div     {};
-    std::size_t divu    {};
-    std::size_t rem     {};
-    std::size_t remu    {};
-};
-
-struct counter_jump {
-    std::size_t jal     {};
-    std::size_t jalr    {};
-};
-
-struct counter :
-    counter_arith,
-    counter_bitwise,
-    counter_branch,
-    counter_memory,
-    counter_multiply,
-    counter_divide,
-    counter_jump
-{};
-
 static constexpr std::size_t kArith     = 1;
 static constexpr std::size_t kBitwise   = 1;
 static constexpr std::size_t kBranch    = 10;
@@ -149,7 +82,6 @@ static constexpr std::size_t kWeightCount = []() {
 } ();
 
 static_assert(parse_manual("demo = 1") == std::pair(std::string_view("demo"), std::size_t(1)));
-static_assert(sizeof(counter) == sizeof(std::size_t) * kWeightCount);
 
 
 } // namespace dark::weight

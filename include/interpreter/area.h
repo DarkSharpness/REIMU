@@ -55,6 +55,15 @@ struct StaticArea {
     auto unchecked_fetch_exe(target_size_t pc) -> Executable & {
         return this->exes[(pc - this->text_start) / kTextSize];
     }
+    auto get_range() const {
+        return std::make_pair(this->text_start, this->data_finish);
+    }
+    auto get_text_range() const {
+        return std::make_pair(this->text_start, this->text_finish);
+    }
+    auto get_data_range() const {
+        return std::make_pair(this->data_start, this->data_finish);
+    }
     ~StaticArea() { delete (this->storage + this->text_start); }
 };
 
@@ -72,6 +81,9 @@ struct HeapArea {
     }
     auto *get_heap(target_size_t addr) {
         return this->storage.data() - this->heap_start + addr;
+    }
+    auto get_range() const {
+        return std::make_pair(this->heap_start, this->heap_finish);
     }
 };
 
@@ -92,6 +104,9 @@ struct StackArea {
     }
     auto *get_stack(target_size_t addr) {
         return this->storage + addr;
+    }
+    auto get_range() const {
+        return std::make_pair(this->stack_start, this->stack_finish);
     }
     ~StackArea() { delete (this->storage + this->stack_start); }
 };

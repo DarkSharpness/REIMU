@@ -14,6 +14,7 @@ static constexpr std::string_view kSupportedOptions[] = {
     "cache",
     "debug",
     "detail",
+    "silent",
 };
 
 static constexpr std::string_view kInitAssemblyFiles[] = {

@@ -51,8 +51,11 @@ static constexpr std::string_view color_code = {
 
 } // namespace __console
 
+inline bool warning_shutdown {};
+
 template <typename ...Args>
 inline void warning(std::format_string <Args...> fmt = "", Args &&...args) {
+    if (warning_shutdown) return;
     std::cerr
         << __console::color_code <__console::Color::YELLOW>
         << "Warning: "

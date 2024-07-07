@@ -96,7 +96,34 @@ void Memory::store_u32(target_size_t addr, u32 value) {
 
 auto Memory::create(const Config &config, const MemoryLayout &result)
 -> std::unique_ptr <Memory> {
-    return std::unique_ptr <Memory> { new Memory::Impl { config, result } };
+    auto ptr = new Memory::Impl { config, result };
+    auto ret = std::unique_ptr <Memory> { ptr };
+
+    auto [static_low, static_top] = static_cast <StaticArea *> (ptr)->get_range();
+    auto [heap_low, heap_top] = static_cast <HeapArea *> (ptr)->get_range();
+    auto [stack_low, stack_top] = static_cast <StackArea *> (ptr)->get_range();
+
+    if (static_top > heap_low || heap_top > stack_low)
+        panic(
+            "Not enough memory for the program!\n"
+            "  Hint: In RISC-V, the lowest {0} bytes are reserved.\n"
+            "        Text section starts from 0x{0:x}.\n"
+            "        Note that sections are aligned to 4096 bytes,\n"
+            "          and there's some space reserved for libc functions,\n"
+            "          which means that some extra memory might be needed.\n"
+            "        Current program:\t[0x{1:x}, 0x{2:x}),\tsize = {3}\n"
+            "        Current stack:  \t[0x{4:x}, 0x{5:x}),\tsize = {6}\n"
+            "        Current memory size: {7}\n"
+            "        Minimum memory size: {8}\n",
+            kTextStart,
+            static_low, static_top, static_top - static_low,
+            stack_low,  stack_top,  stack_top  - stack_low,
+            stack_top,
+            heap_top + stack_top - stack_low);
+
+
+
+    return ret;
 }
 
 Memory::~Memory() {

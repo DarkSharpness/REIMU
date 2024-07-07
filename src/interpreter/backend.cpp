@@ -37,6 +37,15 @@ RegisterFile::RegisterFile(target_size_t pc, const Config &config)
     (*this)[Register::ra] = this->end_pc;
 }
 
+static void interpret_normal
+    (RegisterFile &regfile, Memory &memory, Device &device, std::size_t timeout) {
+    while (regfile.advance() && timeout --> 0) {
+        auto &exe = memory.fetch_executable(regfile.get_pc());
+        exe(regfile, memory, device);
+    }
+    panic_if(timeout + 1 == std::size_t{}, "Time Limit Exceeded");
+}
+
 void Interpreter::interpret(const Config &config) {
     auto device_ptr = Device::create(config);
     auto memory_ptr = Memory::create(config, this->layout);
@@ -44,22 +53,17 @@ void Interpreter::interpret(const Config &config) {
     auto &device = *device_ptr;
     auto &memory = *memory_ptr;
 
-    target_size_t start_pc = layout.position_table.at("main");
-    auto regfile = RegisterFile { start_pc, config };
+    auto regfile = RegisterFile { layout.position_table.at("main"), config };
 
-    auto labels = LabelMap {};
-    for (auto &[label, pc] : layout.position_table)
-        labels.add(pc, label);
-
-    while (regfile.advance()) {
-        // auto [label, offset] = labels.get(regfile.get_pc());
-        // std::cout << std::format("Executing {}+0x{:x}\n", label, offset);
-        auto &exe = memory.fetch_executable(regfile.get_pc());
-        exe(regfile, memory, device);
+    if (!config.has_option("debug")) {
+        interpret_normal(regfile, memory, device, config.get_timeout());
+    } else {
+        panic("Debug Mode is not implemented yet");
     }
 
-    // const auto exit_code = regfile[Register::a0];
-
+    if (config.has_option("detail")) {
+        std::cout << std::format("Program exited normally with code {}\n", regfile[Register::a0]);
+    }
 }
 
 } // namespace dark

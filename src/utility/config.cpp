@@ -1,7 +1,7 @@
 #include <utility.h>
 #include <config/config.h>
 #include <config/default.h>
-#include <weight.h>
+#include <config/weight.h>
 #include <ranges>
 #include <algorithm>
 #include <unordered_set>
@@ -43,6 +43,7 @@ struct Config_Impl {
     }
 
     void initialize_with_check();
+    void parse_options();
     void print_in_detail() const;
 
     bool has_option(std::string_view) const;
@@ -143,14 +144,18 @@ void Config_Impl::initialize_with_check() {
             std::end  (config::kInitAssemblyFiles)
         );
 
-    if (this->storage_size == this->uninitialized)
-        this->storage_size = config::kInitMemorySize;
-
     if (this->maximum_time ==this->uninitialized)
         this->maximum_time = config::kInitTimeOut;
 
+    if (this->storage_size == this->uninitialized)
+        this->storage_size = config::kInitMemorySize;
+
     if (this->stack_size == this->uninitialized)
         this->stack_size = config::kInitStackSize;
+
+    if (this->stack_size > this->storage_size)
+        panic("Stack size exceeds memory size: "
+              "0x{:x} > 0x{:x}", this->stack_size, this->storage_size);
 
     check_option(this->option_table);
     check_weight(this->weight_table);
@@ -179,8 +184,8 @@ void Config_Impl::print_in_detail() const {
     static constexpr char kFormat[] = "    - {:<8} = {}\n";
 
     std::cout << "  Options:\n";
-    for (const auto &key : this->option_table)
-        std::cout << std::format(kFormat, key, "enabled");
+    for (const auto &key : config::kSupportedOptions)
+        std::cout << std::format(kFormat, key, this->has_option(key));
 
     std::cout << "  Weights:\n";
     for (const auto &[name, list, weight] : weight_ranges) {
@@ -200,6 +205,49 @@ void Config_Impl::print_in_detail() const {
     std::cout << std::format("{:=^80}\n", "");
 }
 
+bool Config_Impl::has_option(std::string_view name) const {
+    return this->option_table.count(name) != 0;
+}
+
+auto Config::parse(int argc, char** argv) -> std::unique_ptr <Config> {
+    return std::unique_ptr <Config> (new Impl {argc, argv});
+}
+
+auto Config::has_option(std::string_view name) const -> bool {
+    return this->get_impl().has_option(name);
+}
+
+auto Config::get_impl() const -> const Impl & {
+    return *static_cast <const Impl*> (this);
+}
+
+auto Config::get_input_stream() const -> std::istream& {
+    return *this->get_impl().input_stream;
+}
+
+auto Config::get_output_stream() const -> std::ostream& {
+    return *this->get_impl().output_stream;
+}
+
+auto Config::get_stack_top() const -> target_size_t {
+    return this->get_impl().storage_size;
+}
+
+auto Config::get_stack_low() const -> target_size_t {
+    return this->get_impl().storage_size - this->get_impl().stack_size;
+}
+
+auto Config::get_timeout() const -> std::size_t {
+    return this->get_impl().maximum_time;
+}
+
+auto Config::get_assembly_names() const -> std::span <const std::string_view> {
+    return this->get_impl().assembly_files;
+}
+
+/**
+ * Core implementation of the configuration parser.
+ */
 Config_Impl::Config_Impl(int argc, char** argv) {
     static constexpr const char kInvalid[] = "Invalid command line argument: {}";
 
@@ -346,10 +394,10 @@ Options:
         static constexpr std::size_t kThreshold     = 1 << 30;  // 1GB
 
         std::size_t factor = 1;
-        if (view.size() && view.back() == 'K') {
+        if (view.ends_with('K') || view.ends_with('k')) {
             factor = 1 << 10;
             view.remove_suffix(1);
-        } else if (view.size() && view.back() == 'M') {
+        } else if (view.ends_with('M') || view.ends_with('m')) {
             factor = 1 << 20;
             view.remove_suffix(1);
         }
@@ -436,47 +484,17 @@ Options:
     }
 
     this->initialize_with_check();
+    this->parse_options();
+}
+
+void Config_Impl::parse_options() {
+    // Silent will kill all other options.
+    if (this->has_option("silent")) {
+        this->option_table = { "silent" };
+        ::dark::warning_shutdown = true;
+        return;
+    }
     if (this->has_option("detail")) this->print_in_detail();
-}
-
-bool Config_Impl::has_option(std::string_view name) const {
-    return this->option_table.count(name) != 0;
-}
-
-auto Config::parse(int argc, char** argv) -> std::unique_ptr <Config> {
-    return std::unique_ptr <Config> (new Impl {argc, argv});
-}
-
-auto Config::has_option(std::string_view name) const -> bool {
-    return this->get_impl().has_option(name);
-}
-
-auto Config::get_impl() const -> const Impl & {
-    return *static_cast <const Impl*> (this);
-}
-
-auto Config::get_input_stream() const -> std::istream& {
-    return *this->get_impl().input_stream;
-}
-
-auto Config::get_output_stream() const -> std::ostream& {
-    return *this->get_impl().output_stream;
-}
-
-auto Config::get_stack_top() const -> target_size_t {
-    return this->get_impl().storage_size;
-}
-
-auto Config::get_stack_low() const -> target_size_t {
-    return this->get_impl().storage_size - this->get_impl().stack_size;
-}
-
-auto Config::get_timeout() const -> std::size_t {
-    return this->get_impl().maximum_time;
-}
-
-auto Config::get_assembly_names() const -> std::span <const std::string_view> {
-    return this->get_impl().assembly_files;
 }
 
 } // namespace dark

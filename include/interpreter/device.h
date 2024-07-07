@@ -1,13 +1,13 @@
 #pragma once
 #include <declarations.h>
-#include <weight.h>
+#include <config/counter.h>
 #include <iosfwd>
 #include <memory>
 
 namespace dark {
 
 struct Device {
-    struct Counter : weight::counter {
+    struct Counter : config::Counter {
         std::size_t iparse;
     } counter;
 
