@@ -59,7 +59,7 @@ Config::~Config() {
     std::destroy_at <Config_Impl> (impl_ptr);
 }
 
-using weight::weight_ranges;
+using weight::kWeightRanges;
 using weight::kManual;
 using weight::kWeightCount;
 using weight::parse_manual;
@@ -69,7 +69,7 @@ static constexpr auto kWeightList = []() {
     using _Pair_t = std::pair <std::string_view, std::size_t>;
     std::array <_Pair_t, kWeightCount> table {};
     std::size_t which {};
-    for (const auto &[name, list, weight] : weight_ranges) {
+    for (const auto &[name, list, weight] : kWeightRanges) {
         if (weight != kManual) {
             for (auto item : list) table[which++] = { item, weight };
         } else {
@@ -85,7 +85,7 @@ static constexpr auto kWeightList = []() {
  */
 static auto find_weight_range(std::string_view need)
 -> std::optional <std::span <const std::string_view>> {
-    for (const auto &[name, list, _] : weight_ranges)
+    for (const auto &[name, list, _] : kWeightRanges)
         if (name == need) return list;
     return std::nullopt;
 }
@@ -188,7 +188,7 @@ void Config_Impl::print_in_detail() const {
         std::cout << std::format(kFormat, key, this->has_option(key));
 
     std::cout << "  Weights:\n";
-    for (const auto &[name, list, weight] : weight_ranges) {
+    for (const auto &[name, list, weight] : kWeightRanges) {
         std::cout << "    " << name << ":\n";
         if (weight != kManual) {
             for (auto iter : list) {

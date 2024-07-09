@@ -45,7 +45,7 @@ struct Weight_Range {
         : name(name), list(list), weight(weight) {}
 };
 
-static constexpr Weight_Range weight_ranges[] = {
+static constexpr Weight_Range kWeightRanges[] = {
     { "arith"   , arith_name_list   , kArith    },
     { "bitwise" , bitwise_name_list , kBitwise  },
     { "branch"  , branch_name_list  , kBranch   },
@@ -76,7 +76,7 @@ constexpr auto parse_manual(std::string_view name) {
 
 static constexpr std::size_t kWeightCount = []() {
     std::size_t total_weight = 0;
-    for (const auto &[name, list, weight] : weight_ranges)
+    for (const auto &[name, list, weight] : kWeightRanges)
         total_weight += list.size();
     return total_weight;
 } ();

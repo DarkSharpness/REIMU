@@ -5,7 +5,6 @@ namespace dark {
 
 // Some hidden implementation data.
 struct Device_Impl {
-
 };
 
 struct Device::Impl : Device_Impl, Device {
@@ -16,7 +15,6 @@ struct Device::Impl : Device_Impl, Device {
             .in = config.get_input_stream(),
             .out = config.get_output_stream(),
         } {}
-
 };
 
 auto Device::create(const Config &config)
@@ -36,5 +34,8 @@ auto Device::get_impl() -> Impl & {
     return *static_cast <Impl *> (this);
 }
 
+void Device::print_details(bool detail) const {
+    
+}
 
 } // namespace dark

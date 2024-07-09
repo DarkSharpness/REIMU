@@ -15,9 +15,10 @@ struct Device {
     std::ostream &out;
 
     static auto create(const Config &config) ->std::unique_ptr<Device>;
-
     // Predict a branch at pc. It will call external branch predictor
     void predict(target_size_t pc, bool result);
+    // Print in details
+    void print_details(bool) const;
 
     ~Device();
   private:

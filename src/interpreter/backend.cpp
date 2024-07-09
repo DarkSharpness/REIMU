@@ -31,12 +31,6 @@ struct LabelMap {
     }
 };
 
-RegisterFile::RegisterFile(target_size_t pc, const Config &config)
-    : regs(), pc(), new_pc(pc) {
-    (*this)[Register::sp] = config.get_stack_top();
-    (*this)[Register::ra] = this->end_pc;
-}
-
 static void interpret_normal
     (RegisterFile &regfile, Memory &memory, Device &device, std::size_t timeout) {
     while (regfile.advance() && timeout --> 0) {
@@ -45,6 +39,9 @@ static void interpret_normal
     }
     panic_if(timeout + 1 == std::size_t{}, "Time Limit Exceeded");
 }
+
+static void interpret_debug
+    (RegisterFile &regfile, Memory &memory, Device &device, std::size_t timeout);
 
 void Interpreter::interpret(const Config &config) {
     auto device_ptr = Device::create(config);
@@ -55,15 +52,22 @@ void Interpreter::interpret(const Config &config) {
 
     auto regfile = RegisterFile { layout.position_table.at("main"), config };
 
-    if (!config.has_option("debug")) {
-        interpret_normal(regfile, memory, device, config.get_timeout());
+    if (config.has_option("debug")) {
+        interpret_debug(regfile, memory, device, config.get_timeout());
     } else {
-        panic("Debug Mode is not implemented yet");
+        interpret_normal(regfile, memory, device, config.get_timeout());
     }
 
-    if (config.has_option("detail")) {
-        std::cout << std::format("Program exited normally with code {}\n", regfile[Register::a0]);
-    }
+    if (config.has_option("silent")) return;
+    bool enable_detail = config.has_option("detail");
+    regfile.print_details(enable_detail);
+    memory.print_details(enable_detail);
+    device.print_details(enable_detail);
+}
+
+static void interpret_debug
+    (RegisterFile &regfile, Memory &memory, Device &device, std::size_t timeout) {
+    panic("Debug Mode is not implemented yet");
 }
 
 } // namespace dark

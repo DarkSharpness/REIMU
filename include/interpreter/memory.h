@@ -36,6 +36,7 @@ struct Memory {
 
     ~Memory();
 
+    void print_details(bool) const;
   private:
     struct Impl;
     Impl &get_impl();

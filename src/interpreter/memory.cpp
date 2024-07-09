@@ -121,8 +121,6 @@ auto Memory::create(const Config &config, const MemoryLayout &result)
             stack_top,
             heap_top + stack_top - stack_low);
 
-
-
     return ret;
 }
 
@@ -207,6 +205,9 @@ auto Memory_Impl::fetch_exe_libc(target_size_t pc) -> Executable & {
     }();
 
     return libc_exe.at((pc - libc::kLibcStart) / sizeof(pc));
+}
+
+void Memory::print_details(bool) const {
 }
 
 } // namespace dark
