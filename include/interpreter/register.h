@@ -18,7 +18,7 @@ struct RegisterFile {
     /* Constructor. */
     explicit RegisterFile(target_size_t, const Config &);
     /* Return reference to given register. */
-    auto &operator[](Register reg) { return this->regs[static_cast<std::size_t>(reg)]; }
+    auto &operator[](Register reg) { return this->regs[reg_to_int(reg)]; }
     /* Return old program counter. */
     auto get_pc() const { return this->pc; }
     /* Set new program counter. */
@@ -26,7 +26,7 @@ struct RegisterFile {
     /* Complete after one instruction. */
     bool advance() {
         this->pc = this->new_pc;
-        this->new_pc = this->pc + 4;
+        this->new_pc = this->pc + sizeof(command_size_t);
         (*this)[Register::zero] = 0;
         return this->pc != this->end_pc;
     }

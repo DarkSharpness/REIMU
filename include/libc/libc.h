@@ -48,6 +48,6 @@ using details::funcs;
 using details::names;
 
 inline static constexpr auto kLibcStart = kTextStart;
-inline static constexpr auto kLibcEnd = kTextStart + std::size(names) * sizeof(target_size_t);
+inline static constexpr auto kLibcEnd = kTextStart + std::size(names) * sizeof(command_size_t);
 
 } // namespace dark::libc

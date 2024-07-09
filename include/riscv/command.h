@@ -1,4 +1,5 @@
 #pragma once
+#include <declarations.h>
 #include <bit>
 #include <cstdint>
 #include <concepts>
@@ -9,11 +10,11 @@ namespace __details {
 
 template <typename _Derived>
 struct crtp {
-    constexpr auto to_integer() const -> std::uint32_t {
+    constexpr auto to_integer() const -> command_size_t {
         auto &derived = static_cast<const _Derived&>(*this);
-        return std::bit_cast<std::uint32_t>(derived);
+        return std::bit_cast<command_size_t>(derived);
     }
-    static constexpr auto from_integer(std::uint32_t cmd) -> _Derived;
+    static constexpr auto from_integer(command_size_t cmd) -> _Derived;
 };
 
 template <std::size_t _Len, std::unsigned_integral _Tp>
@@ -26,7 +27,7 @@ inline constexpr _Tp sign_extend(_Tp value) {
 
 namespace Arith_Funct3 {
 
-enum Funct : std::uint32_t {
+enum Funct : command_size_t {
     ADD     = 0b000,
     SLL     = 0b001,
     SLT     = 0b010,
@@ -52,7 +53,7 @@ enum Funct : std::uint32_t {
 
 namespace Arith_Funct7 {
 
-enum Funct : std::uint32_t {
+enum Funct : command_size_t {
     ADD     = 0b0000000,
     SLL     = 0b0000000,
     SLT     = 0b0000000,
@@ -78,15 +79,15 @@ enum Funct : std::uint32_t {
 
 // A layout without considering immediate values
 struct standard_layout {
-    std::uint32_t opcode : 7;
-    std::uint32_t rd     : 5;
-    std::uint32_t funct3 : 3;
-    std::uint32_t rs1    : 5;
-    std::uint32_t rs2    : 5;
-    std::uint32_t funct7 : 7;
+    command_size_t opcode : 7;
+    command_size_t rd     : 5;
+    command_size_t funct3 : 3;
+    command_size_t rs1    : 5;
+    command_size_t rs2    : 5;
+    command_size_t funct7 : 7;
 };
 
-inline constexpr auto make_std(std::uint32_t cmd) -> standard_layout {
+inline constexpr auto make_std(command_size_t cmd) -> standard_layout {
     return std::bit_cast <standard_layout> (cmd);
 }
 
@@ -94,18 +95,18 @@ inline constexpr auto make_std(std::uint32_t cmd) -> standard_layout {
 
 struct r_type : __details::crtp <r_type> {
   private:
-    const std::uint32_t _op : 7;
+    const command_size_t _op : 7;
   public:
-    std::uint32_t rd        : 5;
-    std::uint32_t funct3    : 3;
-    std::uint32_t rs1       : 5;
-    std::uint32_t rs2       : 5;
-    std::uint32_t funct7    : 7;
+    command_size_t rd        : 5;
+    command_size_t funct3    : 3;
+    command_size_t rs1       : 5;
+    command_size_t rs2       : 5;
+    command_size_t funct7    : 7;
 
     using Funct3 = __details::Arith_Funct3::Funct;
     using Funct7 = __details::Arith_Funct7::Funct;
 
-    static constexpr std::uint32_t opcode = 0b0110011; 
+    static constexpr command_size_t opcode = 0b0110011; 
 
     explicit r_type() : _op(opcode), rd(0), funct3(0), rs1(0), rs2(0), funct7(0) {}
 };
@@ -113,25 +114,25 @@ struct r_type : __details::crtp <r_type> {
 
 struct i_type : __details::crtp <i_type> {
   private:
-    const std::uint32_t _op : 7;
+    const command_size_t _op : 7;
   public:
-    std::uint32_t rd        : 5;
-    std::uint32_t funct3    : 3;
-    std::uint32_t rs1       : 5;
-    std::uint32_t imm       : 12;
+    command_size_t rd        : 5;
+    command_size_t funct3    : 3;
+    command_size_t rs1       : 5;
+    command_size_t imm       : 12;
 
     using Funct3 = __details::Arith_Funct3::Funct;
     using Funct7 = __details::Arith_Funct7::Funct;
 
-    static constexpr std::uint32_t opcode = 0b0010011;
+    static constexpr command_size_t opcode = 0b0010011;
 
     explicit i_type() : _op(opcode), rd(0), funct3(0), rs1(0), imm(0) {}
 
-    auto get_imm() const -> std::uint32_t {
+    auto get_imm() const -> command_size_t {
         return __details::sign_extend <12> (imm);
     }
 
-    void set_imm(std::uint32_t imm) {
+    void set_imm(command_size_t imm) {
         this->imm = imm;
     }
 };
@@ -139,30 +140,30 @@ struct i_type : __details::crtp <i_type> {
 
 struct s_type : __details::crtp <s_type> {
   private:
-    const std::uint32_t _op : 7;
+    const command_size_t _op : 7;
   public:
-    std::uint32_t imm_4_0   : 5;
-    std::uint32_t funct3    : 3;
-    std::uint32_t rs1       : 5;
-    std::uint32_t rs2       : 5;
-    std::uint32_t imm_11_5  : 7;
+    command_size_t imm_4_0   : 5;
+    command_size_t funct3    : 3;
+    command_size_t rs1       : 5;
+    command_size_t rs2       : 5;
+    command_size_t imm_11_5  : 7;
 
-    enum Funct3 : std::uint32_t {
+    enum Funct3 : command_size_t {
         SB = 0b000,
         SH = 0b001,
         SW = 0b010
     };
 
-    static constexpr std::uint32_t opcode = 0b0100011;
+    static constexpr command_size_t opcode = 0b0100011;
 
     explicit s_type() : _op(opcode), imm_4_0(0), funct3(0), rs1(0), rs2(0), imm_11_5(0) {}
 
-    auto get_imm() const -> std::uint32_t {
-        std::uint32_t imm = (imm_11_5 << 5) | imm_4_0;
+    auto get_imm() const -> command_size_t {
+        command_size_t imm = (imm_11_5 << 5) | imm_4_0;
         return __details::sign_extend <12> (imm);
     }
 
-    void set_imm(std::uint32_t imm) {
+    void set_imm(command_size_t imm) {
         imm_4_0 = imm;
         imm_11_5 = imm >> 5;
     }
@@ -171,14 +172,14 @@ struct s_type : __details::crtp <s_type> {
 
 struct l_type : __details::crtp <l_type> {
   private:
-    const std::uint32_t _op : 7;
+    const command_size_t _op : 7;
   public:
-    std::uint32_t rd        : 5;
-    std::uint32_t funct3    : 3;
-    std::uint32_t rs1       : 5;
-    std::uint32_t imm       : 12;
+    command_size_t rd        : 5;
+    command_size_t funct3    : 3;
+    command_size_t rs1       : 5;
+    command_size_t imm       : 12;
 
-    enum Funct3 : std::uint32_t {
+    enum Funct3 : command_size_t {
         LB = 0b000,
         LH = 0b001,
         LW = 0b010,
@@ -186,14 +187,14 @@ struct l_type : __details::crtp <l_type> {
         LHU = 0b101
     };
 
-    static constexpr std::uint32_t opcode = 0b0000011;
+    static constexpr command_size_t opcode = 0b0000011;
     explicit l_type() : _op(opcode), rd(0), funct3(0), rs1(0), imm(0) {}
 
-    auto get_imm() const -> std::uint32_t {
+    auto get_imm() const -> command_size_t {
         return __details::sign_extend <12> (imm);
     }
 
-    void set_imm(std::uint32_t imm) {
+    void set_imm(command_size_t imm) {
         this->imm = imm;
     }
 };
@@ -201,17 +202,17 @@ struct l_type : __details::crtp <l_type> {
 
 struct b_type : __details::crtp <b_type> {
   private:
-    const std::uint32_t _op : 7;
+    const command_size_t _op : 7;
   public:
-    std::uint32_t imm_11    : 1;
-    std::uint32_t imm_4_1   : 4;
-    std::uint32_t funct3    : 3;
-    std::uint32_t rs1       : 5;
-    std::uint32_t rs2       : 5;
-    std::uint32_t imm_10_5  : 6;
-    std::uint32_t imm_12    : 1;
+    command_size_t imm_11    : 1;
+    command_size_t imm_4_1   : 4;
+    command_size_t funct3    : 3;
+    command_size_t rs1       : 5;
+    command_size_t rs2       : 5;
+    command_size_t imm_10_5  : 6;
+    command_size_t imm_12    : 1;
 
-    enum Funct3 : std::uint32_t {
+    enum Funct3 : command_size_t {
         BEQ = 0b000,
         BNE = 0b001,
         BLT = 0b100,
@@ -220,16 +221,16 @@ struct b_type : __details::crtp <b_type> {
         BGEU = 0b111
     };
 
-    static constexpr std::uint32_t opcode = 0b1100011;
+    static constexpr command_size_t opcode = 0b1100011;
 
     explicit b_type() : _op(opcode), imm_11(0), imm_4_1(0), funct3(0), rs1(0), rs2(0), imm_10_5(0), imm_12(0) {}
 
-    auto get_imm() const -> std::uint32_t {
-        std::uint32_t imm = (imm_12 << 12) | (imm_11 << 11) | (imm_10_5 << 5) | (imm_4_1 << 1);
+    auto get_imm() const -> command_size_t {
+        command_size_t imm = (imm_12 << 12) | (imm_11 << 11) | (imm_10_5 << 5) | (imm_4_1 << 1);
         return __details::sign_extend <13> (imm);
     }
 
-    void set_imm(std::uint32_t imm) {
+    void set_imm(command_size_t imm) {
         imm_11  = imm >> 11;
         imm_4_1 = imm >> 1;
         imm_10_5 = imm >> 5;
@@ -239,40 +240,40 @@ struct b_type : __details::crtp <b_type> {
 
 struct auipc : __details::crtp <auipc> {
   private:
-    const std::uint32_t _op : 7;
+    const command_size_t _op : 7;
   public:
-    std::uint32_t rd        : 5;
-    std::uint32_t imm       : 20;
+    command_size_t rd        : 5;
+    command_size_t imm       : 20;
 
-    static constexpr std::uint32_t opcode = 0b0010111;
+    static constexpr command_size_t opcode = 0b0010111;
 
     explicit auipc() : _op(opcode), rd(0), imm(0) {}
 
-    auto get_imm() const -> std::uint32_t {
+    auto get_imm() const -> command_size_t {
         return imm << 12;
     }
 
-    void set_imm(std::uint32_t imm) {
+    void set_imm(command_size_t imm) {
         this->imm = imm;
     }
 };
 
 struct lui : __details::crtp <lui> {
   private:
-    const std::uint32_t _op : 7;
+    const command_size_t _op : 7;
   public:
-    std::uint32_t rd        : 5;
-    std::uint32_t imm       : 20;
+    command_size_t rd        : 5;
+    command_size_t imm       : 20;
 
-    static constexpr std::uint32_t opcode = 0b0110111;
+    static constexpr command_size_t opcode = 0b0110111;
 
     explicit lui() : _op(opcode), rd(0), imm(0) {}
 
-    auto get_imm() const -> std::uint32_t {
+    auto get_imm() const -> command_size_t {
         return imm << 12;
     }
 
-    void set_imm(std::uint32_t imm) {
+    void set_imm(command_size_t imm) {
         this->imm = imm;
     }
 };
@@ -280,48 +281,48 @@ struct lui : __details::crtp <lui> {
 
 struct jalr : __details::crtp <jalr> {
   private:
-    const std::uint32_t _op     : 7;
+    const command_size_t _op     : 7;
   public:
-    std::uint32_t rd            : 5;
+    command_size_t rd            : 5;
   private:
-    const std::uint32_t funct3  : 3;
+    const command_size_t funct3  : 3;
   public:
-    std::uint32_t rs1           : 5;
-    std::uint32_t imm           : 12;
+    command_size_t rs1           : 5;
+    command_size_t imm           : 12;
 
-    static constexpr std::uint32_t opcode = 0b1100111;
+    static constexpr command_size_t opcode = 0b1100111;
 
     explicit jalr() : _op(opcode), rd(0), funct3(0), rs1(0), imm(0) {}
 
-    auto get_imm() const -> std::uint32_t {
+    auto get_imm() const -> command_size_t {
         return __details::sign_extend <12> (imm);
     }
 
-    void set_imm(std::uint32_t imm) {
+    void set_imm(command_size_t imm) {
         this->imm = imm;
     }
 };
 
 struct jal : __details::crtp <jal> {
   private:
-    const std::uint32_t _op     : 7;
+    const command_size_t _op     : 7;
   public:
-    std::uint32_t rd            : 5;
-    std::uint32_t imm_19_12     : 8;
-    std::uint32_t imm_11        : 1;
-    std::uint32_t imm_10_1      : 10;
-    std::uint32_t imm_20        : 1;
+    command_size_t rd            : 5;
+    command_size_t imm_19_12     : 8;
+    command_size_t imm_11        : 1;
+    command_size_t imm_10_1      : 10;
+    command_size_t imm_20        : 1;
 
-    static constexpr std::uint32_t opcode = 0b1101111;
+    static constexpr command_size_t opcode = 0b1101111;
 
     explicit jal() : _op(opcode), rd(0), imm_19_12(0), imm_11(0), imm_10_1(0), imm_20(0) {}
 
-    auto get_imm() const -> std::uint32_t {
-        std::uint32_t imm = (imm_20 << 20) | (imm_19_12 << 12) | (imm_11 << 11) | (imm_10_1 << 1);
+    auto get_imm() const -> command_size_t {
+        command_size_t imm = (imm_20 << 20) | (imm_19_12 << 12) | (imm_11 << 11) | (imm_10_1 << 1);
         return __details::sign_extend <21> (imm);
     }
 
-    void set_imm(std::uint32_t imm) {
+    void set_imm(command_size_t imm) {
         imm_19_12 = imm >> 12;
         imm_11 = imm >> 11;
         imm_10_1 = imm >> 1;
@@ -329,22 +330,22 @@ struct jal : __details::crtp <jal> {
     }
 };
 
-inline constexpr auto get_opcode(std::uint32_t cmd) {
+inline constexpr auto get_opcode(command_size_t cmd) {
     return __details::make_std(cmd).opcode;
 }
 
-inline constexpr auto get_funct3(std::uint32_t cmd) {
+inline constexpr auto get_funct3(command_size_t cmd) {
     return __details::make_std(cmd).funct3;
 }
 
-inline constexpr auto get_funct7(std::uint32_t cmd) {
+inline constexpr auto get_funct7(command_size_t cmd) {
     return __details::make_std(cmd).funct7;
 }
 
 namespace __details {
     
 template <typename _Derived>
-constexpr auto crtp <_Derived>::from_integer(std::uint32_t cmd)
+constexpr auto crtp <_Derived>::from_integer(command_size_t cmd)
 -> _Derived { return std::bit_cast <_Derived> (cmd); }
 
 } // namespace __details

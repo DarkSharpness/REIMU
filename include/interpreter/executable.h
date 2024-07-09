@@ -17,7 +17,7 @@ struct Executable {
         Register rd;
         Register rs1;
         Register rs2;
-        target_size_t imm;
+        std::uint32_t imm;
         auto parse(RegisterFile &) const -> PackData;
     };
 

@@ -17,10 +17,10 @@ struct Memory {
     auto load_i32(target_size_t addr) -> std::int32_t;
     auto load_u8(target_size_t addr)  -> std::uint8_t;
     auto load_u16(target_size_t addr) -> std::uint16_t;
-    auto load_cmd(target_size_t addr) -> std::uint32_t;
-
     [[deprecated]]
     auto load_u32(target_size_t addr) -> std::uint32_t;
+
+    auto load_cmd(target_size_t addr) -> command_size_t;
 
     void store_u8(target_size_t addr, std::uint8_t value);
     void store_u16(target_size_t addr, std::uint16_t value);

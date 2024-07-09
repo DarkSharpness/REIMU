@@ -15,9 +15,6 @@ namespace dark {
  * 
  */
 struct SizeEstimator final : StorageVisitor {
-    // Alignment and size of a command.
-    static constexpr target_size_t kCommand = 4;
-
     void align_to(target_size_t alignment) {
         runtime_assert(std::has_single_bit(alignment));
         auto bitmask = alignment - 1;
@@ -67,8 +64,8 @@ struct SizeEstimator final : StorageVisitor {
 
     template <std::derived_from <Command> _Command>
     void update(_Command &command, int count) {
-        this->align_to(kCommand);
-        this->position += kCommand * count;
+        this->align_to(alignof(command_size_t));
+        this->position += sizeof(command_size_t) * count;
     }
 
     auto get_position() const -> decltype(this->position) { return this->position; }

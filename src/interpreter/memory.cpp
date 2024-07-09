@@ -33,7 +33,7 @@ struct Memory_Impl : StaticArea, HeapArea, StackArea {
     explicit Memory_Impl(const Config &config, const MemoryLayout &layout)
         : StaticArea(layout), HeapArea(layout), StackArea(config) {}
 
-    auto checked_ifetch(target_size_t) -> target_size_t;
+    auto checked_ifetch(target_size_t) -> command_size_t;
 
     template <std::integral _Int>
     auto checked_load(target_size_t) -> _Int;
@@ -54,23 +54,23 @@ auto Memory::get_impl() -> Impl & {
     return static_cast <Impl &> (*this);
 }
 
-auto Memory::load_i8(target_size_t addr) -> std::int8_t {
+auto Memory::load_i8(target_size_t addr) -> i8 {
     return this->get_impl().checked_load <i8> (addr);
 }
 
-auto Memory::load_i16(target_size_t addr) -> std::int16_t {
+auto Memory::load_i16(target_size_t addr) -> i16 {
     return this->get_impl().checked_load <i16> (addr);
 }
 
-auto Memory::load_i32(target_size_t addr) -> std::int32_t {
+auto Memory::load_i32(target_size_t addr) -> i32 {
     return this->get_impl().checked_load <i32> (addr);
 }
 
-auto Memory::load_u8(target_size_t addr) -> std::uint8_t {
+auto Memory::load_u8(target_size_t addr) -> u8 {
     return this->get_impl().checked_load <u8> (addr);
 }
 
-auto Memory::load_u16(target_size_t addr) -> std::uint16_t {
+auto Memory::load_u16(target_size_t addr) -> u16 {
     return this->get_impl().checked_load <u16> (addr);
 }
 
@@ -78,7 +78,7 @@ auto Memory::load_u32(target_size_t addr) -> u32 {
     return this->get_impl().checked_load <u32> (addr);
 }
 
-auto Memory::load_cmd(target_size_t addr) -> u32 {
+auto Memory::load_cmd(target_size_t addr) -> command_size_t {
     return this->get_impl().checked_ifetch(addr);
 }
 
@@ -132,12 +132,12 @@ auto Memory::fetch_executable(target_size_t pc) -> Executable & {
     return this->get_impl().fetch_exe(pc); 
 }
 
-auto Memory_Impl::checked_ifetch(target_size_t pc) -> target_size_t {
-    if (pc % alignof(pc) != 0)
-        throw FailToInterpret { Error::InsMisAligned, pc, alignof(pc) };
+auto Memory_Impl::checked_ifetch(target_size_t pc) -> command_size_t {
+    if (pc % alignof(command_size_t) != 0)
+        throw FailToInterpret { Error::InsMisAligned, pc, alignof(command_size_t) };
 
-    if (!this->in_text(pc, pc + sizeof(pc)))
-        throw FailToInterpret { Error::InsOutOfBound, pc };
+    if (!this->in_text(pc, pc + sizeof(command_size_t)))
+        throw FailToInterpret { Error::InsOutOfBound, pc, alignof(command_size_t) };
 
     return int_cast <target_size_t> (this->get_static(pc));
 }
@@ -190,11 +190,11 @@ auto Memory_Impl::fetch_exe(target_size_t pc) -> Executable & {
 }
 
 auto Memory_Impl::fetch_exe_libc(target_size_t pc) -> Executable & {
-    if (pc % alignof(pc) != 0)
-        throw FailToInterpret { Error::InsMisAligned, pc, alignof(pc) };
+    if (pc % alignof(command_size_t) != 0)
+        throw FailToInterpret { Error::InsMisAligned, pc, alignof(command_size_t) };
 
     if (pc < libc::kLibcStart)
-        throw FailToInterpret { Error::InsOutOfBound, pc, alignof(pc) };
+        throw FailToInterpret { Error::InsOutOfBound, pc, alignof(command_size_t) };
 
     static auto libc_exe = []() {
         std::array <Executable, std::size(libc::funcs)> result;

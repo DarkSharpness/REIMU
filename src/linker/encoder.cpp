@@ -54,7 +54,8 @@ struct EncodingPass final : Evaluator, StorageVisitor {
     }
 
     void command_align() {
-        panic_if(this->get_current_position() % 4 != 0, "Command is not aligned");
+        panic_if(this->get_current_position() % alignof(command_size_t) != 0,
+            "Command is not aligned.");
     }
 
     void push_byte(std::uint8_t byte) {
@@ -76,7 +77,10 @@ struct EncodingPass final : Evaluator, StorageVisitor {
         this->inc_position(4);
     }
 
-    void push_command(std::uint32_t raw) { return this->push_word(raw); }
+    void push_command(command_size_t raw) {
+        static_assert(sizeof(raw) == 4);
+        return this->push_word(raw);
+    }
 
     void visitStorage(ArithmeticReg &storage) {
         this->command_align();

@@ -20,7 +20,7 @@ struct LabelMap {
         labels[pc] = label;
     }
 
-    auto get(target_size_t pc) {
+    auto get(target_size_t pc) const {
         struct Result {
             std::string_view label;
             target_size_t offset;

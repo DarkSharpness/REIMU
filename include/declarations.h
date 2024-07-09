@@ -21,7 +21,10 @@ enum class Section : std::uint8_t {
     MAXCOUNT = 5
 };
 
-using target_size_t = std::uint32_t;
+using command_size_t = std::uint32_t;
+using target_size_t  = std::uint32_t;
 using target_ssize_t = std::int32_t;
+
+static_assert(sizeof(target_size_t) == sizeof(target_ssize_t));
 
 } // namespace dark

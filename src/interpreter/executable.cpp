@@ -11,10 +11,10 @@ namespace dark {
 
 using _Pair_t = std::pair <Executable::_Func_t *, Executable::MetaData>;
 
-static auto parse_cmd(std::uint32_t cmd) -> _Pair_t;
+static auto parse_cmd(command_size_t cmd) -> _Pair_t;
 
 [[noreturn]]
-static void handle_unknown_instruction(std::uint32_t cmd) {
+static void handle_unknown_instruction(command_size_t cmd) {
     throw FailToInterpret { Error::InsUnknown, cmd };
 }
 
@@ -38,7 +38,7 @@ void Executable::fn(Executable &exe, RegisterFile &rf, Memory &mem, Device &dev)
     return exe(rf, mem, dev);
 }
 
-static auto parse_r_type(std::uint32_t cmd) -> _Pair_t {
+static auto parse_r_type(command_size_t cmd) -> _Pair_t {
     auto r_type = command::r_type::from_integer(cmd);
 
     constexpr auto join = // A simple function to join two integers.
@@ -83,7 +83,7 @@ static auto parse_r_type(std::uint32_t cmd) -> _Pair_t {
     handle_unknown_instruction(cmd);
 }
 
-static auto parse_i_type(std::uint32_t cmd) -> _Pair_t {
+static auto parse_i_type(command_size_t cmd) -> _Pair_t {
     auto i_type = command::i_type::from_integer(cmd);
     auto rs1 = int_to_reg(i_type.rs1);
     auto rd  = int_to_reg(i_type.rd);
@@ -120,7 +120,7 @@ static auto parse_i_type(std::uint32_t cmd) -> _Pair_t {
     handle_unknown_instruction(cmd);
 }
 
-static auto parse_s_type(std::uint32_t cmd) -> _Pair_t {
+static auto parse_s_type(command_size_t cmd) -> _Pair_t {
     auto s_type = command::s_type::from_integer(cmd);
     auto rs1 = int_to_reg(s_type.rs1);
     auto rs2 = int_to_reg(s_type.rs2);
@@ -142,7 +142,7 @@ static auto parse_s_type(std::uint32_t cmd) -> _Pair_t {
     handle_unknown_instruction(cmd);
 }
 
-static auto parse_l_type(std::uint32_t cmd) -> _Pair_t {
+static auto parse_l_type(command_size_t cmd) -> _Pair_t {
     auto l_type = command::l_type::from_integer(cmd);
     auto rs1 = int_to_reg(l_type.rs1);
     auto rd  = int_to_reg(l_type.rd);
@@ -166,7 +166,7 @@ static auto parse_l_type(std::uint32_t cmd) -> _Pair_t {
     handle_unknown_instruction(cmd);
 }
 
-static auto parse_b_type(std::uint32_t cmd) -> _Pair_t {
+static auto parse_b_type(command_size_t cmd) -> _Pair_t {
     auto b_type = command::b_type::from_integer(cmd);
     auto rs1 = int_to_reg(b_type.rs1);
     auto rs2 = int_to_reg(b_type.rs2);
@@ -191,7 +191,7 @@ static auto parse_b_type(std::uint32_t cmd) -> _Pair_t {
     handle_unknown_instruction(cmd);
 }
 
-static auto parse_auipc(std::uint32_t cmd) -> _Pair_t {
+static auto parse_auipc(command_size_t cmd) -> _Pair_t {
     auto auipc = command::auipc::from_integer(cmd);
     auto rd  = int_to_reg(auipc.rd);
     auto arg = Executable::MetaData {
@@ -201,7 +201,7 @@ static auto parse_auipc(std::uint32_t cmd) -> _Pair_t {
     return { interpreter::Auipc::fn, arg };
 }
 
-static auto parse_lui(std::uint32_t cmd) -> _Pair_t {
+static auto parse_lui(command_size_t cmd) -> _Pair_t {
     auto lui = command::lui::from_integer(cmd);
     auto rd  = int_to_reg(lui.rd);
     auto arg = Executable::MetaData {
@@ -211,7 +211,7 @@ static auto parse_lui(std::uint32_t cmd) -> _Pair_t {
     return { interpreter::Lui::fn, arg };
 }
 
-static auto parse_jal(std::uint32_t cmd) -> _Pair_t {
+static auto parse_jal(command_size_t cmd) -> _Pair_t {
     auto jal = command::jal::from_integer(cmd);
     auto rd  = int_to_reg(jal.rd);
     auto arg = Executable::MetaData {
@@ -221,7 +221,7 @@ static auto parse_jal(std::uint32_t cmd) -> _Pair_t {
     return { interpreter::Jump::fn, arg };
 }
 
-static auto parse_jalr(std::uint32_t cmd) -> _Pair_t {
+static auto parse_jalr(command_size_t cmd) -> _Pair_t {
     auto jalr = command::jalr::from_integer(cmd);
     auto rs1 = int_to_reg(jalr.rs1);
     auto rd  = int_to_reg(jalr.rd);
@@ -232,7 +232,7 @@ static auto parse_jalr(std::uint32_t cmd) -> _Pair_t {
     return { interpreter::Jalr::fn, arg };
 }
 
-auto parse_cmd(std::uint32_t cmd) -> _Pair_t {
+auto parse_cmd(command_size_t cmd) -> _Pair_t {
     switch (command::get_opcode(cmd)) {
         case command::r_type::opcode:
             return parse_r_type(cmd);
@@ -254,7 +254,7 @@ auto parse_cmd(std::uint32_t cmd) -> _Pair_t {
             return parse_jalr(cmd);
     }
 
-    throw FailToInterpret {};
+    handle_unknown_instruction(cmd);
 }
 
 } // namespace dark::interpreter

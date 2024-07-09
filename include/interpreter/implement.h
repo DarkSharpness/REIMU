@@ -115,6 +115,7 @@ struct Branch {
     template <general::BranchOp op>
     static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
+        static_assert(sizeof(target_size_t) == 4);
 
         using i32 = std::int32_t;
         using u32 = std::uint32_t;
@@ -133,7 +134,7 @@ struct Branch {
         }
 
         dev.predict(rf.get_pc(), result);
-        rf.set_pc(rf.get_pc() + (result ? imm : 4));
+        if (result) rf.set_pc(rf.get_pc() + imm);
     }
 };
 
