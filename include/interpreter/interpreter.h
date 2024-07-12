@@ -1,13 +1,21 @@
 #pragma once
 #include <declarations.h>
-#include <linker/layout.h>
+#include <utility/any.h>
 
 namespace dark {
 
 struct Interpreter {
-    MemoryLayout layout;
-    explicit Interpreter(const Config &);
-    void interpret(const Config &config);
+  public:
+    explicit Interpreter(const Config &config) : config(config) {}
+
+    void assemble();
+    void link();
+    void simulate();
+
+  private:
+    const Config &config;
+    any assembly_layout;
+    any memory_layout;
 };
 
 } // namespace dark

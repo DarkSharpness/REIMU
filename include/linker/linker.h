@@ -1,6 +1,6 @@
 #pragma once
 #include <declarations.h>
-#include <any>
+#include <utility/any.h>
 #include <span>
 #include <deque>
 #include <vector>
@@ -92,7 +92,8 @@ struct Linker {
 
     _Details_Vec_t details_vec[kSections];  // Details of the sections
     _Symbol_Table_t global_symbol_table;    // Global symbol table
-    std::any        result;                 // Result of the linking
+
+    any result; // Result of the linking
 
     void add_libc();
     void add_file(AssemblyLayout &file, _Symbol_Table_t &table);

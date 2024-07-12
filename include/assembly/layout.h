@@ -1,6 +1,5 @@
 #pragma once
 #include <declarations.h>
-#include <any>
 #include <span>
 #include <memory>
 #include <vector>

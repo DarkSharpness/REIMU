@@ -31,7 +31,7 @@ struct LabelMap {
     }
 };
 
-static void interpret_normal
+static void simulate_normal
     (RegisterFile &regfile, Memory &memory, Device &device, std::size_t timeout) {
     while (regfile.advance() && timeout --> 0) {
         auto &exe = memory.fetch_executable(regfile.get_pc());
@@ -40,12 +40,14 @@ static void interpret_normal
     panic_if(timeout + 1 == std::size_t{}, "Time Limit Exceeded");
 }
 
-static void interpret_debug
+static void simulate_debug
     (RegisterFile &regfile, Memory &memory, Device &device, std::size_t timeout);
 
-void Interpreter::interpret(const Config &config) {
+void Interpreter::simulate() {
+    auto &layout = this->memory_layout.get <MemoryLayout &>();
+
     auto device_ptr = Device::create(config);
-    auto memory_ptr = Memory::create(config, this->layout);
+    auto memory_ptr = Memory::create(config, layout);
 
     auto &device = *device_ptr;
     auto &memory = *memory_ptr;
@@ -53,9 +55,9 @@ void Interpreter::interpret(const Config &config) {
     auto regfile = RegisterFile { layout.position_table.at("main"), config };
 
     if (config.has_option("debug")) {
-        interpret_debug(regfile, memory, device, config.get_timeout());
+        simulate_debug(regfile, memory, device, config.get_timeout());
     } else {
-        interpret_normal(regfile, memory, device, config.get_timeout());
+        simulate_normal(regfile, memory, device, config.get_timeout());
     }
 
     if (config.has_option("silent")) return;
@@ -65,7 +67,7 @@ void Interpreter::interpret(const Config &config) {
     device.print_details(enable_detail);
 }
 
-static void interpret_debug
+static void simulate_debug
     (RegisterFile &regfile, Memory &memory, Device &device, std::size_t timeout) {
     panic("Debug Mode is not implemented yet");
 }

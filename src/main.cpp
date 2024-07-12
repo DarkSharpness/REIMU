@@ -16,6 +16,9 @@ int main(int argc, char** argv) {
 
     dark::Interpreter interpreter(config);
 
+    interpreter.assemble();
+    interpreter.link();
+
     [[maybe_unused]]
     auto build_time = high_resolution_clock::now();
     if (!config.has_option("silent")) {
@@ -24,7 +27,7 @@ int main(int argc, char** argv) {
         std::cout << std::format("\n{:=^80}\n\n", build_str);
     }
 
-    interpreter.interpret(config);
+    interpreter.simulate();
 
     [[maybe_unused]]
     auto interpret_time = high_resolution_clock::now();

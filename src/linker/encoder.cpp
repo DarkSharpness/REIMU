@@ -407,9 +407,7 @@ void Linker::link() {
 
 /** Get the result of linking. */
 auto Linker::get_linked_layout() && -> LinkResult {
-    auto *layout = std::any_cast <MemoryLayout> (&this->result);
-    runtime_assert(layout != nullptr);
-    return std::move(*layout);
+    return std::move(this->result.get <LinkResult &> ());
 }
 
 } // namespace dark
