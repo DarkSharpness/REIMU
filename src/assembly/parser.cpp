@@ -163,7 +163,6 @@ static auto parse_expressions(std::string_view view) -> std::unique_ptr <Immedia
     if (pos == view.begin() && *pos == '-') return parse_integer(view);
 
     std::vector <TreeImmediate::Pair> data;
-    std::cerr << "Debug\n";
 
     // Precondition:
     // 1. view has no prefix/suffix spaces.
