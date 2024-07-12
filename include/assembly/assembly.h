@@ -10,6 +10,8 @@
 
 namespace dark {
 
+struct AssemblyLayout;
+
 struct Assembler {
     struct LabelData {
         std::size_t line_number {};
@@ -33,36 +35,26 @@ struct Assembler {
     };
 
     struct StorageSlice {
-        std::span <std::unique_ptr <Storage>> slice;
+        std::span <const std::unique_ptr <Storage>> slice;
         Section section;
     };
 
     explicit Assembler(std::string_view);
 
-    auto split_by_section() -> std::vector <StorageSlice>;
+    void debug(std::ostream &) const;
 
-    void debug(std::ostream &);
-
-    [[noreturn]]
-    void handle_at(std::size_t, std::string) const;
-
-    /* Return a range of sections. */
-    auto get_sections() { return this->sections | std::views::values; }
-    /* Return a range of labels. */
-    auto get_labels() { return this->labels | std::views::values; }
-    /* Return a pair of start address and storage size. */
-    auto get_storages() { return std::make_pair(this->storages.data(), this->storages.size()); }
+    /* Return the standard layout of a linker. */
+    auto get_standard_layout() -> AssemblyLayout;
 
   private:
-
     Section current_section;    // Current section
 
     std::unordered_map <std::string, LabelData> labels;
     std::vector <std::unique_ptr <Storage>> storages;
     std::vector <std::pair<std::size_t, Section>> sections;
 
-    std::string         file_name;      // Debug information
-    std::size_t         line_number;    // Debug information
+    std::string file_name;      // Debug information
+    std::size_t line_number;    // Debug information
 
     void set_section(Section);
     void add_label(std::string_view);
@@ -72,6 +64,11 @@ struct Assembler {
 
     auto parse_storage_impl(std::string_view, std::string_view) -> std::string_view;
     void parse_command_impl(std::string_view, std::string_view);
+
+    [[noreturn]]
+    void handle_at(std::size_t, std::string) const;
+
+    auto split_by_section() const -> std::vector <StorageSlice>;
 };
 
 } // namespace dark

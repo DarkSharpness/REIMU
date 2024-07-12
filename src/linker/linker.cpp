@@ -1,8 +1,7 @@
 #include <utility.h>
 #include <libc/libc.h>
 #include <linker/linker.h>
-#include <assembly/storage.h>
-#include <assembly/assembly.h>
+#include <assembly/layout.h>
 #include <ranges>
 #include <algorithm>
 
@@ -64,10 +63,9 @@ struct SymbolLocationLibc : Linker::SymbolLocation {
  * 4. Stack from 0x10000000 # 256MiB
  *          to   0x20000000 # 512MiB
 */
-Linker::Linker(std::span <Assembler> data) {
+Linker::Linker(std::span <AssemblyLayout> data) {
     std::vector <_Symbol_Table_t> local_symbol_table(data.size());
-
-    for (auto i : std::views::iota(0llu, data.size()))
+    for (std::size_t i = 0 ; i < data.size() ; ++i)
         this->add_file(data[i], local_symbol_table[i]);
 
     this->add_libc();
@@ -81,57 +79,48 @@ Linker::Linker(std::span <Assembler> data) {
     this->link();
 }
 
-
-/** Add a file to the linker. */
-void Linker::add_file(Assembler &assembler, _Symbol_Table_t &local_table) {
+void Linker::add_file(AssemblyLayout &layout, _Symbol_Table_t &local_table) {
     using _Pair_t = std::pair <_Storage_t *, StorageDetails *>;
     using _Section_Map_t = struct : std::vector <_Pair_t> {
         void add_mapping(_Storage_t *pointer, StorageDetails *details)
         {   this->emplace_back(pointer, details);   }
 
         auto get_location(_Storage_t *pointer) -> SymbolLocation {
-            auto pair = _Pair_t { pointer, nullptr };
-            auto iter = std::ranges::upper_bound(*this, pair,
-                [](const auto &lhs, const auto &rhs) { return lhs.first < rhs.first; });
+            // Use projection to compare the first element only
+            auto iter = std::ranges::upper_bound(*this, pointer, {}, &_Pair_t::first);
 
-            // The first no greater element
+            // Find the first iter, where *iter <= pointer
             runtime_assert(--iter >= this->begin());
 
-            // Index of the element
+            // Index of the element in the section
             std::size_t index = pointer - iter->first;
 
             return SymbolLocation { *iter->second, index };
         }
     };
 
-    _Section_Map_t section_map;
-
     // Initialize the section map
-    for (auto [slice, section] : assembler.split_by_section()) {
+    _Section_Map_t section_map; // Use vector flat map
+
+    for (auto &[slice, section] : layout.sections) {
         auto &vec       = this->get_section(section);
         auto &storage   = vec.emplace_back(slice, local_table);
         section_map.add_mapping(slice.data(), &storage);
     }
 
-    const auto [storage, max_size] = assembler.get_storages();
+    std::ranges::sort(section_map, {}, &_Pair_t::first);
 
     // Mark the position information for the labels
-    for (auto &label : assembler.get_labels()) {
-        auto &[line, index, name, global, section] = label;
+    for (auto &label : layout.labels) {
+        auto &[line, pointer, name, global, section] = label;
 
-        if (!label.is_defined() && global) assembler.handle_at(line,
-            std::format("Symbol \"{}\" is declared global, but not defined", name));
-
-        runtime_assert(index <= max_size);  // Allow to be at the end
-
-        auto location = section_map.get_location(storage + index);
+        auto location = section_map.get_location(pointer);
         auto &table = global ? this->global_symbol_table : local_table;
 
         auto [iter, success] = table.try_emplace(name, location);
         panic_if(!success, "Duplicate {} symbol \"{}\"", global ? "global" : "local", name);
     }
 }
-
 
 /**
  * Add the libc functions to the global symbol table.

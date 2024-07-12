@@ -2,6 +2,7 @@
 #include <config/config.h>
 #include <interpreter/interpreter.h>
 #include <assembly/assembly.h>
+#include <assembly/layout.h>
 #include <linker/linker.h>
 #include <libc/libc.h>
 
@@ -40,20 +41,19 @@ static void print_link_result(const Linker::LinkResult &result) {
 }
 
 Interpreter::Interpreter(const Config &config) {
-    std::vector <Assembler> assemblies;
+    std::vector <AssemblyLayout> layouts;
 
-    assemblies.reserve(config.get_assembly_names().size());
-    for (const auto &file : config.get_assembly_names())
-        assemblies.emplace_back(file);
+    layouts.reserve(config.get_assembly_names().size());
+    for (const auto &file : config.get_assembly_names()) {
+        Assembler assembler { file };
+        layouts.emplace_back(assembler.get_standard_layout());
+    }
 
-    auto result = Linker{ assemblies }.get_result();
+    auto result = Linker { layouts }.get_linked_layout();
     panic_if(result.position_table.count("main") == 0, "No main function found");
     check_no_overlap(result);
 
     if (config.has_option("detail")) print_link_result(result);
-
-    // Reset the memory storage
-    assemblies = decltype(assemblies) {};
 
     this->layout = std::move(result);
 }

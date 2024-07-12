@@ -1,6 +1,6 @@
 #pragma once
 #include <declarations.h>
-#include <linker/layout.h>
+#include <any>
 #include <span>
 #include <deque>
 #include <vector>
@@ -9,6 +9,9 @@
 #include <unordered_map>
 
 namespace dark {
+
+struct MemoryLayout;
+struct AssemblyLayout;
 
 struct Linker {
   public:
@@ -22,9 +25,9 @@ struct Linker {
     using _Details_Vec_t    = std::deque<StorageDetails>;
     using _Symbol_Table_t   = std::unordered_map<std::string_view, SymbolLocation>;
 
-    explicit Linker(std::span<Assembler>);
+    explicit Linker(std::span<AssemblyLayout>);
 
-    [[nodiscard]] auto get_result() && { return std::move(result.value()); }
+    [[nodiscard]] auto get_linked_layout() && -> LinkResult;
 
     /**
      * Location of the symbol in the storage
@@ -89,10 +92,10 @@ struct Linker {
 
     _Details_Vec_t details_vec[kSections];  // Details of the sections
     _Symbol_Table_t global_symbol_table;    // Global symbol table
-    std::optional <LinkResult> result;      // Result of the linking
+    std::any        result;                 // Result of the linking
 
     void add_libc();
-    void add_file(Assembler &file, _Symbol_Table_t &table);
+    void add_file(AssemblyLayout &file, _Symbol_Table_t &table);
     auto get_section(Section section) -> _Details_Vec_t &;
     void make_estimate();
     void make_relaxation();

@@ -1,6 +1,7 @@
 #include <riscv/command.h>
 #include <assembly/storage.h>
 #include <linker/linker.h>
+#include <linker/layout.h>
 #include <linker/evaluate.h>
 #include <linker/estimate.h>
 
@@ -387,7 +388,7 @@ static void connect(EncodingPass::Section &prev, EncodingPass::Section &next) {
  * It will translate all symbols into integer constants.
  */
 void Linker::link() {
-    auto &result = this->result.emplace();
+    auto &result = this->result.emplace <MemoryLayout> ();
 
     for (auto &[name, location] : this->global_symbol_table)
         result.position_table.emplace(name, location.get_location());
@@ -402,6 +403,13 @@ void Linker::link() {
     connect(result.data, result.rodata);
     connect(result.rodata, result.unknown);
     connect(result.unknown, result.bss);
+}
+
+/** Get the result of linking. */
+auto Linker::get_linked_layout() && -> LinkResult {
+    auto *layout = std::any_cast <MemoryLayout> (&this->result);
+    runtime_assert(layout != nullptr);
+    return std::move(*layout);
 }
 
 } // namespace dark
