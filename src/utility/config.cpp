@@ -109,10 +109,6 @@ static void check_weight(_Weight_Map_t &table) {
     for (const auto &pair : default_weights) table.insert(pair);
 }
 
-/**
- * @brief Check if the option is supported.
- * If not supported, just panic.
- */
 static void check_option(_Option_Set_t &table) {
     const _Option_Set_t default_set = {
         std::begin(config::kSupportedOptions),
@@ -121,6 +117,13 @@ static void check_option(_Option_Set_t &table) {
 
     for (const auto &key : table)
         panic_if(default_set.count(key) == 0, "Unknown option: {}", key);
+}
+
+static void check_names(std::span <std::string_view> files) {
+    std::unordered_set <std::string_view> set;
+    for (const auto &name : files)
+        panic_if(!set.insert(name).second, "Duplicate assembly file: {}", name);
+    panic_if(files.empty(), "Missing input assembly file");
 }
 
 void Config_Impl::initialize_with_check() {
@@ -157,6 +160,7 @@ void Config_Impl::initialize_with_check() {
         panic("Stack size exceeds memory size: "
               "0x{:x} > 0x{:x}", this->stack_size, this->storage_size);
 
+    check_names(this->assembly_files);
     check_option(this->option_table);
     check_weight(this->weight_table);
 }
@@ -426,7 +430,7 @@ Options:
     };
 
     const auto __set_assembly = [&](std::string_view view) {
-        panic_if(view.empty(), "Invalid input assembly file: {}", view);
+        panic_if(view.empty(), "Missing input assembly file");
         auto &files = this->assembly_files;
         panic_if(!files.empty(), "Duplicate input assembly file: {}", view);
 
