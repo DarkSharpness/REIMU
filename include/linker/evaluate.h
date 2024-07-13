@@ -80,9 +80,9 @@ struct Evaluator {
                 case HI: return split_lo_hi(value).hi;
                 case LO: return split_lo_hi(value).lo;
                 case PCREL_HI:
-                    return (value - this->position) >> 12;
+                    return split_lo_hi(value - this->position).hi;
                 case PCREL_LO:
-                    return (value - this->position) & 0xFFF;
+                    return split_lo_hi(value - this->position).lo;
                 default: runtime_assert(false);
             }
 

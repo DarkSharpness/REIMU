@@ -132,7 +132,7 @@ inline constexpr auto split_lo_hi(target_size_t num) {
     };
     return Result {
         .lo = num & 0xFFF,
-        .hi = num >> 12
+        .hi = (num + 0x800) >> 12
     };
 }
 
