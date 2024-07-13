@@ -112,25 +112,25 @@ static auto split_by_real(std::string_view view, const char * hint)
     std::size_t length = hint - view.begin();
     auto subview = view.substr(0, length);
     auto pos = std::ranges::find_if(view.substr(length), is_split_real);
-    runtime_assert(pos != view.end());
     return { subview , view.substr(pos - view.begin()) };
 }
 
 static auto find_new_single(std::string_view view) {
     struct Result {
-        std::string_view data;
-        std::string_view rest;
+        std::string_view data;  // First part
+        std::string_view rest;  // Remain part
         bool is_single;
-        TreeImmediate::Operator op;
+        TreeImmediate::Operator op; // Operator
     };
     using enum TreeImmediate::Operator;
 
+    // splitter: +, -, (, )
     const char *end = std::ranges::find_if(view, is_split_char);
     if (end == view.end())
         return Result { view, {}, true, END };
 
     auto [subview, remain] = split_by_real(view, end);
-    runtime_assert(!remain.empty());
+    if (remain.empty()) throw_invalid();
 
     if (remain.front() == '+')
         return Result { subview, remain, true, ADD };
@@ -163,10 +163,6 @@ static auto parse_expressions(std::string_view view) -> std::unique_ptr <Immedia
     if (pos == view.begin() && *pos == '-') return parse_integer(view);
 
     std::vector <TreeImmediate::Pair> data;
-
-    // Precondition:
-    // 1. view has no prefix/suffix spaces.
-    // 2. pos is the first split char, which may be space or real splitter.
 
     do {
         auto [subview, remain, is_single, op] = find_new_single(view);

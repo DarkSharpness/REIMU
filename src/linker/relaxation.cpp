@@ -63,14 +63,17 @@ struct TrivialPass {
         auto result  = target_size_t{0};
 
         for (auto &[sub, op] : tree.data) {
-            if (!evaluate(sub) || !success) { success = false; continue; }
-            // All evaluations are successful.
-            auto value = get_integer(sub);
-            switch (last_op) {
-                case ADD: result += value; break;
-                case SUB: result -= value; break;
-                default: runtime_assert(false);
-            } last_op = op;
+            if (!evaluate(sub) || !success) {
+                success = false;
+            } else { // All evaluations are successful.
+                auto value = get_integer(sub);
+                switch (last_op) {
+                    case ADD: result += value; break;
+                    case SUB: result -= value; break;
+                    default: runtime_assert(false);
+                }
+            }
+            last_op = op;
         }
 
         runtime_assert(last_op == END);
