@@ -147,20 +147,32 @@ void Memory::print_details(bool detail) const {
     panic("Memory details are not implemented yet.");
 }
 
+template <Error error, std::integral _Int>
+[[noreturn]]
+static void handle_misaligned(target_size_t addr) {
+    throw FailToInterpret {
+        .error      = error,
+        .address    = addr,
+        .alignment  = alignof(_Int)
+    };
+}
+
+template <Error error, std::integral _Int>
+[[noreturn]]
+static void handle_outofbound(target_size_t addr) {
+    throw FailToInterpret {
+        .error      = error,
+        .address    = addr,
+        .size       = sizeof(_Int)
+    };
+}
+
 auto Memory_Impl::checked_ifetch(target_size_t pc) -> command_size_t {
     if (pc % alignof(command_size_t) != 0)
-        throw FailToInterpret {
-            .error      = Error::InsMisAligned,
-            .address    = pc,
-            .alignment  = alignof(command_size_t)
-        };
+        handle_misaligned <Error::InsMisAligned, command_size_t> (pc);
 
     if (!this->in_text(pc, pc + sizeof(command_size_t)))
-        throw FailToInterpret {
-            .error      = Error::InsOutOfBound,
-            .address    = pc,
-            .size       = alignof(command_size_t)
-        };
+        handle_outofbound <Error::InsOutOfBound, command_size_t> (pc);
 
     return int_cast <target_size_t> (this->get_static(pc));
 }
@@ -168,11 +180,7 @@ auto Memory_Impl::checked_ifetch(target_size_t pc) -> command_size_t {
 template <std::integral _Int>
 auto Memory_Impl::checked_load(target_size_t addr) -> _Int {
     if (addr % alignof(_Int) != 0)
-        throw FailToInterpret {
-            .error      = Error::LoadMisAligned,
-            .address    = addr,
-            .alignment  = alignof(_Int)
-        };
+        handle_misaligned <Error::LoadMisAligned, _Int> (addr);
 
     if (this->in_data(addr, addr + sizeof(_Int)))
         return int_cast <_Int> (this->get_static(addr));
@@ -183,21 +191,13 @@ auto Memory_Impl::checked_load(target_size_t addr) -> _Int {
     if (this->in_stack(addr, addr + sizeof(_Int)))
         return int_cast <_Int> (this->get_stack(addr));
 
-    throw FailToInterpret {
-        .error      = Error::LoadOutOfBound,
-        .address    = addr,
-        .size       = sizeof(_Int)
-    };
+    handle_outofbound <Error::LoadOutOfBound, _Int> (addr);
 }
 
 template <std::unsigned_integral _Int>
 void Memory_Impl::check_store(target_size_t addr, _Int val) {
     if (addr % alignof(_Int) != 0)
-        throw FailToInterpret {
-            .error      = Error::StoreMisAligned,
-            .address    = addr,
-            .alignment  = alignof(_Int)
-        };
+        handle_misaligned <Error::StoreMisAligned, _Int> (addr);
 
     if (this->in_data(addr, addr + sizeof(_Int)))
         return void(int_cast <_Int> (this->get_static(addr)) = val);
@@ -208,11 +208,7 @@ void Memory_Impl::check_store(target_size_t addr, _Int val) {
     if (this->in_stack(addr, addr + sizeof(_Int)))
         return void(int_cast <_Int> (this->get_stack(addr)) = val);
 
-    throw FailToInterpret {
-        .error      = Error::StoreOutOfBound,
-        .address    = addr,
-        .size       = sizeof(_Int)
-    };
+    handle_outofbound <Error::StoreOutOfBound, _Int> (addr);
 }
 
 /**
@@ -230,18 +226,10 @@ auto Memory_Impl::fetch_exe(target_size_t pc) -> Executable & {
 
 auto Memory_Impl::fetch_exe_libc(target_size_t pc) -> Executable & {
     if (pc % alignof(command_size_t) != 0)
-        throw FailToInterpret {
-            .error      = Error::InsMisAligned,
-            .address    = pc,
-            .alignment  = alignof(command_size_t)
-        };
+        handle_misaligned <Error::InsMisAligned, command_size_t> (pc);
 
     if (pc < libc::kLibcStart)
-        throw FailToInterpret {
-            .error      = Error::InsOutOfBound,
-            .address    = pc,
-            .size       = sizeof(command_size_t)
-        };
+        handle_outofbound <Error::InsOutOfBound, command_size_t> (pc);
 
     static auto libc_exe = []() {
         std::array <Executable, std::size(libc::funcs)> result;

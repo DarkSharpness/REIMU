@@ -13,9 +13,10 @@ using _Pair_t = std::pair <Executable::_Func_t *, Executable::MetaData>;
 
 static auto parse_cmd(command_size_t cmd) -> _Pair_t;
 
+template <Error error = Error::InsUnknown>
 [[noreturn]]
 static void handle_unknown_instruction(command_size_t cmd) {
-    throw FailToInterpret { .error = Error::InsUnknown, .address = {}, .command = cmd };
+    throw FailToInterpret { .error = error, .address = {}, .command = cmd };
 }
 
 /**
