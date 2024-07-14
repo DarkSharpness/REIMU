@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <declarations.h>
+#include <interpreter/forward.h>
 
 namespace dark {
 
@@ -16,12 +17,19 @@ enum class Error {
 
     DivideByZero,
 
+    NotImplemented,
 };
 
 struct FailToInterpret {
     Error error;
-    target_size_t arg0; // Address | Value
-    target_size_t arg1; // Alignment | Value
+    union {
+        target_size_t address;
+    };
+    union {
+        target_size_t alignment;
+    };
+
+    auto what(RegisterFile &, Memory &, Device &) const -> std::string;
 };
 
 } // namespace dark

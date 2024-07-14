@@ -8,7 +8,7 @@
 
 namespace dark::libc {
 
-namespace details {
+namespace __details {
 
 template <std::size_t _Nm, auto _Val, auto ...Rest>
 consteval void nameofs_aux(std::array <std::string_view, _Nm> &names) {
@@ -42,10 +42,10 @@ register_functions(
 
 #undef register_functions
 
-} // namespace details
+} // namespace __details
 
-using details::funcs;
-using details::names;
+using __details::funcs;
+using __details::names;
 
 inline static constexpr auto kLibcStart = kTextStart;
 inline static constexpr auto kLibcEnd = kTextStart + std::size(names) * sizeof(command_size_t);
