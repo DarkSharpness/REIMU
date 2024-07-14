@@ -1,6 +1,6 @@
 #pragma once
-#include "linker.h"
 #include <utility.h>
+#include <linker/linker.h>
 #include <assembly/storage.h>
 
 namespace dark {
