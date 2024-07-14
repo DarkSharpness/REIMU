@@ -50,8 +50,8 @@ static auto start_with_label(std::string_view str) -> std::optional <std::string
     if (pos2 != str.npos && pos2 < pos1) {
         auto label = str.substr(0, pos2);
         auto rest  = str.substr(pos2 + 1);
-        throw_if <FailToParse> (!is_valid_label(label), "Invalid label: \"{}\"", label);
-        throw_if <FailToParse> (!contain_no_token(rest), "Unexpected token after label");
+        throw_if(!is_valid_label(label), "Invalid label: \"{}\"", label);
+        throw_if(!contain_no_token(rest), "Unexpected token after label");
         return label;
     }
     return std::nullopt;
@@ -123,7 +123,7 @@ static bool match_prefix(std::string_view str, std::initializer_list <std::strin
 
 /* Remove the comment and make sure there is no '\"' in the string." */
 static auto remove_comments_when_no_string(std::string_view str) -> std::string_view {
-    throw_if <FailToParse> (str.find('\"') != str.npos);
+    throw_if(str.find('\"') != str.npos);
     auto pos = str.find_first_of('#');
     return str.substr(0, pos == str.npos ? str.size() : pos);
 }
@@ -131,7 +131,7 @@ static auto remove_comments_when_no_string(std::string_view str) -> std::string_
 template <std::size_t _N, char _Indent = ','>
 static auto split_command(std::string_view str) {
     if constexpr (_N == 0) {
-        return throw_if <FailToParse> (!contain_no_token(str));
+        return throw_if(!contain_no_token(str));
     } else {
         std::array <std::string_view, _N> ret;
         str = remove_front_whitespace(remove_comments_when_no_string(str));

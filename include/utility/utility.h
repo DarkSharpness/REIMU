@@ -91,12 +91,6 @@ inline static void panic_if(_Tp &&condition, std::format_string <_Args...> fmt =
     if (condition) return panic(fmt, std::forward <_Args>(args)...);
 }
 
-template <typename _Execption, typename _Tp, typename ..._Args>
-__attribute((always_inline))
-inline static void throw_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&...args) {
-    if (condition) throw _Execption(std::format(fmt, std::forward <_Args>(args)...));
-}
-
 /**
  * @brief Runtime unreachable, exit the program with a message.
  */
@@ -119,6 +113,7 @@ inline static void unreachable(std::source_location where = std::source_location
  * @param condition Assertion condition.
  */
 template <typename _Tp>
+__attribute__((always_inline))
 inline static void runtime_assert(_Tp &&condition, std::source_location where = std::source_location::current()) {
     if (condition) return;
     // Failure case, print the message and exit

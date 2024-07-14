@@ -219,8 +219,7 @@ Register sv_to_reg(std::string_view view) {
 }
 
 Alignment::Alignment(std::size_t alignment) : alignment(alignment) {
-    throw_if <FailToParse> (!std::has_single_bit(alignment),
-        "Invalid alignment: \"{}\"", alignment);
+    throw_if(!std::has_single_bit(alignment), "Invalid alignment: \"{}\"", alignment);
 }
 
 IntegerData::IntegerData(std::string_view data, Type type)
@@ -233,7 +232,7 @@ ZeroBytes::ZeroBytes(std::size_t count) : count(count) {}
 ASCIZ::ASCIZ(std::string str) : data(std::move(str)) {}
 
 StrImmediate::StrImmediate(std::string_view data) : data(data) {
-    for (char c : data) throw_if <FailToParse> (!is_label_char(c), "Invalid label name: \"{}\"", data);
+    for (char c : data) throw_if(!is_label_char(c), "Invalid label name: \"{}\"", data);
 }
 
 } // namespace dark

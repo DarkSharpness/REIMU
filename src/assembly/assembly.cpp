@@ -73,12 +73,12 @@ void Assembler::add_label(std::string_view label) {
     auto [iter, success] = this->labels.try_emplace(std::string(label));
     auto &label_info = iter->second;
 
-    throw_if <FailToParse> (success == false && label_info.is_defined(),
+    throw_if(success == false && label_info.is_defined(),
         "Label \"{}\" already exists\n"
         "First appearance at line {} in {}",
         label, label_info.line_number, this->file_name);
 
-    throw_if <FailToParse> (this->current_section == Section::UNKNOWN,
+    throw_if(this->current_section == Section::UNKNOWN,
         "Label must be defined in a section");
 
     label_info.define_at(
@@ -141,7 +141,7 @@ auto Assembler::parse_storage_impl(std::string_view token, std::string_view rest
         constexpr std::size_t kMaxAlign = 20;
         auto [num_str, new_rest] = find_first_token(rest);
         auto num = sv_to_integer <std::size_t> (num_str).value_or(kMaxAlign);
-        throw_if <FailToParse> (num >= kMaxAlign, "Invalid alignment value: \"{}\"", rest);
+        throw_if(num >= kMaxAlign, "Invalid alignment value: \"{}\"", rest);
         ptr->storages.push_back(std::make_unique <Alignment> (std::size_t{1} << num));
         return new_rest;
     };
@@ -159,13 +159,13 @@ auto Assembler::parse_storage_impl(std::string_view token, std::string_view rest
         auto [num_str, new_rest] = find_first_token(rest);
         constexpr std::size_t kMaxZeros = std::size_t{1} << 20;
         auto num = sv_to_integer <std::size_t> (num_str).value_or(kMaxZeros);
-        throw_if <FailToParse> (num >= kMaxZeros, "Invalid zero count: \"{}\"", num_str);
+        throw_if(num >= kMaxZeros, "Invalid zero count: \"{}\"", num_str);
         ptr->storages.push_back(std::make_unique <ZeroBytes> (num));
         return new_rest;
     };
     constexpr auto __set_label = [](Assembler *ptr, std::string_view rest) {
         auto [label, new_rest] = find_first_token(rest);
-        throw_if <FailToParse> (!new_rest.starts_with(','));
+        throw_if(!new_rest.starts_with(','));
         new_rest.remove_prefix(1);
         new_rest = remove_front_whitespace(new_rest);
         new_rest = remove_back_whitespace(new_rest);
