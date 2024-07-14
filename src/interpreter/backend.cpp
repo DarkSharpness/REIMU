@@ -2,6 +2,7 @@
 #include <interpreter/memory.h>
 #include <interpreter/device.h>
 #include <interpreter/register.h>
+#include <interpreter/exception.h>
 #include <interpreter/executable.h>
 #include <linker/layout.h>
 #include <config/config.h>
@@ -33,11 +34,21 @@ struct LabelMap {
 
 static void simulate_normal
     (RegisterFile &regfile, Memory &memory, Device &device, std::size_t timeout) {
-    while (regfile.advance() && timeout --> 0) {
-        auto &exe = memory.fetch_executable(regfile.get_pc());
-        exe(regfile, memory, device);
+    try {
+        while (regfile.advance() && timeout --> 0) {
+            auto &exe = memory.fetch_executable(regfile.get_pc());
+            exe(regfile, memory, device);
+        }
+        panic_if(timeout + 1 == std::size_t{}, "Time Limit Exceeded");
+    } catch (FailToInterpret &e) {
+        panic("Fail to interpret : {}\n", e.what(regfile, memory, device));
+    } catch (std::exception &e) {
+        warning("std::exception caught : {}\n", e.what());
+        runtime_assert(false);
+    } catch (...) {
+        std::cerr << "Unknown Exception\n";
+        runtime_assert(false);
     }
-    panic_if(timeout + 1 == std::size_t{}, "Time Limit Exceeded");
 }
 
 static void simulate_debug
