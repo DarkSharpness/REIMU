@@ -5,8 +5,9 @@
 namespace dark {
 
 /**
- * @brief Just throw FailToParse exception.
-*/
+ * For some reason, we prefer to use throw_invalid
+ * instead of throw_if or others in this file.
+ */
 [[noreturn]] 
 static void throw_invalid(std::string_view msg = "Invalid immediate format") {
     throw FailToParse { std::string(msg) };
@@ -86,10 +87,36 @@ static auto parse_integer(std::string_view view) -> std::unique_ptr <ImmediateBa
     }
 }
 
+static auto parse_ascii(std::string_view view) -> std::unique_ptr <ImmediateBase> {
+    if (view.size() < 3 || view.back() != '\'')
+        throw_invalid("Invalid ASCII character format");
+
+    char c = view[1];
+    if (c == '\\') {
+        if (view.size() != 4) throw_invalid("Invalid ASCII character format");
+        switch (view[2]) {
+            case 'n': c = '\n'; break;
+            case 't': c = '\t'; break;
+            case 'r': c = '\r'; break;
+            case '0': c = '\0'; break;
+            case '\\': c = '\\'; break;
+            case '\'': c = '\''; break;
+            default: throw_invalid("Invalid escape character");
+        }
+    } else if (view.size() != 3) {
+        throw_invalid("Invalid ASCII character format");
+    }
+
+    return std::make_unique <IntImmediate> (static_cast <target_size_t> (c));
+}
+
+/** Parse a single token. Maybe an integer, char, or label.  */
 static auto parse_single(std::string_view view) -> std::unique_ptr <ImmediateBase> {
     if (view.empty()) throw_invalid();
     if (view.front() == '-' || std::isdigit(view.front())) {
         return parse_integer(view);
+    } else if (view.front() == '\'') {
+        return parse_ascii(view);
     } else { // Label case.
         return std::make_unique <StrImmediate> (view);
     }
