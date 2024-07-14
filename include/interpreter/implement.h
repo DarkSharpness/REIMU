@@ -44,7 +44,10 @@ static void arith_impl(target_size_t &rd, target_size_t rs1, target_size_t rs2, 
 
     using enum general::ArithOp;
     #define check_zero \
-        rs2 == 0 ? throw FailToInterpret { .error = Error::DivideByZero }
+        rs2 == 0 ? throw FailToInterpret { \
+            .error = Error::DivideByZero, \
+            .message = {} \
+        }
 
     switch (op) {
         case ADD:   rd = rs1 + rs2; dev.counter.add++; return;

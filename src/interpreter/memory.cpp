@@ -126,6 +126,10 @@ auto Memory::create(const Config &config, const MemoryLayout &result)
     return ret;
 }
 
+auto Memory::sbrk(target_ssize_t inc) -> std::pair <char *, target_size_t> {
+    return this->get_impl().grow(inc);
+}
+
 Memory::~Memory() {
     static_cast <Memory_Impl &> (this->get_impl()).~Memory_Impl();
 }

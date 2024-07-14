@@ -85,6 +85,22 @@ struct HeapArea {
     auto get_range() const {
         return std::make_pair(this->heap_start, this->heap_finish);
     }
+    auto grow(target_ssize_t size) {
+        /// TODO: remove this useless check
+        const auto old_size = this->heap_finish - this->heap_start;
+
+        if (old_size != this->storage.size()) throw;
+
+        const auto retval = this->heap_finish;
+        this->heap_finish += size;
+        const auto new_size = old_size + size;
+
+        // To avoid too many reallocations, we reserve the next power of 2
+        if (size > 0) this->storage.reserve(std::bit_ceil(new_size));
+        this->storage.resize(new_size);
+
+        return std::make_pair(std::bit_cast <char *> (this->get_heap(retval)), retval);
+    }
 };
 
 struct StackArea {

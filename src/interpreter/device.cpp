@@ -34,7 +34,7 @@ auto Device::get_impl() -> Impl & {
     return *static_cast <Impl *> (this);
 }
 
-void Device::print_details(bool detail) const {
+void Device::print_details(bool) const {
     
 }
 

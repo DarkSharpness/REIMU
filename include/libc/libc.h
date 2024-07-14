@@ -38,7 +38,7 @@ register_functions(
     puts, putchar, printf, sprintf, getchar, scanf, sscanf, // IO functions
     malloc, calloc, realloc, free, // Memory management
     memset, memcmp, memcpy, memmove, // Memory manipulation
-    strcpy, strlen, strcat, strcmp, strncmp // Strings manipulation
+    strcpy, strlen, strcat, strcmp // Strings manipulation
 );
 
 #undef register_functions
@@ -49,5 +49,7 @@ using __details::funcs;
 using __details::names;
 
 static constexpr auto kLibcEnd = kTextStart + std::size(names) * sizeof(command_size_t);
+
+void libc_init(Executable &, RegisterFile &, Memory &, Device &);
 
 } // namespace dark::libc

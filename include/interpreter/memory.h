@@ -27,7 +27,8 @@ struct Memory {
     void store_u32(target_size_t addr, std::uint32_t value);
 
     // For malloc use.
-    auto sbrk(target_ssize_t) -> target_size_t;
+    [[nodiscard]]
+    auto sbrk(target_ssize_t) -> std::pair <char *, target_size_t>;
 
     // For libc functions.
     auto libc_access(target_size_t) -> std::span<char>;
