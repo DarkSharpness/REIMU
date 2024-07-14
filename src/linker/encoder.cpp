@@ -374,7 +374,9 @@ struct EncodingPass final : Evaluator, StorageVisitor {
     void visitStorage(ASCIZ &storage) {
         this->align_to(__details::align_size(storage));
         auto size = __details::real_size(storage);
-        while (size --> 0) this->push_byte(storage.data[size]);
+        // Including null-terminator
+        for (std::size_t i = 0; i < size; ++i)
+            this->push_byte(storage.data[i]);
     }
 };
 
