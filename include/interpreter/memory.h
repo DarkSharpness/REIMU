@@ -26,13 +26,11 @@ struct Memory {
     void store_u16(target_size_t addr, std::uint16_t value);
     void store_u32(target_size_t addr, std::uint32_t value);
 
-    auto init_sp() -> target_size_t;
-
     // For malloc use.
     auto sbrk(target_ssize_t) -> target_size_t;
 
     // For libc functions.
-    auto get_memory(target_size_t) -> std::span<std::byte>;
+    auto libc_access(target_size_t) -> std::span<char>;
 
     ~Memory();
 

@@ -4,7 +4,6 @@
 #include <assembly/layout.h>
 #include <linker/linker.h>
 #include <linker/layout.h>
-#include <libc/libc.h>
 
 namespace dark {
 

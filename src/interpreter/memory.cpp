@@ -43,6 +43,8 @@ struct Memory_Impl : StaticArea, HeapArea, StackArea {
 
     auto fetch_exe(target_size_t) -> Executable &;
     auto fetch_exe_libc(target_size_t) -> Executable &;
+
+    auto get_segment(target_size_t) -> std::span <char>;
 };
 
 struct Memory::Impl : Memory, Memory_Impl {
@@ -130,6 +132,15 @@ Memory::~Memory() {
 
 auto Memory::fetch_executable(target_size_t pc) -> Executable & {
     return this->get_impl().fetch_exe(pc); 
+}
+
+auto Memory::libc_access(target_size_t addr) -> std::span <char> {
+    return this->get_impl().get_segment(addr);
+}
+
+void Memory::print_details(bool detail) const {
+    if (!detail) return;
+    panic("Memory details are not implemented yet.");
 }
 
 auto Memory_Impl::checked_ifetch(target_size_t pc) -> command_size_t {
@@ -239,7 +250,26 @@ auto Memory_Impl::fetch_exe_libc(target_size_t pc) -> Executable & {
     return libc_exe.at((pc - libc::kLibcStart) / sizeof(pc));
 }
 
-void Memory::print_details(bool) const {
+auto Memory_Impl::get_segment(target_size_t addr) -> std::span <char> {
+    constexpr auto __wash = [](std::byte *ptr) -> char * {
+        /// TODO: May be we should use std::launder here
+        // to avoid potential undefined behavior,
+        // but it's not necessary for now (hope so).
+        return std::bit_cast <char *> (ptr);
+    };
+
+    if (auto [low, top] = StaticArea::get_data_range(); low <= addr && addr <= top)
+        return { __wash(this->get_static(addr)), top - addr };
+
+    if (auto [low, top] = HeapArea::get_range(); low <= addr && addr <= top)
+        return { __wash(this->get_heap(addr)), top - addr };
+
+    if (auto [low, top] = StackArea::get_range(); low <= addr && addr <= top)
+        return { __wash(this->get_stack(addr)), top - addr };
+
+    // Dummy return value, but to avoid UB.
+    static char dummy;
+    return { &dummy, 0 };
 }
 
 } // namespace dark

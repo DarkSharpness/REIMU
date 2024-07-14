@@ -1,8 +1,8 @@
 #pragma once
 #include <declarations.h>
+#include <libc/forward.h>
 #include <array>
 #include <string_view>
-#include <riscv/abi.h>
 #include <interpreter/forward.h>
 #include <utility/magic.h>
 
@@ -30,6 +30,7 @@ using _Fn_t = void (Executable &, RegisterFile &, Memory &, Device &);
 
 #define register_functions(...) \
     _Fn_t __VA_ARGS__; \
+    enum class _Index : libc_index_t { __VA_ARGS__ }; \
     inline constexpr _Fn_t *funcs[] = { __VA_ARGS__ }; \
     inline constexpr auto names = nameofs <__VA_ARGS__>()
 
@@ -47,7 +48,6 @@ register_functions(
 using __details::funcs;
 using __details::names;
 
-static constexpr auto kLibcStart = kTextStart;
 static constexpr auto kLibcEnd = kTextStart + std::size(names) * sizeof(command_size_t);
 
 } // namespace dark::libc
