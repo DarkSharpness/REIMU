@@ -1,10 +1,19 @@
-// Should only be included once in libc.cpp
+#pragma once
 #include <libc/libc.h>
 #include <interpreter/memory.h>
 #include <interpreter/register.h>
 #include <interpreter/exception.h>
+#include <cstring>
 
 namespace dark::libc::__details {
+
+[[maybe_unused, noreturn]]
+static void throw_not_implemented() {
+    throw FailToInterpret {
+        .error = Error::NotImplemented,
+        .message = "Not implemented"
+    };
+}
 
 template <_Index which>
 [[noreturn]]
@@ -28,6 +37,20 @@ static void handle_misaligned(target_size_t addr, target_size_t alignment) {
     };
 }
 
+static char __libc_io_fmt_error[] = "unknown format specifier: % ";
+
+template <_Index index>
+[[noreturn]]
+static void handle_unknown_fmt(char what) {
+    auto data = std::span(__libc_io_fmt_error);
+    data.rbegin()[1] = what;
+    throw FailToInterpret {
+        .error      = Error::LibcError,
+        .libc_which = static_cast<libc_index_t>(index),
+        .message    = data.data()
+    };
+}
+
 template <_Index which, std::integral _Int>
 static _Int &aligned_access(Memory &mem, target_size_t addr) {
     if (addr % alignof(_Int) != 0)
@@ -40,6 +63,43 @@ static _Int &aligned_access(Memory &mem, target_size_t addr) {
 
     // use launder + bit_cast to avoid undefined behavior
     return *std::bit_cast<_Int *>(area.data());
+}
+
+template <_Index index>
+static auto checked_get_string(Memory &mem, target_size_t str, std::size_t extra = 0) {
+    auto area = mem.libc_access(str);
+    auto length = ::strnlen(area.data(), area.size());
+
+    if (length + extra >= area.size())
+        handle_outofbound<index>(str + area.size(), sizeof(char));
+
+    return std::string_view(area.data(), length);
+}
+
+template <_Index index>
+static auto checked_get_area(Memory &mem, target_size_t ptr, target_size_t size) {
+    auto area = mem.libc_access(ptr);
+
+    if (area.size() < size)
+        handle_outofbound<index>(ptr + size, sizeof(char));
+
+    return area.data();
+}
+
+template <_Index index>
+static auto checked_get_areas(Memory &mem, target_size_t dst, target_size_t src, target_size_t size) {
+    auto area0 = mem.libc_access(dst);
+    auto area1 = mem.libc_access(src);
+
+    if (area0.size() < area1.size()) {
+        if (area0.size() < size)
+            handle_outofbound<index>(dst + size, sizeof(char));
+    } else {
+        if (area1.size() < size)
+            handle_outofbound<index>(src + size, sizeof(char));
+    }
+
+    return std::make_pair(area0.data(), area1.data());
 }
 
 static void return_to_user(RegisterFile &rf, Memory &, target_size_t retval) {

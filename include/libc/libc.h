@@ -50,6 +50,6 @@ using __details::names;
 
 static constexpr auto kLibcEnd = kTextStart + std::size(names) * sizeof(command_size_t);
 
-void libc_init(Executable &, RegisterFile &, Memory &, Device &);
+void libc_init(RegisterFile &, Memory &, Device &);
 
 } // namespace dark::libc

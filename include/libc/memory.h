@@ -1,4 +1,4 @@
-// Should only be included once in libc.cpp
+// Should only be included once in src/libc/memory.cpp
 #include <libc/libc.h>
 #include <utility.h>
 #include <interpreter/memory.h>
@@ -63,8 +63,7 @@ static struct MemoryManager {
     }
 } malloc_manager;
 
-
-void libc_init(Executable &, RegisterFile &, Memory &mem, Device &) {
+void libc_init(RegisterFile &, Memory &mem, Device &) {
     malloc_manager.init(mem);
 }
 

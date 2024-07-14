@@ -6,6 +6,7 @@
 #include <interpreter/executable.h>
 #include <linker/layout.h>
 #include <config/config.h>
+#include <libc/libc.h>
 #include <utility.h>
 #include <map>
 #include <fstream>
@@ -64,6 +65,8 @@ void Interpreter::simulate() {
     auto &memory = *memory_ptr;
 
     auto regfile = RegisterFile { layout.position_table.at("main"), config };
+
+    libc::libc_init(regfile, memory, device);
 
     if (config.has_option("debug")) {
         simulate_debug(regfile, memory, device, config.get_timeout());
