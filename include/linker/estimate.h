@@ -5,7 +5,7 @@
 namespace dark::__details {
 
 template <std::derived_from <RealData> _Data>
-inline constexpr auto align_size(_Data &storage) -> target_size_t {
+static constexpr auto align_size(_Data &storage) -> target_size_t {
     if constexpr (std::same_as <_Data, Alignment>) {
         return storage.alignment;
     } else if constexpr (std::same_as <_Data, IntegerData>) {
@@ -20,7 +20,7 @@ inline constexpr auto align_size(_Data &storage) -> target_size_t {
 }
 
 template <std::derived_from <RealData> _Data>
-inline constexpr auto real_size(_Data &storage) -> target_size_t {
+static constexpr auto real_size(_Data &storage) -> target_size_t {
     if constexpr (std::same_as <_Data, Alignment>) {
         return 0;
     } else if constexpr (std::same_as <_Data, IntegerData>) {

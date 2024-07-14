@@ -23,10 +23,10 @@ Assembler::Assembler(std::string_view file_name)
             this->handle_at(this->line_number, std::move(e.inner));
         } catch(std::exception &e) {
             std::cerr << std::format("Unexpected error: {}\n", e.what());
-            runtime_assert(false);
+            unreachable();
         } catch(...) {
             std::cerr << "Unexpected error.\n";
-            runtime_assert(false);
+            unreachable();
         }
     }
 }
@@ -311,7 +311,7 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
             try_match(_Cmp_type::GEZ, Bop::BGE, rs1, "zero");
         }
         #undef try_match
-        runtime_assert(false);
+        unreachable();
     };
     constexpr auto __insert_call = [](Assembler *ptr, std::string_view rest, bool is_tail) {
         auto [offset] = split_command <1> (rest);

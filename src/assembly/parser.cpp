@@ -203,7 +203,7 @@ static auto imm_to_string(ImmediateBase *imm) -> std::string {
             case LO: op = "lo"; break;
             case PCREL_HI: op = "pcrel_hi"; break;
             case PCREL_LO: op = "pcrel_lo"; break;
-            default: runtime_assert(false); __builtin_unreachable();
+            default: unreachable();
         }
         std::string str = ptr->imm.to_string();
         if (str.starts_with('(') && str.ends_with(')'))
@@ -225,7 +225,7 @@ static auto imm_to_string(ImmediateBase *imm) -> std::string {
         string += ')';
         return string;
     } else {
-        runtime_assert(false); __builtin_unreachable();
+        unreachable();
     }
 }
 

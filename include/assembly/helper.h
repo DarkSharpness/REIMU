@@ -84,7 +84,7 @@ static auto find_first_asciz(std::string_view str)
             case _Error_t::INVALID: throw FailToParse { "Invalid ascii string" };
             case _Error_t::ESCAPE:  throw FailToParse { "Invalid escape character" };
             case _Error_t::NOEND:   throw FailToParse { "Missing end of string" };
-            default: runtime_assert(false); __builtin_unreachable();
+            default: unreachable();
         }
     };
 

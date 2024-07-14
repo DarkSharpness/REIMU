@@ -59,7 +59,7 @@ struct Evaluator {
             switch (last_op) {
                 case ADD: result += value; break;
                 case SUB: result -= value; break;
-                default: runtime_assert(false);
+                default: unreachable();
             } last_op = op;
         }
         runtime_assert(last_op == END);
@@ -83,7 +83,7 @@ struct Evaluator {
                     return split_lo_hi(value - this->position).hi;
                 case PCREL_LO:
                     return split_lo_hi(value - this->position).lo;
-                default: runtime_assert(false);
+                default: unreachable();
             }
 
         return this->evaluate_tree(dynamic_cast <const TreeImmediate &> (imm));

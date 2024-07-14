@@ -33,7 +33,7 @@ namespace dark::interpreter {
 namespace __details {
 
 template <general::ArithOp op>
-inline void arith_impl(target_size_t &rd, target_size_t rs1, target_size_t rs2, Device &dev) {
+static void arith_impl(target_size_t &rd, target_size_t rs1, target_size_t rs2, Device &dev) {
     static_assert(sizeof(target_size_t) == 4);
  
     using i32 = std::int32_t;
@@ -68,7 +68,7 @@ inline void arith_impl(target_size_t &rd, target_size_t rs1, target_size_t rs2, 
     }
     #undef check_zero
 
-    runtime_assert(false);
+    unreachable();
 }
 
 } // namespace __details
@@ -107,7 +107,7 @@ struct LoadStore {
             case SW:    mem.store_u32(addr, rs2); dev.counter.sw++; return;
         }
 
-        runtime_assert(false);
+        unreachable();
     }
 };
 
@@ -130,7 +130,7 @@ struct Branch {
             case BGE:   result = (i32(rs1) >= i32(rs2)); dev.counter.bge++; break;
             case BLTU:  result = (u32(rs1) <  u32(rs2)); dev.counter.bltu++; break;
             case BGEU:  result = (u32(rs1) >= u32(rs2)); dev.counter.bgeu++; break;
-            default:    runtime_assert(false);
+            default:    unreachable();
         }
 
         dev.predict(rf.get_pc(), result);

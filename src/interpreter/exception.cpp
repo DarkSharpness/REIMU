@@ -41,8 +41,7 @@ auto FailToInterpret::what(RegisterFile &rf, Memory &mem, Device &dev) const -> 
             return "Not implemented";
 
         default:
-            runtime_assert(false);
-            return {};
+            unreachable();
     }
 }
 

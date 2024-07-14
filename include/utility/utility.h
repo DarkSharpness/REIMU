@@ -25,7 +25,7 @@ enum class Color {
 
 template <Color _Color>
 static constexpr auto color_code_impl = []() {
-    std::array <char, 6> buffer;
+    std::array <char, 6> buffer {};
     if constexpr (_Color == Color::RESET) {
         buffer[0] = '\033';
         buffer[1] = '[';
@@ -51,10 +51,11 @@ static constexpr std::string_view color_code = {
 
 } // namespace __console
 
+// Global visibility, one definition.
 inline bool warning_shutdown {};
 
 template <typename ...Args>
-inline void warning(std::format_string <Args...> fmt = "", Args &&...args) {
+inline static void warning(std::format_string <Args...> fmt = "", Args &&...args) {
     if (warning_shutdown) return;
     std::cerr
         << __console::color_code <__console::Color::YELLOW>
@@ -65,13 +66,13 @@ inline void warning(std::format_string <Args...> fmt = "", Args &&...args) {
 }
 
 template <typename ...Args>
-inline void warning_if(bool condition, std::format_string <Args...> fmt = "", Args &&...args) {
+inline static void warning_if(bool condition, std::format_string <Args...> fmt = "", Args &&...args) {
     if (condition) return warning(fmt, std::forward <Args>(args)...);
 }
 
 template <typename ..._Args>
 __attribute__((noinline, noreturn, cold))
-inline void panic(std::format_string <_Args...> fmt = "", _Args &&...args) {
+inline static void panic(std::format_string <_Args...> fmt = "", _Args &&...args) {
     // Failure case, print the message and exit
     std::cerr
         << std::format("{:=^80}\n", "")
@@ -86,13 +87,13 @@ inline void panic(std::format_string <_Args...> fmt = "", _Args &&...args) {
 
 template <typename _Tp, typename ..._Args>
 __attribute((always_inline))
-inline void panic_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&...args) {
+inline static void panic_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&...args) {
     if (condition) return panic(fmt, std::forward <_Args>(args)...);
 }
 
 template <typename _Execption, typename _Tp, typename ..._Args>
 __attribute((always_inline))
-inline void throw_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&...args) {
+inline static void throw_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&...args) {
     if (condition) throw _Execption(std::format(fmt, std::forward <_Args>(args)...));
 }
 
@@ -100,8 +101,8 @@ inline void throw_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _A
  * @brief Runtime assertion, if the condition is false, print the message and exit.
  * @param condition Assertion condition.
  */
-template <typename _Tp, typename ...Args>
-inline void runtime_assert(_Tp &&condition, std::source_location where = std::source_location::current()) {
+template <typename _Tp>
+inline static void runtime_assert(_Tp &&condition, std::source_location where = std::source_location::current()) {
     if (condition) return;
     // Failure case, print the message and exit
     std::cerr << std::format(
@@ -115,8 +116,26 @@ inline void runtime_assert(_Tp &&condition, std::source_location where = std::so
     std::exit(EXIT_FAILURE);
 }
 
+/**
+ * @brief Runtime unreachable, fallback to assert
+ */
+[[noreturn]]
+inline static void unreachable() {
+#if __cplusplus > 202002L && defined(__cpp_lib_unreachable)
+    std::unreachable();
+#elif defined(_MSC_VER) && !defined(__clang__) // MSVC
+    // Uses compiler specific extensions if possible.
+    // Even if no extension is used, undefined behavior is still raised by
+    // an empty function body and the noreturn attribute.
+    __assume(false);
+#else // GCC, Clang
+    __builtin_unreachable();
+#endif
+}
+
+
 template <std::integral _Tp>
-inline auto sv_to_integer(std::string_view view, int base = 10) -> std::optional <_Tp> {
+inline static auto sv_to_integer(std::string_view view, int base = 10) -> std::optional <_Tp> {
     _Tp result;
     auto res = std::from_chars(view.data(), view.data() + view.size(), result, base);
     if (res.ec == std::errc() && res.ptr == view.end())
@@ -125,7 +144,7 @@ inline auto sv_to_integer(std::string_view view, int base = 10) -> std::optional
         return std::nullopt;
 }
 
-inline constexpr auto split_lo_hi(target_size_t num) {
+static constexpr auto split_lo_hi(target_size_t num) {
     struct Result {
         target_size_t lo;
         target_size_t hi;
@@ -139,7 +158,7 @@ inline constexpr auto split_lo_hi(target_size_t num) {
 namespace __hash {
 
 template <std::size_t _Base = 131, std::size_t _Mod = 0>
-inline constexpr auto switch_hash_impl(std::string_view view) {
+static constexpr auto switch_hash_impl(std::string_view view) {
     auto hash = std::size_t {0};
     for (char c : view) {
         hash = hash * _Base + c;

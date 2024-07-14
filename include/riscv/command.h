@@ -18,7 +18,7 @@ struct crtp {
 };
 
 template <std::size_t _Len, std::unsigned_integral _Tp>
-inline constexpr _Tp sign_extend(_Tp value) {
+static constexpr _Tp sign_extend(_Tp value) {
     static_assert(_Len <= sizeof(_Tp) * 8, "N must be less than the size of the type");
     using _Vp = std::make_signed_t <_Tp>;
     struct { _Vp x : _Len; } s;
@@ -78,7 +78,7 @@ enum Funct : command_size_t {
 } // namespace Arith_Funct7
 
 // A layout without considering immediate values
-struct standard_layout {
+struct command_layout {
     command_size_t opcode : 7;
     command_size_t rd     : 5;
     command_size_t funct3 : 3;
@@ -87,8 +87,8 @@ struct standard_layout {
     command_size_t funct7 : 7;
 };
 
-inline constexpr auto make_std(command_size_t cmd) -> standard_layout {
-    return std::bit_cast <standard_layout> (cmd);
+static constexpr auto make_std(command_size_t cmd) -> command_layout {
+    return std::bit_cast <command_layout> (cmd);
 }
 
 } // namespace __details
@@ -330,15 +330,15 @@ struct jal : __details::crtp <jal> {
     }
 };
 
-inline constexpr auto get_opcode(command_size_t cmd) {
+static constexpr auto get_opcode(command_size_t cmd) {
     return __details::make_std(cmd).opcode;
 }
 
-inline constexpr auto get_funct3(command_size_t cmd) {
+static constexpr auto get_funct3(command_size_t cmd) {
     return __details::make_std(cmd).funct3;
 }
 
-inline constexpr auto get_funct7(command_size_t cmd) {
+static constexpr auto get_funct7(command_size_t cmd) {
     return __details::make_std(cmd).funct7;
 }
 

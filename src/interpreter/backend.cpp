@@ -44,10 +44,10 @@ static void simulate_normal
         panic("Fail to interpret : {}\n", e.what(regfile, memory, device));
     } catch (std::exception &e) {
         warning("std::exception caught : {}\n", e.what());
-        runtime_assert(false);
+        unreachable();
     } catch (...) {
         std::cerr << "Unknown Exception\n";
-        runtime_assert(false);
+        unreachable();
     }
 }
 

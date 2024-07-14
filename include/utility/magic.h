@@ -71,7 +71,7 @@ template <class _Tp>
 constexpr auto nameof() { return type_string <_Tp> (); }
 
 /* A function-programming style class, remove all scopes.  */
-inline constexpr static struct remove_scope_t {
+static constexpr struct remove_scope_t {
     /* We utilize the fact that npos == -1 */
     static_assert(std::string_view::npos + 1 == 0);
     constexpr auto operator()(std::string_view name) const {

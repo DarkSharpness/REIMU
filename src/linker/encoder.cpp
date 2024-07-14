@@ -114,7 +114,7 @@ struct EncodingPass final : Evaluator, StorageVisitor {
             match_and_set(REM);
             match_and_set(REMU);
 
-            default: runtime_assert(false);
+            default: unreachable();
         }
 
         #undef match_and_set
@@ -147,7 +147,7 @@ struct EncodingPass final : Evaluator, StorageVisitor {
             match_and_set(OR);
             match_and_set(AND);
 
-            default: runtime_assert(false);
+            default: unreachable();
         }
 
         #undef match_and_set
@@ -169,7 +169,7 @@ struct EncodingPass final : Evaluator, StorageVisitor {
         this->command_align();
         if (storage.is_load())  return this->visitLoad(storage);
         else                    return this->visitStore(storage);
-        runtime_assert(false);
+        unreachable();
     }
 
     void visitLoad(LoadStore &storage) {
@@ -187,7 +187,7 @@ struct EncodingPass final : Evaluator, StorageVisitor {
             match_and_set(LW);
             match_and_set(LBU);
             match_and_set(LHU);
-            default: runtime_assert(false);
+            default: unreachable();
         }
 
         #undef match_and_set
@@ -212,7 +212,7 @@ struct EncodingPass final : Evaluator, StorageVisitor {
             match_and_set(SB);
             match_and_set(SH);
             match_and_set(SW);
-            default: runtime_assert(false);
+            default: unreachable();
         }
 
         #undef match_and_set
@@ -241,7 +241,7 @@ struct EncodingPass final : Evaluator, StorageVisitor {
             match_and_set(BGE);
             match_and_set(BLTU);
             match_and_set(BGEU);
-            default: runtime_assert(false);
+            default: unreachable();
         }
 
         #undef match_and_set

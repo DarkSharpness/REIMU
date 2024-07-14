@@ -354,7 +354,7 @@ Options:
                 case CastError::Missing:
                     panic(kMissing, name);
                 default:
-                    runtime_assert(false);
+                    unreachable();
             }
         } else {
             auto &table = this->weight_table;
@@ -381,7 +381,7 @@ Options:
                 case CastError::Missing:
                     panic(kMissing, view);
                 default:
-                    runtime_assert(false);
+                    unreachable();
             }
         } else {
             panic_if(this->maximum_time != this->uninitialized, kDuplicate, view);
@@ -416,7 +416,7 @@ Options:
                 case CastError::Missing:
                     panic(kMissing, view);
                 default:
-                    runtime_assert(false);
+                    unreachable();
             }
         } else {
             if (stack) {

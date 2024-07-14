@@ -40,15 +40,14 @@ enum class Register : std::uint8_t {
     t6 = 31,
 };
 
-// Convert a string to a register
-Register sv_to_reg(std::string_view);
-std::string_view reg_to_sv(Register);
+auto sv_to_reg(std::string_view) -> Register;
+auto reg_to_sv(Register) -> std::string_view;
 
-inline constexpr std::uint32_t reg_to_int(Register reg) {
+static constexpr auto reg_to_int(Register reg) -> std::uint32_t {
     return static_cast <std::uint32_t> (reg);
 }
 
-inline constexpr Register int_to_reg(std::uint32_t reg) {
+static constexpr auto int_to_reg(std::uint32_t reg) -> Register {
     return static_cast <Register> (reg);
 }
 

@@ -70,7 +70,7 @@ struct TrivialPass {
                 switch (last_op) {
                     case ADD: result += value; break;
                     case SUB: result -= value; break;
-                    default: runtime_assert(false);
+                    default: unreachable();
                 }
             }
             last_op = op;
