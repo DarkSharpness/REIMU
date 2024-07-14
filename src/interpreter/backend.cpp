@@ -41,12 +41,12 @@ static void simulate_normal
         }
         panic_if(timeout + 1 == std::size_t{}, "Time Limit Exceeded");
     } catch (FailToInterpret &e) {
-        panic("Fail to interpret : {}\n", e.what(regfile, memory, device));
+        panic("{}", e.what(regfile, memory, device));
     } catch (std::exception &e) {
-        warning("std::exception caught : {}\n", e.what());
+        std::cerr << std::format("std::exception caught: {}\n", e.what());
         unreachable();
     } catch (...) {
-        std::cerr << "Unknown Exception\n";
+        std::cerr << "unexpected exception caught\n";
         unreachable();
     }
 }

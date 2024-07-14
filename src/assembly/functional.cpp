@@ -36,6 +36,7 @@ void Assembler::handle_at(std::size_t which_line, std::string msg) const {
     }
 
     if (msg.size() != 0 && msg.back() != '\n') msg.push_back('\n');
+    if (line_fmt_string.ends_with('\n')) line_fmt_string.pop_back();
 
     panic("{:}Failed to parse {}{}:{}{}\n{}",
         msg,

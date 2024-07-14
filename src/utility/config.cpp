@@ -166,7 +166,7 @@ void Config_Impl::initialize_with_check() {
 }
 
 void Config_Impl::print_in_detail() const {
-    std::cout << std::format("{:=^80}\n", " Configuration details ");
+    std::cout << std::format("\n{:=^80}\n\n", " Configuration details ");
 
     std::cout << std::format("  Input file: {}\n", this->input_file);
     std::cout << std::format("  Output file: {}\n", this->output_file);
@@ -206,7 +206,7 @@ void Config_Impl::print_in_detail() const {
         }
     }
 
-    std::cout << std::format("{:=^80}\n", "");
+    std::cout << std::format("\n{:=^80}\n\n", "");
 }
 
 bool Config_Impl::has_option(std::string_view name) const {

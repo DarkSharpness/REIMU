@@ -75,13 +75,13 @@ __attribute__((noinline, noreturn, cold))
 inline static void panic(std::format_string <_Args...> fmt = "", _Args &&...args) {
     // Failure case, print the message and exit
     std::cerr
-        << std::format("{:=^80}\n", "")
+        << std::format("\n{:=^80}\n\n", "")
         << __console::color_code <__console::Color::RED>
         << "Fatal error: "
         << __console::color_code <__console::Color::RESET>
         << std::format(fmt, std::forward <_Args>(args)...)
         << __console::color_code <__console::Color::RESET>
-        << std::format("\n{:=^80}\n", "");
+        << std::format("\n\n{:=^80}\n", "");
     std::exit(EXIT_FAILURE);
 }
 
@@ -98,12 +98,10 @@ inline static void throw_if(_Tp &&condition, std::format_string <_Args...> fmt =
 }
 
 /**
- * @brief Runtime assertion, if the condition is false, print the message and exit.
- * @param condition Assertion condition.
+ * @brief Runtime unreachable, exit the program with a message.
  */
-template <typename _Tp>
-inline static void runtime_assert(_Tp &&condition, std::source_location where = std::source_location::current()) {
-    if (condition) return;
+__attribute__((noinline, noreturn, cold))
+inline static void unreachable(std::source_location where = std::source_location::current()) {
     // Failure case, print the message and exit
     std::cerr << std::format(
         "{}"
@@ -117,22 +115,15 @@ inline static void runtime_assert(_Tp &&condition, std::source_location where = 
 }
 
 /**
- * @brief Runtime unreachable, fallback to assert
+ * @brief Runtime assertion, if the condition is false, print the message and exit.
+ * @param condition Assertion condition.
  */
-[[noreturn]]
-inline static void unreachable() {
-#if __cplusplus > 202002L && defined(__cpp_lib_unreachable)
-    std::unreachable();
-#elif defined(_MSC_VER) && !defined(__clang__) // MSVC
-    // Uses compiler specific extensions if possible.
-    // Even if no extension is used, undefined behavior is still raised by
-    // an empty function body and the noreturn attribute.
-    __assume(false);
-#else // GCC, Clang
-    __builtin_unreachable();
-#endif
+template <typename _Tp>
+inline static void runtime_assert(_Tp &&condition, std::source_location where = std::source_location::current()) {
+    if (condition) return;
+    // Failure case, print the message and exit
+    return unreachable(where);
 }
-
 
 template <std::integral _Tp>
 inline static auto sv_to_integer(std::string_view view, int base = 10) -> std::optional <_Tp> {

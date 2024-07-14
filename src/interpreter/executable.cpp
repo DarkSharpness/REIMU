@@ -15,7 +15,7 @@ static auto parse_cmd(command_size_t cmd) -> _Pair_t;
 
 [[noreturn]]
 static void handle_unknown_instruction(command_size_t cmd) {
-    throw FailToInterpret { Error::InsUnknown, cmd };
+    throw FailToInterpret { .error = Error::InsUnknown, .command = cmd };
 }
 
 /**

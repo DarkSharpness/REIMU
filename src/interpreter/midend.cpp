@@ -30,14 +30,14 @@ static void print_link_result(const Linker::LinkResult &result) {
             name, section.start, section.start + section.storage.size());
     };
 
-    std::cout << std::format("{:=^80}\n", " Section details ");
+    std::cout << std::format("\n{:=^80}\n\n", " Section details ");
 
     print_section("text", result.text);
     print_section("data", result.data);
     print_section("rodata", result.rodata);
     print_section("bss", result.bss);
 
-    std::cout << std::format("{:=^80}\n", "");
+    std::cout << std::format("\n{:=^80}\n\n", "");
 }
 
 void Interpreter::link() {

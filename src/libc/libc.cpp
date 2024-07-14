@@ -8,7 +8,7 @@
 namespace dark::libc::__details {
 
 static void throw_not_implemented() {
-    throw FailToInterpret { Error::NotImplemented };
+    throw FailToInterpret { .error = Error::NotImplemented };
 }
 
 void puts(Executable &, RegisterFile &, Memory &, Device &) {

@@ -26,7 +26,9 @@ struct FailToInterpret {
         target_size_t address;
     };
     union {
-        target_size_t alignment;
+        command_size_t  command;
+        target_size_t   alignment;
+        target_size_t   size;
     };
 
     auto what(RegisterFile &, Memory &, Device &) const -> std::string;
