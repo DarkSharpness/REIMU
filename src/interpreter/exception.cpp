@@ -10,11 +10,11 @@ namespace dark {
 auto FailToInterpret::what(RegisterFile &rf, Memory &, Device &) const -> std::string {
     const auto __misaligned = [this](auto &&type) {
         return std::format("{} misaligned at 0x{:x} | alignment = {}",
-                type, this->address, this->alignment);
+                type, this->detail.address, this->detail.alignment);
     };
     const auto __outofbound = [this](auto &&type) {
         return std::format("{} out of bound at 0x{:x} | size = {}",
-            type, this->address, this->size);
+            type, this->detail.address, this->detail.size);
     };
     const auto __libc_name = [this] {
         return std::format("libc::{}", libc::names[this->libc_which]);
@@ -42,7 +42,7 @@ auto FailToInterpret::what(RegisterFile &rf, Memory &, Device &) const -> std::s
 
         case InsUnknown:
             return std::format("Unknown instruction at 0x{:x}: 0x{}",
-                rf.get_pc(), this->command);
+                rf.get_pc(), this->detail.command);
 
         case DivideByZero:
             return std::format("Divide by zero at 0x{:x}", rf.get_pc());

@@ -16,7 +16,13 @@ static auto parse_cmd(command_size_t cmd) -> _Pair_t;
 template <Error error = Error::InsUnknown>
 [[noreturn]]
 static void handle_unknown_instruction(command_size_t cmd) {
-    throw FailToInterpret { .error = error, .address = {}, .command = cmd };
+    throw FailToInterpret {
+        .error  = error,
+        .detail = {
+            .address = {},
+            .command = cmd
+        }
+    };
 }
 
 /**
@@ -78,6 +84,8 @@ static auto parse_r_type(command_size_t cmd) -> _Pair_t {
         match_and_return(DIVU);
         match_and_return(REM);
         match_and_return(REMU);
+
+        default: break;
     }
     #undef match_and_return
 
@@ -114,6 +122,8 @@ static auto parse_i_type(command_size_t cmd) -> _Pair_t {
             if (command::get_funct7(cmd) == command::i_type::Funct7::SRA)
                 return { interpreter::ArithImm::fn <general::ArithOp::SRA>, arg };
             break; // Invalid shift operation.
+
+        default: break;
     }
 
     #undef match_and_return
@@ -137,6 +147,7 @@ static auto parse_s_type(command_size_t cmd) -> _Pair_t {
         match_and_return(SB);
         match_and_return(SH);
         match_and_return(SW);
+        default: break;
     }
 
     #undef match_and_return
@@ -161,6 +172,7 @@ static auto parse_l_type(command_size_t cmd) -> _Pair_t {
         match_and_return(LW);
         match_and_return(LBU);
         match_and_return(LHU);
+        default: break;
     }
 
     #undef match_and_return
@@ -186,6 +198,7 @@ static auto parse_b_type(command_size_t cmd) -> _Pair_t {
         match_and_return(BGE);
         match_and_return(BLTU);
         match_and_return(BGEU);
+        default: break;
     }
 
     #undef match_and_return
@@ -253,6 +266,8 @@ auto parse_cmd(command_size_t cmd) -> _Pair_t {
             return parse_jal(cmd);
         case command::jalr::opcode:
             return parse_jalr(cmd);
+
+        default: break;
     }
 
     handle_unknown_instruction(cmd);

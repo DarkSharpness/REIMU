@@ -152,8 +152,10 @@ template <Error error, std::integral _Int>
 static void handle_misaligned(target_size_t addr) {
     throw FailToInterpret {
         .error      = error,
-        .address    = addr,
-        .alignment  = alignof(_Int)
+        .detail     = {
+            .address    = addr,
+            .size       = sizeof(_Int)
+        }
     };
 }
 
@@ -162,8 +164,10 @@ template <Error error, std::integral _Int>
 static void handle_outofbound(target_size_t addr) {
     throw FailToInterpret {
         .error      = error,
-        .address    = addr,
-        .size       = sizeof(_Int)
+        .detail     = {
+            .address    = addr,
+            .size       = sizeof(_Int)
+        }
     };
 }
 

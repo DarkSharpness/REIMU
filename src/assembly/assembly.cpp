@@ -214,11 +214,11 @@ auto Assembler::parse_storage_impl(std::string_view token, std::string_view rest
         match_or_break("zero",      __set_zeros);
         match_or_break("globl",     __set_globl);
         match_or_break("set",       __set_label);
+
+        default: break;
     }
     #undef match_or_break
-
-    return  __warn_once(token);
-    // throw FailToParse { std::format("Unknown storage type: .{}", token) };
+    return __warn_once(token);
 }
 
 void Assembler::parse_command(std::string_view token, std::string_view rest) {
@@ -300,8 +300,10 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
     enum class _Cmp_type { EQZ, NEZ, LTZ, GTZ, LEZ, GEZ };
     constexpr auto __insert_brz = [](Assembler *ptr, std::string_view rest, _Cmp_type opcode) {
         auto [rs1, label] = split_command <2> (rest);
+
         #define try_match(cmp, op, ...) case cmp:\
             ptr->storages.push_back(std::make_unique <Branch> (op, ##__VA_ARGS__, label)); return
+
         switch (opcode) {
             try_match(_Cmp_type::EQZ, Bop::BEQ, rs1, "zero");
             try_match(_Cmp_type::NEZ, Bop::BNE, rs1, "zero");
@@ -309,9 +311,9 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
             try_match(_Cmp_type::GTZ, Bop::BLT, "zero", rs1);
             try_match(_Cmp_type::LEZ, Bop::BGE, "zero", rs1);
             try_match(_Cmp_type::GEZ, Bop::BGE, rs1, "zero");
+            default: unreachable();
         }
         #undef try_match
-        unreachable();
     };
     constexpr auto __insert_call = [](Assembler *ptr, std::string_view rest, bool is_tail) {
         auto [offset] = split_command <1> (rest);
@@ -424,8 +426,9 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
 
         match_or_break("la",    __insert_lla);
         match_or_break("lla",   __insert_lla);
-    }
 
+        default: break;
+    }
     throw FailToParse { std::format("Unknown command: \"{}\"", token) };
 }
 

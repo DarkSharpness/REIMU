@@ -15,7 +15,7 @@ void Assembler::handle_at(std::size_t which_line, std::string msg) const {
     runtime_assert(which_line != 0 && file.is_open());
 
     const std::size_t windows[2] = {
-        which_line - 1 ? : 1,
+        which_line - 1 ? which_line - 1 : 1,
         which_line + 1
     };
 

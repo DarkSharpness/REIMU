@@ -68,10 +68,9 @@ static void arith_impl(target_size_t &rd, target_size_t rs1, target_size_t rs2, 
         case DIVU:  rd = check_zero : u32(rs1) / u32(rs2); dev.counter.divu++; return;
         case REM:   rd = check_zero : i32(rs1) % i32(rs2); dev.counter.rem++; return;
         case REMU:  rd = check_zero : u32(rs1) % u32(rs2); dev.counter.remu++; return;
+        default:    unreachable();
     }
     #undef check_zero
-
-    unreachable();
 }
 
 } // namespace __details
@@ -108,9 +107,8 @@ struct LoadStore {
             case SB:    mem.store_u8(addr, rs2); dev.counter.sb++; return;
             case SH:    mem.store_u16(addr, rs2); dev.counter.sh++; return;
             case SW:    mem.store_u32(addr, rs2); dev.counter.sw++; return;
+            default:    unreachable();
         }
-
-        unreachable();
     }
 };
 

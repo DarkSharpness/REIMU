@@ -362,6 +362,7 @@ struct EncodingPass final : Evaluator, StorageVisitor {
             case BYTE : this->push_byte(data); break;
             case SHORT: this->push_half(data); break;
             case LONG : this->push_word(data); break;
+            default: unreachable();
         }
     }
 

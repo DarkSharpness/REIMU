@@ -139,6 +139,7 @@ void IntegerData::debug(std::ostream &os) const {
         case Type::BYTE:  os << "byte "; break;
         case Type::SHORT: os << "half "; break;
         case Type::LONG:  os << "word "; break;
+        default: unreachable();
     }
     os << data.to_string();
 }
@@ -207,6 +208,7 @@ Register sv_to_reg(std::string_view view) {
         match_or_break("t4",   t4);
         match_or_break("t5",   t5);
         match_or_break("t6",   t6);
+        default: break;
     }
 
     #undef match_or_break

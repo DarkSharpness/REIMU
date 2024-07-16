@@ -21,8 +21,10 @@ static void handle_outofbound(target_size_t addr, target_size_t size) {
     throw FailToInterpret {
         .error      = Error::LibcOutOfBound,
         .libc_which = static_cast <libc_index_t> (which),
-        .address    = addr,
-        .size       = size,
+        .detail     = {
+            .address    = addr,
+            .size       = size,
+        }
     };
 }
 
@@ -32,8 +34,10 @@ static void handle_misaligned(target_size_t addr, target_size_t alignment) {
     throw FailToInterpret {
         .error      = Error::LibcMisAligned,
         .libc_which = static_cast <libc_index_t> (which),
-        .address    = addr,
-        .alignment  = alignment,
+        .detail     = {
+            .address    = addr,
+            .alignment  = alignment,
+        }
     };
 }
 
