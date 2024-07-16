@@ -6,7 +6,10 @@
 namespace dark::libc {
 
 static struct MemoryManager {
-    struct Header { std::uint32_t size; };
+    struct Header {
+        std::uint32_t prev;
+        std::uint32_t self;
+    };
 
     static constexpr target_size_t kMinAlignment = alignof(std::max_align_t);
     static constexpr target_size_t kHeaderSize   = sizeof(Header);
@@ -41,15 +44,15 @@ static struct MemoryManager {
     auto allocate(Memory &mem, target_size_t required) {
         constexpr auto kMask = kMinAlignment - 1;
 
-        required = std::max(required, kMinAllocSize + kHeaderSize);
-        required = (required + kMask) & ~kMask;
+        required = std::max(required, kMinAllocSize);
+        required = (required + kHeaderSize + kMask) & ~kMask;
 
-        const auto ret_pair = mem.sbrk(kHeaderSize);
+        const auto ret_pair = mem.sbrk(required);
         const auto [real_ptr, old_brk] = ret_pair;
         runtime_assert(this->brk == old_brk);
 
         this->brk += required;
-        this->get_header(real_ptr).size = required;
+        this->get_header(real_ptr).self = required;
 
         return ret_pair;
     }
@@ -59,7 +62,7 @@ static struct MemoryManager {
     }
 
     auto malloc_usable_size(char *ptr) -> target_size_t {
-        return get_header(ptr).size - kHeaderSize;
+        return get_header(ptr).self - kHeaderSize;
     }
 } malloc_manager;
 
