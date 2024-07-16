@@ -141,6 +141,9 @@ static constexpr auto split_lo_hi(target_size_t num) {
     };
 }
 
+template <typename ..._Args>
+static void allow_unused(_Args &&...) {}
+
 namespace __hash {
 
 template <std::size_t _Base = 131, std::size_t _Mod = 0>

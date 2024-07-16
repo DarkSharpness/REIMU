@@ -1,9 +1,16 @@
 add_requires("fmt")
 add_rules("mode.debug", "mode.release")
 
+-- A list of warnings:
+local warnings = {
+    "all",      -- turn on all warnings
+    "extra",    -- turn on extra warnings
+    "error",    -- treat warnings as errors
+}
+
 target("simulator")
     set_kind("binary")
-    set_warnings("all", "error")
+    set_warnings(warnings)
     add_includedirs("include/")
     add_files("src/*/*.cpp")
     add_files("src/main.cpp")

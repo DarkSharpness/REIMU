@@ -83,6 +83,7 @@ void Interpreter::simulate() {
 
 static void simulate_debug
     (RegisterFile &regfile, Memory &memory, Device &device, std::size_t timeout) {
+    allow_unused(regfile, memory, device, timeout);
     panic("Debug Mode is not implemented yet");
 }
 

@@ -86,7 +86,7 @@ struct ArithReg {
 
 struct ArithImm {
     template <general::ArithOp op>
-    static void fn(Executable &exe, RegisterFile &rf, Memory &mem, Device &dev) {
+    static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         __details::arith_impl <op> (rd, rs1, imm, dev);
     }

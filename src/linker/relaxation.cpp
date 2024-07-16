@@ -135,7 +135,7 @@ struct RelaxtionPass final : private Evaluator, StorageVisitor {
 
   private:
 
-    void visitStorage(ArithmeticReg &storage)       override {}
+    void visitStorage(ArithmeticReg &storage)       override { allow_unused(storage); }
     void visitStorage(ArithmeticImm &storage)       override { TrivialPass{storage.imm}; }
     void visitStorage(LoadStore &storage)           override { TrivialPass{storage.imm}; }
     void visitStorage(Branch &storage)              override { TrivialPass{storage.imm}; }
@@ -143,10 +143,10 @@ struct RelaxtionPass final : private Evaluator, StorageVisitor {
     void visitStorage(JumpRegister &storage)        override { TrivialPass{storage.imm}; }
     void visitStorage(LoadUpperImmediate &storage)  override { TrivialPass{storage.imm}; }
     void visitStorage(AddUpperImmediatePC &storage) override { TrivialPass{storage.imm}; }
-    void visitStorage(Alignment &storage)           override {}
+    void visitStorage(Alignment &storage)           override { allow_unused(storage); }
     void visitStorage(IntegerData &storage)         override { TrivialPass{storage.data}; }
-    void visitStorage(ZeroBytes &storage)           override {}
-    void visitStorage(ASCIZ &storage)               override {}
+    void visitStorage(ZeroBytes &storage)           override { allow_unused(storage); }
+    void visitStorage(ASCIZ &storage)               override { allow_unused(storage); }
 
     void visitStorage(CallFunction &storage) override
     { TrivialPass{storage.imm}; return visit_call(storage); }

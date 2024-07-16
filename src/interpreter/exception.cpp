@@ -7,7 +7,7 @@
 
 namespace dark {
 
-auto FailToInterpret::what(RegisterFile &rf, Memory &mem, Device &dev) const -> std::string {
+auto FailToInterpret::what(RegisterFile &rf, Memory &, Device &) const -> std::string {
     const auto __misaligned = [this](auto &&type) {
         return std::format("{} misaligned at 0x{:x} | alignment = {}",
                 type, this->address, this->alignment);

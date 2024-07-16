@@ -63,7 +63,7 @@ struct SizeEstimator final : StorageVisitor {
     }
 
     template <std::derived_from <Command> _Command>
-    void update(_Command &command, int count) {
+    void update(_Command &, int count) {
         this->align_to(alignof(command_size_t));
         this->position += sizeof(command_size_t) * count;
     }

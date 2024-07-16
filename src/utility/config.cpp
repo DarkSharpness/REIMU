@@ -285,7 +285,7 @@ Config_Impl::Config_Impl(int argc, char** argv) {
         panic(kInvalid, view);
     };
 
-    constexpr auto __help = [](std::string_view view) {
+    constexpr auto __help = [](std::string_view) {
         std::cout <<
 R"(This is a RISC-V simulator. Usage: simulator [options]
 Options:
@@ -319,7 +319,7 @@ Options:
         std::exit(EXIT_SUCCESS);
     };
 
-    constexpr auto __version = [](std::string_view view) {
+    constexpr auto __version = [](std::string_view) {
         std::cout << "Version: 0.1.0\n";
         std::exit(EXIT_SUCCESS);
     };
