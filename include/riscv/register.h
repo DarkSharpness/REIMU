@@ -42,7 +42,6 @@ enum class Register : std::uint8_t {
 };
 
 auto sv_to_reg_nothrow(std::string_view) noexcept -> std::optional<Register>;
-auto sv_to_reg(std::string_view) -> Register;
 auto reg_to_sv(Register) -> std::string_view;
 
 static constexpr auto reg_to_int(Register reg) -> std::uint32_t {

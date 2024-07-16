@@ -9,14 +9,15 @@
 
 namespace dark {
 
+auto sv_to_reg(std::string_view) -> Register;
+
 struct ImmediateBase { virtual ~ImmediateBase() = default; };
 
 struct Immediate {
     std::unique_ptr <ImmediateBase> data;
     explicit Immediate() = default;
-    explicit Immediate(std::unique_ptr <ImmediateBase> data) : data(std::move(data)) {}
     explicit Immediate(target_size_t data);
-    explicit Immediate(std::string_view view);
+    explicit Immediate(std::unique_ptr <ImmediateBase> data) : data(std::move(data)) {}
     std::string to_string() const;
 };
 
@@ -36,7 +37,6 @@ struct RelImmediate : ImmediateBase {
        HI, LO, PCREL_HI, PCREL_LO
     } operand;
     explicit RelImmediate(Immediate imm, Operand op) : imm(std::move(imm)), operand(op) {}
-    explicit RelImmediate(std::string_view imm, Operand op) : imm(imm), operand(op) {}
 };
 
 struct TreeImmediate : ImmediateBase {
@@ -136,13 +136,6 @@ struct ArithmeticImm final : Command {
         rs1(rs1),
         imm(std::move(imm)) {}
 
-    explicit ArithmeticImm
-        (Opcode opcode, std::string_view rd, std::string_view rs1, std::string_view imm) :
-        opcode(opcode),
-        rd(sv_to_reg(rd)),
-        rs1(sv_to_reg(rs1)),
-        imm(imm) {}
-
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
 };
@@ -160,13 +153,6 @@ struct LoadStore final : Command {
         rd(rd),
         rs1(rs1),
         imm(std::move(imm)) {}
-
-    explicit LoadStore
-        (Opcode opcode, std::string_view rd, std::string_view rs1, std::string_view imm) :
-        opcode(opcode),
-        rd(sv_to_reg(rd)),
-        rs1(sv_to_reg(rs1)),
-        imm(imm) {}
 
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
@@ -191,13 +177,6 @@ struct Branch final : Command {
         rs2(rs2),
         imm(std::move(imm)) {}
 
-    explicit Branch
-        (Opcode opcode, std::string_view rs1, std::string_view rs2, std::string_view imm) :
-        opcode(opcode),
-        rs1(sv_to_reg(rs1)),
-        rs2(sv_to_reg(rs2)),
-        imm(imm) {}
-
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
 };
@@ -205,9 +184,6 @@ struct Branch final : Command {
 struct JumpRelative final : Command {
     Register rd;
     Immediate imm;
-
-    explicit JumpRelative(std::string_view rd, std::string_view imm) :
-        rd(sv_to_reg(rd)), imm(imm) {}
 
     explicit JumpRelative(Register rd, Immediate imm) :
         rd(rd), imm(std::move(imm)) {}
@@ -220,9 +196,6 @@ struct JumpRegister final : Command {
     Register rd;
     Register rs1;
     Immediate imm;
-
-    explicit JumpRegister(std::string_view rd, std::string_view rs1, std::string_view imm) :
-        rd(sv_to_reg(rd)), rs1(sv_to_reg(rs1)), imm(imm) {}
 
     explicit JumpRegister(Register rd, Register rs1, Immediate imm) :
         rd(rd), rs1(rs1), imm(std::move(imm)) {}
@@ -250,8 +223,6 @@ struct LoadImmediate final : Command {
     Register rd;
     Immediate imm; // Immediate can be an address or a value
 
-    explicit LoadImmediate(std::string_view rd, std::string_view imm) :
-        rd(sv_to_reg(rd)), imm(imm) {}
     explicit LoadImmediate(Register rd, Immediate imm) :
         rd(rd), imm(std::move(imm)) {}
 
@@ -263,9 +234,6 @@ struct LoadUpperImmediate final : Command {
     Register rd;
     Immediate imm;
 
-    explicit LoadUpperImmediate(std::string_view rd, std::string_view imm) :
-        rd(sv_to_reg(rd)), imm(imm) {}
-
     explicit LoadUpperImmediate(Register rd, Immediate imm) :
         rd(rd), imm(std::move(imm)) {}
 
@@ -276,9 +244,6 @@ struct LoadUpperImmediate final : Command {
 struct AddUpperImmediatePC final : Command {
     Register rd;
     Immediate imm;
-
-    explicit AddUpperImmediatePC(std::string_view rd, std::string_view imm) :
-        rd(sv_to_reg(rd)), imm(imm) {}
 
     explicit AddUpperImmediatePC(Register rd, Immediate imm) :
         rd(rd), imm(std::move(imm)) {}

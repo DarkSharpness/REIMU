@@ -226,7 +226,6 @@ void Assembler::parse_command(std::string_view token, std::string_view rest) {
     return this->parse_command_impl(token, rest);
 }
 
-
 template <typename ..._Args>
 static auto match(std::string_view command) {
     return Parser { command }.match <_Args...> ();
@@ -332,8 +331,8 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
         using Register::zero;
         ptr->push_cmd <ArithmeticReg> (Aop::SLT, rd, rs1, zero);
     };
-    enum class _Cmp_type { EQZ, NEZ, LTZ, GTZ, LEZ, GEZ };
-    constexpr auto __insert_brz = [](Assembler *ptr, std::string_view rest, _Cmp_type opcode) {
+    enum class Cmp_type { EQZ, NEZ, LTZ, GTZ, LEZ, GEZ };
+    constexpr auto __insert_brz = [](Assembler *ptr, std::string_view rest, Cmp_type opcode) {
         auto [rs1, offset] = match <Reg, Imm> (rest);
 
         #define try_match(cmp, op, ...) case cmp: \
@@ -342,12 +341,12 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
         using Register::zero;
 
         switch (opcode) {
-            try_match(_Cmp_type::EQZ, Bop::BEQ, rs1, zero);
-            try_match(_Cmp_type::NEZ, Bop::BNE, rs1, zero);
-            try_match(_Cmp_type::LTZ, Bop::BLT, rs1, zero);
-            try_match(_Cmp_type::GTZ, Bop::BLT, zero, rs1);
-            try_match(_Cmp_type::LEZ, Bop::BGE, zero, rs1);
-            try_match(_Cmp_type::GEZ, Bop::BGE, rs1, zero);
+            try_match(Cmp_type::EQZ, Bop::BEQ, rs1, zero);
+            try_match(Cmp_type::NEZ, Bop::BNE, rs1, zero);
+            try_match(Cmp_type::LTZ, Bop::BLT, rs1, zero);
+            try_match(Cmp_type::GTZ, Bop::BLT, zero, rs1);
+            try_match(Cmp_type::LEZ, Bop::BGE, zero, rs1);
+            try_match(Cmp_type::GEZ, Bop::BGE, rs1, zero);
             default: unreachable();
         }
         #undef try_match
@@ -450,12 +449,12 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
         match_or_break("sgtz",  __insert_sgtz);
         match_or_break("sltz",  __insert_sltz);
 
-        match_or_break("beqz",  __insert_brz, _Cmp_type::EQZ);
-        match_or_break("bnez",  __insert_brz, _Cmp_type::NEZ);
-        match_or_break("bltz",  __insert_brz, _Cmp_type::LTZ);
-        match_or_break("bgtz",  __insert_brz, _Cmp_type::GTZ);
-        match_or_break("blez",  __insert_brz, _Cmp_type::LEZ);
-        match_or_break("bgez",  __insert_brz, _Cmp_type::GEZ);
+        match_or_break("beqz",  __insert_brz, Cmp_type::EQZ);
+        match_or_break("bnez",  __insert_brz, Cmp_type::NEZ);
+        match_or_break("bltz",  __insert_brz, Cmp_type::LTZ);
+        match_or_break("bgtz",  __insert_brz, Cmp_type::GTZ);
+        match_or_break("blez",  __insert_brz, Cmp_type::LEZ);
+        match_or_break("bgez",  __insert_brz, Cmp_type::GEZ);
 
         match_or_break("ble",   __insert_branch, Bop::BGE,  /* swap = */ true);
         match_or_break("bleu",  __insert_branch, Bop::BGEU, /* swap = */ true);

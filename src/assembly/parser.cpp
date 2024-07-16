@@ -1,268 +1,166 @@
-#include <utility.h>
-#include <assembly/storage.h>
+#include <assembly/parser.h>
 #include <assembly/exception.h>
 
 namespace dark {
 
-/**
- * For some reason, we prefer to use throw_invalid
- * instead of throw_if or others in this file.
- */
-[[noreturn]] 
-static void throw_invalid(std::string_view msg = "Invalid immediate format") {
-    throw FailToParse { std::string(msg) };
+static auto extract_str(std::string_view &line, std::size_t n) -> std::string_view {
+    auto result = line.substr(0, n);
+    line.remove_prefix(n);
+    return result;
 }
 
-static bool is_split_real(char c) {
-    return c == '+' || c == '-' || c == '(' || c == ')';
-}
+static auto get_first_token(std::string_view &line) -> std::optional <Parser::Token> {
+    using Token = Parser::Token;
+    using enum Token::Type;
 
-static bool is_split_char(char c) {
-    return std::isspace(c) || is_split_real(c);
-}
-
-static auto remove_front_whitespace(std::string_view str) -> std::string_view {
-    while (!str.empty() && std::isspace(str.front()))
-        str.remove_prefix(1);
-    return str;
-}
-
-static auto remove_back_whitespace(std::string_view str) -> std::string_view {
-    while (!str.empty() && std::isspace(str.back()))
-        str.remove_suffix(1);
-    return str;
-}
-
-
-static auto parse_relocation(std::string_view view) -> std::unique_ptr <ImmediateBase> {
-    using enum RelImmediate::Operand;
-
-    if (!view.ends_with(')')) throw_invalid("Unmatched parentheses");  
-    view.remove_suffix(1);
-
-    if (view.starts_with("hi(")) {
-        return std::make_unique <RelImmediate> (view.substr(3), HI);
-    } else if (view.starts_with("lo(")) {
-        return std::make_unique <RelImmediate> (view.substr(3), LO);
-    } else if (view.starts_with("pcrel_hi(")) {
-        return std::make_unique <RelImmediate> (view.substr(9), PCREL_HI);
-    } else if (view.starts_with("pcrel_lo(")) {
-        return std::make_unique <RelImmediate> (view.substr(9), PCREL_LO);
-    } else {
-        throw_invalid("Invalid relocation format");
-    }
-}
-
-static auto parse_integer(std::string_view view) -> std::unique_ptr <ImmediateBase> {
-    if (view.starts_with('0')) {
-        view.remove_prefix(1);
-        if (view.empty()) return std::make_unique <IntImmediate> (0);
-
-        int base = [&view]() {
-            if (view.starts_with('x'))
-                return view.remove_prefix(1), 16;
-            if (view.starts_with('b'))
-                return view.remove_prefix(1), 2;
-            /* No choice */ return 8;
-        }();
-
-        auto number = sv_to_integer <target_size_t> (view, base);
-        if (!number.has_value()) throw_invalid("Invalid integer format");
-
-        return std::make_unique <IntImmediate> (*number);
-    } else {
-        // Utilizing the fact that int64 is enough to cover.
-        static_assert(sizeof(target_size_t) == 4);
-
-        // The default value_or is invalid.
-        auto number = sv_to_integer <std::int64_t> (view, 10)
-            .value_or(std::numeric_limits <std::int64_t>::max());
-
-        // Allow to be negative, but the value should be in range.
-        if (number > std::numeric_limits <target_size_t>::max()
-         || number < std::numeric_limits <target_ssize_t>::min())
-            throw_invalid("Immediate value out of range");
-
-        return std::make_unique <IntImmediate> (static_cast <target_size_t> (number));
-    }
-}
-
-static auto parse_ascii(std::string_view view) -> std::unique_ptr <ImmediateBase> {
-    if (view.size() < 3 || view.back() != '\'')
-        throw_invalid("Invalid ASCII character format");
-
-    char c = view[1];
-    if (c == '\\') {
-        if (view.size() != 4) throw_invalid("Invalid ASCII character format");
-        switch (view[2]) {
-            case 'n': c = '\n'; break;
-            case 't': c = '\t'; break;
-            case 'r': c = '\r'; break;
-            case '0': c = '\0'; break;
-            case '\\': c = '\\'; break;
-            case '\'': c = '\''; break;
-            default: throw_invalid("Invalid escape character");
-        }
-    } else if (view.size() != 3) {
-        throw_invalid("Invalid ASCII character format");
-    }
-
-    return std::make_unique <IntImmediate> (static_cast <target_size_t> (c));
-}
-
-/** Parse a single token. Maybe an integer, char, or label.  */
-static auto parse_single(std::string_view view) -> std::unique_ptr <ImmediateBase> {
-    if (view.empty()) throw_invalid();
-    if (view.front() == '-' || std::isdigit(view.front())) {
-        return parse_integer(view);
-    } else if (view.front() == '\'') {
-        return parse_ascii(view);
-    } else { // Label case.
-        return std::make_unique <StrImmediate> (view);
-    }
-}
-
-static auto find_matching_parentheses(std::string_view view) -> const char * {
-    std::size_t count = 0;
-    for (auto &c : view) {
-        if (c == '(') ++count;
-        if (c == ')') {
-            --count;
-            if (count == 0) return &c;
-        }
-    }
-    return nullptr;
-}
-
-static auto split_by_real(std::string_view view, const char * hint)
-    -> std::pair <std::string_view, std::string_view> {
-    std::size_t length = hint - view.begin();
-    auto subview = view.substr(0, length);
-    auto pos = std::ranges::find_if(view.substr(length), is_split_real);
-    return { subview , view.substr(pos - view.begin()) };
-}
-
-static auto find_new_single(std::string_view view) {
-    struct Result {
-        std::string_view data;  // First part
-        std::string_view rest;  // Remain part
-        bool is_single;
-        TreeImmediate::Operator op; // Operator
+    constexpr auto __handle_comment = [](std::string_view &) {
+        return std::nullopt;
     };
-    using enum TreeImmediate::Operator;
+    constexpr auto __handle_operator = [](std::string_view &view) {
+        return Token { .type = Operator, .what = extract_str(view, 1) };
+    };
+    constexpr auto __handle_parentesis = [](std::string_view &view) {
+        return Token { .type = Parenthesis, .what = extract_str(view, 1) };
+    };
+    constexpr auto __handle_comma = [](std::string_view &view) {
+        return Token { .type = Comma, .what = extract_str(view, 1) };
+    };
+    constexpr auto __handle_relocation = [](std::string_view &view) {
+        auto length = view.find_first_of('(', 1);
+        throw_if(length == view.npos, "Expected '(' after relocation operator");
+        return Token { .type = Relocation, .what = extract_str(view, length) };
+    };
+    constexpr auto __handle_character = [](std::string_view &view) {
+        throw_if(view.size() < 3, "Expected closing ' for character literal");
+        if (view[1] == '\\') {
+            throw_if(view.size() < 4, "Expected closing ' for character literal");
+            throw_if(view[3] != '\'', "Expected closing ' for character literal");
+            return Token { .type = Character, .what = extract_str(view, 4) };
+        } else {
+            throw_if(view[2] != '\'', "Expected closing ' for character literal");
+            return Token { .type = Character, .what = extract_str(view, 3) };
+        }
+    };
+    constexpr auto __handle_string = [](std::string_view &view) {
+        // Find '\' and '"' to handle escape sequences properly
+        for (std::size_t i = 1 ; i < view.size() ; i++) {
+            if (view[i] == '\\') {
+                i++;
+            } else if (view[i] == '"') {
+                return Token { .type = String, .what = extract_str(view, i + 1) };
+            }
+        }
+        throw FailToParse("Expected closing \" for string literal");
+    };
+    constexpr auto __handle_identifier = [](std::string_view &view) {
+        auto pos = std::ranges::find_if_not(view, is_label_char);
+        auto length = pos - view.begin();
+        return Parser::Token { .type = Identifier, .what = extract_str(view, length) };
+    };
 
-    // splitter: +, -, (, )
-    const char *end = std::ranges::find_if(view, is_split_char);
-    if (end == view.end())
-        return Result { view, {}, true, END };
+    while (line.size() && std::isspace(line[0])) line.remove_prefix(1);
 
-    auto [subview, remain] = split_by_real(view, end);
-    if (remain.empty()) throw_invalid();
-
-    if (remain.front() == '+')
-        return Result { subview, remain, true, ADD };
-    if (remain.front() == '-')
-        return Result { subview, remain, true, SUB };
-    if (const char *next {}; remain.front() == '('
-    && bool(next = find_matching_parentheses(remain))) {
-        std::size_t length = next - view.begin() + 1;
-
-        subview = view.substr(1, length - 2);
-        remain = remove_front_whitespace(view.substr(length));
-
-        if (remain.empty())
-            return Result { subview, {}, false, END };
-        if (remain.front() == '+')
-            return Result { subview, remain, false, ADD };
-        if (remain.front() == '-')
-            return Result { subview, remain, false, SUB };
+    if (line.empty()) return std::nullopt;
+    switch (line[0]) {
+        case '#':
+            return __handle_comment(line);
+        case '+': case '-':
+            return __handle_operator(line);
+        case '(': case ')':
+            return __handle_parentesis(line);
+        case '%':
+            return __handle_relocation(line);
+        case '\'':
+            return __handle_character(line);
+        case '"':
+            return __handle_string(line);
+        case ',':
+            return __handle_comma(line);
+        default:
+            return __handle_identifier(line);
     }
-
-    throw_invalid();
 }
 
-/** May include add/sub expression. */
-static auto parse_expressions(std::string_view view) -> std::unique_ptr <ImmediateBase> {
-    auto pos = std::ranges::find_if(view, is_split_char);
-    // Integer or label.
-    if (pos == view.end()) return parse_single(view);
-    // Negative integer.
-    if (pos == view.begin() && *pos == '-') return parse_integer(view);
-
-    std::vector <TreeImmediate::Pair> data;
+Parser::Parser(std::string_view line) {
+    std::vector <Token> tokens;
 
     do {
-        auto [subview, remain, is_single, op] = find_new_single(view);
-        if (is_single) {
-            data.emplace_back(Immediate{parse_single(subview)}, op);
-        } else {
-            data.emplace_back(Immediate{subview}, op);
-        }
-        view = remain;
-        if (op == TreeImmediate::Operator::END) break;
-        view = remove_front_whitespace(view.substr(1));
+        auto token = get_first_token(line);
+        if (!token.has_value()) break;
+        tokens.push_back(token.value());
     } while (true);
 
-    if (!view.empty()) throw_invalid();
-    return std::make_unique <TreeImmediate> (std::move(data));
+    this->storage = std::move(tokens);
+    this->span   = this->storage;
 }
 
-static auto parse_immediate(std::string_view view) -> std::unique_ptr <ImmediateBase> {
-    view = remove_back_whitespace(remove_front_whitespace(view));
-    if (view.empty()) throw_invalid();
-    if (view.starts_with('%')) {
-        return parse_relocation(view.substr(1));
-    } else {
-        return parse_expressions(view);
-    }
+auto Parser::extract_one() noexcept -> std::optional <Token> {
+    if (this->span.empty()) return std::nullopt;
+    auto token = this->span.front();
+    this->span = this->span.subspan(1);
+    return token;
 }
 
-static auto imm_to_string(ImmediateBase *imm) -> std::string {
-    if (auto ptr = dynamic_cast <IntImmediate *> (imm)) {
-        return std::to_string(static_cast <target_ssize_t> (ptr->data));
-    } else if (auto ptr = dynamic_cast <StrImmediate *> (imm)) {
-        return std::string(ptr->data.to_sv());
-    } else if (auto ptr = dynamic_cast <RelImmediate *> (imm)) {
-        std::string_view op;
-        switch (ptr->operand) {
-            using enum RelImmediate::Operand;
-            case HI: op = "hi"; break;
-            case LO: op = "lo"; break;
-            case PCREL_HI: op = "pcrel_hi"; break;
-            case PCREL_LO: op = "pcrel_lo"; break;
-            default: unreachable();
-        }
-        std::string str = ptr->imm.to_string();
-        if (str.starts_with('(') && str.ends_with(')'))
-            return std::format("%{}{}", op, str);
-        return std::format("%{}({})", op, str);
-    } else if (auto ptr = dynamic_cast <TreeImmediate *> (imm)) {
-        std::vector <std::string> vec;
-        for (auto &[imm, op] : ptr->data) {
-            std::string_view op_str =
-                op == TreeImmediate::Operator::ADD ? " + " :
-                op == TreeImmediate::Operator::SUB ? " - " : "";
-            vec.push_back(std::format("{}{}", imm.to_string(), op_str));
-        }
-        std::size_t length {2};
-        std::string string {'('};
-        for (auto &str : vec) length += str.size();
-        string.reserve(length);
-        for (auto &str : vec) string += str;
-        string += ')';
-        return string;
-    } else {
-        unreachable();
-    }
+/**
+ * Extract until a comma is found, or the end of the line
+ * The comma is not included in the result.
+ */
+auto Parser::extract_until_splitter() -> std::span <Token> {
+    auto pos = std::ranges::find(this->span, Token::Type::Comma, &Token::type);
+    auto len = pos - this->span.begin();
+    auto ret = this->span.subspan(0, len);
+    this->span = this->span.subspan(len);
+    return ret;
 }
 
-Immediate::Immediate(std::string_view view) : data(parse_immediate(view)) {}
-
-Immediate::Immediate(target_size_t data) : data(std::make_unique <IntImmediate> (data)) {}
-
-std::string Immediate::to_string() const {
-    return imm_to_string(data.get());
+/**
+ * Skip the comma, and throw if the next token is not a comma.
+ */
+auto Parser::skip_comma() -> void {
+    auto token = this->extract_one();
+    throw_if(!token.has_value(), "Expected comma");
+    throw_if(token->type != Token::Type::Comma, "Expected comma");
 }
 
+/**
+ * Assure that the parse is empty
+ */
+void Parser::check_empty() {
+    throw_if(!this->span.empty(), "Expected end of line");
+}
+
+auto Parser::extract_register() -> Register {
+    auto tokens = this->extract_until_splitter();
+    throw_if(tokens.size() != 1 || tokens[0].type != Token::Type::Identifier,
+             "Expected register");
+    return sv_to_reg(tokens[0].what);
+}
+
+auto Parser::extract_immediate() -> Immediate {
+    return Parser::parse_immediate(this->extract_until_splitter());
+}
+
+auto Parser::extract_offset_register() -> OffsetRegister {
+    auto tokens = this->extract_until_splitter();
+    throw_if(tokens.size() < 4, "Expected offset + register");
+
+    /* Pattern: imm(reg), so the last 3 token should be '(' 'reg' ')' */
+    auto base = tokens.last(3);
+    throw_if(base[0].what != "(" || base[2].what != ")");
+
+    tokens = tokens.first(tokens.size() - 3);
+
+    /**
+     * We split the initialization into 2 lines.
+     * This is because if exception is thrown when the
+     * OffsetRegiste is constructed, its destructor
+     * will *not* be called.
+     * 
+     * If parse_immediate does not throw, but sv_to_reg does,
+     * then it may lead to potential memory leak.
+     */
+    auto reg = sv_to_reg(base[1].what);
+    return { Parser::parse_immediate(tokens), reg };
+}
 
 } // namespace dark
