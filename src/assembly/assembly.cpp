@@ -230,6 +230,12 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
     using Mop = LoadStore::Opcode;
     using Bop = Branch::Opcode;
 
+    /**
+     * =========================================================
+     *                    Real instructions
+     * =========================================================
+     */
+
     constexpr auto __insert_arith_reg = [](Assembler *ptr, std::string_view rest, Aop opcode) {
         auto [rd, rs1, rs2] = split_command <3> (rest);
         ptr->storages.push_back(std::make_unique <ArithmeticReg> (opcode, rd, rs1, rs2));
@@ -249,13 +255,23 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
         ptr->storages.push_back(std::make_unique <Branch> (opcode, rs1, rs2, label));
     };
     constexpr auto __insert_jump = [](Assembler *ptr, std::string_view rest) {
-        auto [rd, offset] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <JumpRelative> (rd, offset));
+        if (count_tokens(rest) == 1) { // Special case for jal label
+            auto [offset] = split_command <1> (rest);
+            ptr->storages.push_back(std::make_unique <JumpRelative> ("ra", offset));
+        } else {
+            auto [rd, offset] = split_command <2> (rest);
+            ptr->storages.push_back(std::make_unique <JumpRelative> (rd, offset));
+        }
     };
     constexpr auto __insert_jalr = [](Assembler *ptr, std::string_view rest) {
-        auto [rd, off_rs1] = split_command <2> (rest);
-        auto [off, rs1] = split_offset_and_register(off_rs1);
-        ptr->storages.push_back(std::make_unique <JumpRegister> (rd, rs1, off));
+        if (count_tokens(rest) == 1) { // Special case for jalr rs
+            auto [rs] = split_command <1> (rest);
+            ptr->storages.push_back(std::make_unique <JumpRegister> ("ra", rs, "0"));
+        } else {
+            auto [rd, off_rs1] = split_command <2> (rest);
+            auto [off, rs1] = split_offset_and_register(off_rs1);
+            ptr->storages.push_back(std::make_unique <JumpRegister> (rd, rs1, off));
+        }
     };
     constexpr auto __insert_lui  = [](Assembler *ptr, std::string_view rest) {
         auto [rd, imm] = split_command <2> (rest);
@@ -265,9 +281,16 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
         auto [rd, imm] = split_command <2> (rest);
         ptr->storages.push_back(std::make_unique <AddUpperImmediatePC> (rd, imm));
     };
-    constexpr auto __insert_move = [](Assembler *ptr, std::string_view rest) {
+
+    /**
+     * =========================================================
+     *                    Pseudo instructions
+     * =========================================================
+     */
+
+    constexpr auto __insert_mv = [](Assembler *ptr, std::string_view rest) {
         auto [rd, rs1] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::ADD, rd, rs1, "zero"));
+        ptr->storages.push_back(std::make_unique <ArithmeticImm> (Aop::ADD, rd, rs1, "0"));
     };
     constexpr auto __insert_li = [](Assembler *ptr, std::string_view rest) {
         auto [rd, imm] = split_command <2> (rest);
@@ -335,6 +358,10 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
         auto [rd, label] = split_command <2> (rest);
         ptr->storages.push_back(std::make_unique <LoadImmediate> (rd, label));
     };
+    constexpr auto __insert_nop = [](Assembler *ptr, std::string_view rest) {
+        split_command <0> (rest);
+        ptr->storages.push_back(std::make_unique <ArithmeticImm> (Aop::ADD, "zero", "zero", "0"));
+    };
 
     using namespace ::dark::__hash;
 
@@ -394,7 +421,7 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
         match_or_break("lui",   __insert_lui);
         match_or_break("auipc", __insert_auipc);
 
-        match_or_break("mv",    __insert_move);
+        match_or_break("mv",    __insert_mv);
         match_or_break("li",    __insert_li);
 
         match_or_break("neg",   __insert_neg);
@@ -412,13 +439,13 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
         match_or_break("blez",  __insert_brz, _Cmp_type::LEZ);
         match_or_break("bgez",  __insert_brz, _Cmp_type::GEZ);
 
-        match_or_break("ble",   __insert_branch, Bop::BGE, true);
-        match_or_break("bleu",  __insert_branch, Bop::BGEU, true);
-        match_or_break("bgt",   __insert_branch, Bop::BLT, true);
-        match_or_break("bgtu",  __insert_branch, Bop::BLTU, true);
+        match_or_break("ble",   __insert_branch, Bop::BGE,  /* swap = */ true);
+        match_or_break("bleu",  __insert_branch, Bop::BGEU, /* swap = */ true);
+        match_or_break("bgt",   __insert_branch, Bop::BLT,  /* swap = */ true);
+        match_or_break("bgtu",  __insert_branch, Bop::BLTU, /* swap = */ true);
 
-        match_or_break("call",  __insert_call, false);
-        match_or_break("tail",  __insert_call, true);
+        match_or_break("call",  __insert_call, /* tail_call = */ false);
+        match_or_break("tail",  __insert_call, /* tail_call = */ true);
 
         match_or_break("j",     __insert_j);
         match_or_break("jr",    __insert_jr);
@@ -426,6 +453,8 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
 
         match_or_break("la",    __insert_lla);
         match_or_break("lla",   __insert_lla);
+
+        match_or_break("nop",   __insert_nop);
 
         default: break;
     }

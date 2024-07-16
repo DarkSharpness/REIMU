@@ -168,8 +168,8 @@ void ASCIZ::debug(std::ostream &os) const {
 
 namespace dark {
 
-Register sv_to_reg(std::string_view view) {
-    using namespace ::dark::__hash;
+auto sv_to_reg_nothrow(std::string_view view) noexcept -> std::optional<Register> {
+using namespace ::dark::__hash;
     #define match_or_break(str, expr) case switch_hash_impl(str):\
         if (view == str) { return expr; } break
 
@@ -212,11 +212,19 @@ Register sv_to_reg(std::string_view view) {
     }
 
     #undef match_or_break
+
     if (view.starts_with("x")) {
         auto num = sv_to_integer <std::size_t> (view.substr(1));
         if (num.has_value() && *num < 32)
             return static_cast <Register> (*num);
     }
+
+    return std::nullopt;
+}
+
+auto sv_to_reg(std::string_view view) -> Register {
+    auto reg = sv_to_reg_nothrow(view);
+    if (reg.has_value()) return *reg;
     throw FailToParse { std::format("Invalid register: \"{}\"", view) };
 }
 

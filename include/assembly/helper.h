@@ -3,6 +3,7 @@
 #include <assembly/assembly.h>
 #include <assembly/storage.h>
 #include <assembly/exception.h>
+#include <algorithm>
 
 // Some useful helper functions.
 
@@ -126,6 +127,15 @@ static auto remove_comments_when_no_string(std::string_view str) -> std::string_
     throw_if(str.find('\"') != str.npos);
     auto pos = str.find_first_of('#');
     return str.substr(0, pos == str.npos ? str.size() : pos);
+}
+
+/**
+ * @attention It will count 0 token as 1.
+ */
+template <char _Indent = ','>
+static auto count_tokens(std::string_view str) {
+    str = remove_comments_when_no_string(str);
+    return std::ranges::count(str, _Indent) + 1;
 }
 
 template <std::size_t _N, char _Indent = ','>
