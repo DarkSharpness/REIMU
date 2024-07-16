@@ -1,6 +1,7 @@
 #include <utility.h>
 #include <assembly/assembly.h>
-#include <assembly/helper.h>
+#include <assembly/utility.h>
+#include <assembly/parser.h>
 #include <fstream>
 #include <algorithm>
 
@@ -225,10 +226,26 @@ void Assembler::parse_command(std::string_view token, std::string_view rest) {
     return this->parse_command_impl(token, rest);
 }
 
+
+template <typename ..._Args>
+static auto match(std::string_view command) {
+    return Parser { command }.match <_Args...> ();
+}
+
+template <typename _Tp, typename ..._Args>
+requires std::constructible_from <_Tp, std::remove_reference_t <_Args>...>
+void Assembler::push_cmd(_Args &&...args) {
+    this->storages.push_back(std::make_unique <_Tp> (std::move(args)...));   
+}
+
 void Assembler::parse_command_impl(std::string_view token, std::string_view rest) {
     using Aop = ArithmeticReg::Opcode;
     using Mop = LoadStore::Opcode;
     using Bop = Branch::Opcode;
+
+    using Reg = Register;
+    using Imm = Immediate;
+    using OffReg = OffsetRegister;
 
     /**
      * =========================================================
@@ -237,49 +254,41 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
      */
 
     constexpr auto __insert_arith_reg = [](Assembler *ptr, std::string_view rest, Aop opcode) {
-        auto [rd, rs1, rs2] = split_command <3> (rest);
-        ptr->storages.push_back(std::make_unique <ArithmeticReg> (opcode, rd, rs1, rs2));
+        auto [rd, rs1, rs2] = match <Reg, Reg, Reg> (rest);
+        ptr->push_cmd <ArithmeticReg> (opcode, rd, rs1, rs2);
     };
     constexpr auto __insert_arith_imm = [](Assembler *ptr, std::string_view rest, Aop opcode) {
-        auto [rd, rs1, imm] = split_command <3> (rest);
-        ptr->storages.push_back(std::make_unique <ArithmeticImm> (opcode, rd, rs1, imm));
+        auto [rd, rs1, imm] = match <Reg, Reg, Imm> (rest);
+        ptr->push_cmd <ArithmeticImm> (opcode, rd, rs1, imm);
     };
     constexpr auto __insert_load_store = [](Assembler *ptr, std::string_view rest, Mop opcode) {
-        auto [rd, off_rs1] = split_command <2> (rest);
-        auto [off, rs1] = split_offset_and_register(off_rs1);
-        ptr->storages.push_back(std::make_unique <LoadStore> (opcode, rd, rs1, off));
+        auto [rd, off_rs1]  = match <Reg, OffReg> (rest);
+        auto &&[off, rs1]   = off_rs1;
+        ptr->push_cmd <LoadStore> (opcode, rd, rs1, off);
     };
     constexpr auto __insert_branch = [](Assembler *ptr, std::string_view rest, Bop opcode, bool swap = false) {
-        auto [rs1, rs2, label] = split_command <3> (rest);
+        auto [rs1, rs2, offset] = match <Reg, Reg, Imm> (rest);
         if (swap) std::swap(rs1, rs2);
-        ptr->storages.push_back(std::make_unique <Branch> (opcode, rs1, rs2, label));
+        ptr->push_cmd <Branch> (opcode, rs1, rs2, offset);
     };
     constexpr auto __insert_jump = [](Assembler *ptr, std::string_view rest) {
-        if (count_tokens(rest) == 1) { // Special case for jal label
-            auto [offset] = split_command <1> (rest);
-            ptr->storages.push_back(std::make_unique <JumpRelative> ("ra", offset));
-        } else {
-            auto [rd, offset] = split_command <2> (rest);
-            ptr->storages.push_back(std::make_unique <JumpRelative> (rd, offset));
-        }
+        /// TODO: jal offset
+        auto [rd, offset] = match <Reg, Imm> (rest);
+        ptr->push_cmd <JumpRelative> (rd, offset);
     };
     constexpr auto __insert_jalr = [](Assembler *ptr, std::string_view rest) {
-        if (count_tokens(rest) == 1) { // Special case for jalr rs
-            auto [rs] = split_command <1> (rest);
-            ptr->storages.push_back(std::make_unique <JumpRegister> ("ra", rs, "0"));
-        } else {
-            auto [rd, off_rs1] = split_command <2> (rest);
-            auto [off, rs1] = split_offset_and_register(off_rs1);
-            ptr->storages.push_back(std::make_unique <JumpRegister> (rd, rs1, off));
-        }
+        /// TODO: jalr rs1
+        auto [rd, off_rs1]  = match <Reg, OffReg> (rest);
+        auto &&[off, rs1]   = off_rs1;
+        ptr->push_cmd <JumpRegister> (rd, rs1, off);
     };
     constexpr auto __insert_lui  = [](Assembler *ptr, std::string_view rest) {
-        auto [rd, imm] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <LoadUpperImmediate> (rd, imm));
+        auto [rd, imm] = match <Reg, Imm> (rest);
+        ptr->push_cmd <LoadUpperImmediate> (rd, imm);
     };
     constexpr auto __insert_auipc = [](Assembler *ptr, std::string_view rest) {
-        auto [rd, imm] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <AddUpperImmediatePC> (rd, imm));
+        auto [rd, imm] = match <Reg, Imm> (rest);
+        ptr->push_cmd <AddUpperImmediatePC> (rd, imm);
     };
 
     /**
@@ -289,78 +298,87 @@ void Assembler::parse_command_impl(std::string_view token, std::string_view rest
      */
 
     constexpr auto __insert_mv = [](Assembler *ptr, std::string_view rest) {
-        auto [rd, rs1] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <ArithmeticImm> (Aop::ADD, rd, rs1, "0"));
+        auto [rd, rs1] = match <Reg, Reg> (rest);
+        ptr->push_cmd <ArithmeticImm> (Aop::ADD, rd, rs1, Immediate(0));
     };
     constexpr auto __insert_li = [](Assembler *ptr, std::string_view rest) {
-        auto [rd, imm] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <LoadImmediate> (rd, imm));
+        auto [rd, imm] = match <Reg, Imm> (rest);
+        ptr->push_cmd <LoadImmediate> (rd, imm);
     };
     constexpr auto __insert_neg = [](Assembler *ptr, std::string_view rest) {
-        auto [rd, rs1] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::SUB, rd, "zero", rs1));
+        auto [rd, rs1] = match <Reg, Reg> (rest);
+        using Register::zero;
+        ptr->push_cmd <ArithmeticReg> (Aop::SUB, rd, zero, rs1);
     };
     constexpr auto __insert_not = [](Assembler *ptr, std::string_view rest) {
-        auto [rd, rs1] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <ArithmeticImm> (Aop::XOR, rd, rs1, "-1"));
+        auto [rd, rs1] = match <Reg, Reg> (rest);
+        ptr->push_cmd <ArithmeticImm> (Aop::XOR, rd, rs1, Immediate(-1));
     };
     constexpr auto __insert_seqz = [](Assembler *ptr, std::string_view rest) {
-        auto [rd, rs1] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <ArithmeticImm> (Aop::SLTU, rd, rs1, "1"));
+        auto [rd, rs1] = match <Reg, Reg> (rest);
+        ptr->push_cmd <ArithmeticImm> (Aop::SLTU, rd, rs1, Immediate(1)); 
     };
     constexpr auto __insert_snez = [](Assembler *ptr, std::string_view rest) {
-        auto [rd, rs1] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::SLTU, rd, "zero", rs1));
+        auto [rd, rs1] = match <Reg, Reg> (rest);
+        ptr->push_cmd <ArithmeticImm> (Aop::SLTU, rd, rs1, Immediate(0));
     };
     constexpr auto __insert_sgtz = [](Assembler *ptr, std::string_view rest) {
-        auto [rd, rs1] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::SLT, rd, "zero", rs1));
+        auto [rd, rs1] = match <Reg, Reg> (rest);
+        using Register::zero;
+        ptr->push_cmd <ArithmeticReg> (Aop::SLT, rd, zero, rs1);
     };
     constexpr auto __insert_sltz = [](Assembler *ptr, std::string_view rest) {
-        auto [rd, rs1] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <ArithmeticReg> (Aop::SLT, rd, rs1, "zero"));
+        auto [rd, rs1] = match <Reg, Reg> (rest);
+        using Register::zero;
+        ptr->push_cmd <ArithmeticReg> (Aop::SLT, rd, rs1, zero);
     };
     enum class _Cmp_type { EQZ, NEZ, LTZ, GTZ, LEZ, GEZ };
     constexpr auto __insert_brz = [](Assembler *ptr, std::string_view rest, _Cmp_type opcode) {
-        auto [rs1, label] = split_command <2> (rest);
+        auto [rs1, offset] = match <Reg, Imm> (rest);
 
-        #define try_match(cmp, op, ...) case cmp:\
-            ptr->storages.push_back(std::make_unique <Branch> (op, ##__VA_ARGS__, label)); return
+        #define try_match(cmp, op, ...) case cmp: \
+            ptr->push_cmd <Branch> (op, ##__VA_ARGS__, offset); return
+
+        using Register::zero;
 
         switch (opcode) {
-            try_match(_Cmp_type::EQZ, Bop::BEQ, rs1, "zero");
-            try_match(_Cmp_type::NEZ, Bop::BNE, rs1, "zero");
-            try_match(_Cmp_type::LTZ, Bop::BLT, rs1, "zero");
-            try_match(_Cmp_type::GTZ, Bop::BLT, "zero", rs1);
-            try_match(_Cmp_type::LEZ, Bop::BGE, "zero", rs1);
-            try_match(_Cmp_type::GEZ, Bop::BGE, rs1, "zero");
+            try_match(_Cmp_type::EQZ, Bop::BEQ, rs1, zero);
+            try_match(_Cmp_type::NEZ, Bop::BNE, rs1, zero);
+            try_match(_Cmp_type::LTZ, Bop::BLT, rs1, zero);
+            try_match(_Cmp_type::GTZ, Bop::BLT, zero, rs1);
+            try_match(_Cmp_type::LEZ, Bop::BGE, zero, rs1);
+            try_match(_Cmp_type::GEZ, Bop::BGE, rs1, zero);
             default: unreachable();
         }
         #undef try_match
     };
     constexpr auto __insert_call = [](Assembler *ptr, std::string_view rest, bool is_tail) {
-        auto [offset] = split_command <1> (rest);
-        ptr->storages.push_back(std::make_unique <CallFunction> (is_tail, offset));
+        auto [offset] = match <Imm> (rest);
+        ptr->push_cmd <CallFunction> (is_tail, offset);
     };
     constexpr auto __insert_j = [](Assembler *ptr, std::string_view rest) {
-        auto [offset] = split_command <1> (rest);
-        ptr->storages.push_back(std::make_unique <JumpRelative> ("zero", offset));
+        auto [offset] = match <Imm> (rest);
+        using Register::zero;
+        ptr->push_cmd <JumpRelative> (zero, offset);
     };
     constexpr auto __insert_jr = [](Assembler *ptr, std::string_view rest) {
-        auto [rs] = split_command <1> (rest);
-        ptr->storages.push_back(std::make_unique <JumpRegister> ("zero", rs, "0"));
+        auto [rs1] = match <Reg> (rest);
+        using Register::zero;
+        ptr->push_cmd <JumpRegister> (zero, rs1, Immediate(0));
     };
     constexpr auto __insert_ret = [](Assembler *ptr, std::string_view rest) {
-        split_command <0> (rest);
-        ptr->storages.push_back(std::make_unique <JumpRegister> ("zero", "ra", "0"));
+        match <> (rest);
+        using Register::zero, Register::ra;
+        ptr->push_cmd <JumpRegister> (zero, ra, Immediate(0));
     };
     constexpr auto __insert_lla = [](Assembler *ptr, std::string_view rest) {
-        auto [rd, label] = split_command <2> (rest);
-        ptr->storages.push_back(std::make_unique <LoadImmediate> (rd, label));
+        auto [rd, offset] = match <Reg, Imm> (rest);
+        ptr->push_cmd <LoadImmediate> (rd, offset);
     };
     constexpr auto __insert_nop = [](Assembler *ptr, std::string_view rest) {
-        split_command <0> (rest);
-        ptr->storages.push_back(std::make_unique <ArithmeticImm> (Aop::ADD, "zero", "zero", "0"));
+        match <> (rest);
+        using Register::zero;
+        ptr->push_cmd <ArithmeticImm> (Aop::ADD, zero, zero, Immediate(0));
     };
 
     using namespace ::dark::__hash;

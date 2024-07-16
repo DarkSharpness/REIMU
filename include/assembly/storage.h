@@ -13,7 +13,9 @@ struct ImmediateBase { virtual ~ImmediateBase() = default; };
 
 struct Immediate {
     std::unique_ptr <ImmediateBase> data;
+    explicit Immediate() = default;
     explicit Immediate(std::unique_ptr <ImmediateBase> data) : data(std::move(data)) {}
+    explicit Immediate(target_size_t data);
     explicit Immediate(std::string_view view);
     std::string to_string() const;
 };
@@ -33,6 +35,7 @@ struct RelImmediate : ImmediateBase {
     enum class Operand {
        HI, LO, PCREL_HI, PCREL_LO
     } operand;
+    explicit RelImmediate(Immediate imm, Operand op) : imm(std::move(imm)), operand(op) {}
     explicit RelImmediate(std::string_view imm, Operand op) : imm(imm), operand(op) {}
 };
 
@@ -102,6 +105,13 @@ struct ArithmeticReg final : Command {
     Register rs2;
 
     explicit ArithmeticReg
+        (Opcode opcode, Register rd, Register rs1, Register rs2) :
+        opcode(opcode),
+        rd(rd),
+        rs1(rs1),
+        rs2(rs2) {}
+
+    explicit ArithmeticReg
         (Opcode opcode, std::string_view rd, std::string_view rs1, std::string_view rs2) :
         opcode(opcode),
         rd(sv_to_reg(rd)),
@@ -120,18 +130,18 @@ struct ArithmeticImm final : Command {
     Immediate imm;
 
     explicit ArithmeticImm
-        (Opcode opcode, std::string_view rd, std::string_view rs1, std::string_view imm) :
-        opcode(opcode),
-        rd(sv_to_reg(rd)),
-        rs1(sv_to_reg(rs1)),
-        imm(imm) {}
-
-    explicit ArithmeticImm
         (Opcode opcode, Register rd, Register rs1, Immediate imm) :
         opcode(opcode),
         rd(rd),
         rs1(rs1),
         imm(std::move(imm)) {}
+
+    explicit ArithmeticImm
+        (Opcode opcode, std::string_view rd, std::string_view rs1, std::string_view imm) :
+        opcode(opcode),
+        rd(sv_to_reg(rd)),
+        rs1(sv_to_reg(rs1)),
+        imm(imm) {}
 
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
@@ -143,6 +153,13 @@ struct LoadStore final : Command {
     Register rd;
     Register rs1;
     Immediate imm;
+
+    explicit LoadStore
+        (Opcode opcode, Register rd, Register rs1, Immediate imm) :
+        opcode(opcode),
+        rd(rd),
+        rs1(rs1),
+        imm(std::move(imm)) {}
 
     explicit LoadStore
         (Opcode opcode, std::string_view rd, std::string_view rs1, std::string_view imm) :
@@ -166,6 +183,13 @@ struct Branch final : Command {
     Register rs1;
     Register rs2;
     Immediate imm;
+
+    explicit Branch
+        (Opcode opcode, Register rs1, Register rs2, Immediate imm) :
+        opcode(opcode),
+        rs1(rs1),
+        rs2(rs2),
+        imm(std::move(imm)) {}
 
     explicit Branch
         (Opcode opcode, std::string_view rs1, std::string_view rs2, std::string_view imm) :
@@ -200,6 +224,9 @@ struct JumpRegister final : Command {
     explicit JumpRegister(std::string_view rd, std::string_view rs1, std::string_view imm) :
         rd(sv_to_reg(rd)), rs1(sv_to_reg(rs1)), imm(imm) {}
 
+    explicit JumpRegister(Register rd, Register rs1, Immediate imm) :
+        rd(rd), rs1(rs1), imm(std::move(imm)) {}
+
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
 };
@@ -210,8 +237,8 @@ struct CallFunction final : Command {
   public:
     Immediate imm;
 
-    explicit CallFunction(bool is_tail, std::string_view imm) :
-        tail(is_tail), imm(imm) {}
+    explicit CallFunction(bool is_tail, Immediate imm) :
+        tail(is_tail), imm(std::move(imm)) {}
 
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
@@ -225,6 +252,8 @@ struct LoadImmediate final : Command {
 
     explicit LoadImmediate(std::string_view rd, std::string_view imm) :
         rd(sv_to_reg(rd)), imm(imm) {}
+    explicit LoadImmediate(Register rd, Immediate imm) :
+        rd(rd), imm(std::move(imm)) {}
 
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
@@ -250,6 +279,9 @@ struct AddUpperImmediatePC final : Command {
 
     explicit AddUpperImmediatePC(std::string_view rd, std::string_view imm) :
         rd(sv_to_reg(rd)), imm(imm) {}
+
+    explicit AddUpperImmediatePC(Register rd, Immediate imm) :
+        rd(rd), imm(std::move(imm)) {}
 
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }

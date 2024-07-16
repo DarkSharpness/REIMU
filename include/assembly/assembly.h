@@ -69,6 +69,10 @@ struct Assembler {
     void handle_at(std::size_t, std::string) const;
 
     auto split_by_section() const -> std::vector <StorageSlice>;
+
+    template <typename _Tp, typename ..._Args>
+    requires std::constructible_from <_Tp, std::remove_reference_t <_Args>...>
+    void push_cmd(_Args &&...args);
 };
 
 } // namespace dark

@@ -258,6 +258,8 @@ static auto imm_to_string(ImmediateBase *imm) -> std::string {
 
 Immediate::Immediate(std::string_view view) : data(parse_immediate(view)) {}
 
+Immediate::Immediate(target_size_t data) : data(std::make_unique <IntImmediate> (data)) {}
+
 std::string Immediate::to_string() const {
     return imm_to_string(data.get());
 }

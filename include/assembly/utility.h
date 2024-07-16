@@ -1,6 +1,5 @@
 // Should be included only in assembly.cpp
 #include <utility.h>
-#include <assembly/assembly.h>
 #include <assembly/storage.h>
 #include <assembly/exception.h>
 #include <algorithm>
@@ -12,11 +11,6 @@ namespace dark {
 /* Whether the character is a valid token character. */
 bool is_label_char(char c) {
     return std::isalnum(c) || c == '_' || c == '.' || c == '@';
-}
-
-/* Whether the character is a valid split character. */
-static bool is_split_char(char c) {
-    return std::isspace(c) || c == ',';
 }
 
 /* Remove the front whitespace of the string. */
@@ -62,8 +56,8 @@ static auto start_with_label(std::string_view str) -> std::optional <std::string
 static auto find_first_token(std::string_view str)
     -> std::pair <std::string_view, std::string_view> {
     str = remove_front_whitespace(str);
-    auto pos = std::ranges::find_if(str, [](char c) {
-        return is_split_char(c) || c == '#';
+    auto pos = std::ranges::find_if_not(str, [](char c) {
+        return is_label_char(c);
     }) - str.begin();
     return { str.substr(0, pos), str.substr(pos) };
 }
@@ -127,60 +121,6 @@ static auto remove_comments_when_no_string(std::string_view str) -> std::string_
     throw_if(str.find('\"') != str.npos);
     auto pos = str.find_first_of('#');
     return str.substr(0, pos == str.npos ? str.size() : pos);
-}
-
-/**
- * @attention It will count 0 token as 1.
- */
-template <char _Indent = ','>
-static auto count_tokens(std::string_view str) {
-    str = remove_comments_when_no_string(str);
-    return std::ranges::count(str, _Indent) + 1;
-}
-
-template <std::size_t _N, char _Indent = ','>
-static auto split_command(std::string_view str) {
-    if constexpr (_N == 0) {
-        return throw_if(!contain_no_token(str));
-    } else {
-        std::array <std::string_view, _N> ret;
-        str = remove_front_whitespace(remove_comments_when_no_string(str));
-
-        if constexpr (_N == 1) {
-            ret[0] = remove_back_whitespace(str);
-            return ret; 
-        }
-
-        std::size_t pos = str.find_first_of(_Indent);
-        std::size_t i = 0;
-
-        while (pos != str.npos) {
-            ret[i++] = remove_back_whitespace(str.substr(0, pos));
-            str.remove_prefix(pos + 1);
-            str = remove_front_whitespace(str);
-            if (i == _N - 1) {
-                ret[i] = remove_back_whitespace(str);
-                return ret;
-            }
-            pos = str.find_first_of(_Indent);
-        }
-
-        throw FailToParse { "Too few arguments" }; 
-    }
-}
-
-static auto split_offset_and_register(std::string_view str)
--> std::pair <std::string_view, std::string_view> {
-    do {
-        if (str.empty() || str.back() != ')') break;
-        str.remove_suffix(1);
-
-        auto pos = str.find_last_of('(');
-        if (pos == str.npos) break;
-
-        return { str.substr(0, pos), str.substr(pos + 1) };
-    } while (false);
-    throw FailToParse { std::format("Invalid immediate and offset: \"{}\"", str) };
 }
 
 } // namespace dark
