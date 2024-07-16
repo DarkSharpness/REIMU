@@ -12,7 +12,7 @@ namespace dark::libc::__details {
 template <_Index index>
 static void checked_printf_impl(
     RegisterFile &rf, Memory &mem, std::ostream &out,
-    std::string_view str, Register from
+    std::string_view fmt, Register from
 ) {
     auto reg = reg_to_int(from);
     const auto extra_arg = [&]() {
@@ -24,11 +24,11 @@ static void checked_printf_impl(
         return rf[int_to_reg(reg++)];
     };
 
-    for (std::size_t i = 0 ; i < str.size() ; ++i) {
-        char c = str[i];
+    for (std::size_t i = 0 ; i < fmt.size() ; ++i) {
+        char c = fmt[i];
         if (c != '%') { out.put(c); continue; }
         // c == '%' here
-        switch (str[++i]) {
+        switch (fmt[++i]) {
             case 'd':
                 out << std::dec << static_cast<std::int32_t>(extra_arg());
                 break;
@@ -51,7 +51,7 @@ static void checked_printf_impl(
                 out.put('%');
                 break;
             default:
-                handle_unknown_fmt<index>(str[i]);
+                handle_unknown_fmt<index>(fmt[i]);
         }
     }
 }
@@ -60,7 +60,7 @@ template <_Index index>
 [[nodiscard]]
 static auto checked_scanf_impl(
     RegisterFile &rf, Memory &mem, std::istream &in,
-    std::string_view str, Register from
+    std::string_view fmt, Register from
 ) -> int {
     auto reg = reg_to_int(from);
     const auto extra_arg = [&]() {
@@ -74,8 +74,8 @@ static auto checked_scanf_impl(
 
     static std::string buf {};
 
-    for (std::size_t i = 0 ; i < str.size() ; ++i) {
-        char c = str[i];
+    for (std::size_t i = 0 ; i < fmt.size() ; ++i) {
+        char c = fmt[i];
         if (c != '%') { 
             if (in.get() != c)
                 return reg - reg_to_int(from);
@@ -89,7 +89,7 @@ static auto checked_scanf_impl(
         auto val_u  = target_size_t {};
         auto val_s  = target_ssize_t {};
 
-        switch (str[++i]) {
+        switch (fmt[++i]) {
             case 'd':
                 in >> val_s;
                 aligned_access<index, std::int32_t>(mem, extra_arg()) = val_s;
@@ -102,11 +102,15 @@ static auto checked_scanf_impl(
                 break;
             }
             case 'c':
-                in >> val_ch;
+                in.get(val_ch); // don't skip whitespace
                 aligned_access<index, char>(mem, extra_arg()) = val_ch;
                 break;
+            case 'u':
+                in >> val_u;
+                aligned_access<index, std::uint32_t>(mem, extra_arg()) = val_u;
+                break;
             default:
-                handle_unknown_fmt<index>(str[i]);
+                handle_unknown_fmt<index>(fmt[i]);
         }
     }
 
@@ -158,21 +162,22 @@ void getchar(Executable &, RegisterFile &rf, Memory &mem, Device &dev) {
 
 void scanf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) {
     auto ptr = rf[Register::a0];
-    auto str = checked_get_string<_Index::scanf>(mem, ptr);
+    auto fmt = checked_get_string<_Index::scanf>(mem, ptr);
     auto &is = dev.in;
 
-    auto result = checked_scanf_impl <_Index::scanf> (rf, mem, is, str, Register::a1);
+    auto result = checked_scanf_impl <_Index::scanf> (rf, mem, is, fmt, Register::a1);
     return_to_user(rf, mem, result);
 }
 
 void sscanf(Executable &, RegisterFile &rf, Memory &mem, Device &) {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
-    auto str  = checked_get_string<_Index::sscanf>(mem, ptr1);
+    auto str  = checked_get_string<_Index::sscanf>(mem, ptr0);
+    auto fmt  = checked_get_string<_Index::sscanf>(mem, ptr1);
 
     std::stringstream ss { std::string(str) };
 
-    auto result = checked_scanf_impl <_Index::sscanf> (rf, mem, ss, str, Register::a2);
+    auto result = checked_scanf_impl <_Index::sscanf> (rf, mem, ss, fmt, Register::a2);
     return_to_user(rf, mem, result);
 }
 
