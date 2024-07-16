@@ -1,0 +1,1 @@
+simulator -f=$1 -o="<stdout>" --silent
