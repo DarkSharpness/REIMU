@@ -1,5 +1,5 @@
-#include <riscv/register.h>
 #include <utility.h>
+#include <riscv/register.h>
 
 namespace dark {
 
@@ -15,7 +15,7 @@ std::string_view reg_to_sv(Register reg) {
 }
 
 auto sv_to_reg_nothrow(std::string_view view) noexcept -> std::optional<Register> {
-    using namespace ::dark::__hash;
+    using hash::switch_hash_impl;
     #define match_or_break(expr) case switch_hash_impl(#expr):\
         if (view == #expr) { return Register::expr; } break
 

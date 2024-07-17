@@ -8,7 +8,7 @@
 namespace dark {
 
 void Assembler::handle_at(std::size_t which_line, std::string msg) const {
-    using enum __console::Color;
+    using enum console::Color;
 
     std::ifstream file { this->file_name };
 
@@ -29,8 +29,8 @@ void Assembler::handle_at(std::size_t which_line, std::string msg) const {
         if (!std::getline(file, line)) break;
         if (i == which_line)
             line_fmt_string += std::format("{}{: >4}  |  {}{}\n",
-                __console::color_code <RED>, i, line,
-                __console::color_code <RESET>);
+                console::color_code <RED>, i, line,
+                console::color_code <RESET>);
         else
             line_fmt_string += std::format("{: >4}  |  {}\n", i, line);
     }
@@ -40,9 +40,9 @@ void Assembler::handle_at(std::size_t which_line, std::string msg) const {
 
     panic("{:}Failed to parse {}{}:{}{}\n{}",
         msg,
-        __console::color_code <YELLOW>,
+        console::color_code <YELLOW>,
         this->file_name, which_line,
-        __console::color_code <RESET>,
+        console::color_code <RESET>,
         line_fmt_string);
 }
 
