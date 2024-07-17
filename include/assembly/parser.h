@@ -1,5 +1,9 @@
 #pragma once
-#include <assembly/storage.h>
+#include <assembly/forward.h>
+#include <assembly/storage/immediate.h>
+#include <riscv/register.h>
+#include <span>
+#include <vector>
 
 namespace dark {
 

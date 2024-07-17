@@ -2,6 +2,7 @@
 #include <utility.h>
 #include <linker/linker.h>
 #include <assembly/storage.h>
+#include <assembly/immediate.h>
 
 namespace dark {
 

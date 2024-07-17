@@ -9,6 +9,7 @@
 #include <variant>
 #include <fstream>
 #include <memory>
+#include <vector>
 
 namespace dark {
 

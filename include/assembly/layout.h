@@ -1,5 +1,6 @@
 #pragma once
 #include <declarations.h>
+#include <assembly/forward.h>
 #include <span>
 #include <memory>
 #include <vector>

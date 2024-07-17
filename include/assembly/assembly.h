@@ -10,6 +10,7 @@
 
 namespace dark {
 
+struct Storage;
 struct AssemblyLayout;
 
 struct Assembler {

@@ -1,6 +1,6 @@
 #include <utility.h>
-#include <assembly/parser.h>
 #include <assembly/storage.h>
+#include <assembly/immediate.h>
 #include <assembly/exception.h>
 #include <fmtlib>
 
@@ -128,29 +128,47 @@ void ASCIZ::debug(std::ostream &os) const {
 
 namespace dark {
 
-Alignment::Alignment(std::size_t alignment) : alignment(alignment) {
-    throw_if(!std::has_single_bit(alignment), "Invalid alignment: \"{}\"", alignment);
+static auto imm_to_string(ImmediateBase *imm) -> std::string {
+    if (auto ptr = dynamic_cast <IntImmediate *> (imm)) {
+        return std::to_string(static_cast <target_ssize_t> (ptr->data));
+    } else if (auto ptr = dynamic_cast <StrImmediate *> (imm)) {
+        return std::string(ptr->data.to_sv());
+    } else if (auto ptr = dynamic_cast <RelImmediate *> (imm)) {
+        std::string_view op;
+        switch (ptr->operand) {
+            using enum RelImmediate::Operand;
+            case HI: op = "hi"; break;
+            case LO: op = "lo"; break;
+            case PCREL_HI: op = "pcrel_hi"; break;
+            case PCREL_LO: op = "pcrel_lo"; break;
+            default: unreachable();
+        }
+        std::string str = ptr->imm.to_string();
+        if (str.starts_with('(') && str.ends_with(')'))
+            return std::format("%{}{}", op, str);
+        return std::format("%{}({})", op, str);
+    } else if (auto ptr = dynamic_cast <TreeImmediate *> (imm)) {
+        std::vector <std::string> vec;
+        for (auto &[imm, op] : ptr->data) {
+            std::string_view op_str =
+                op == TreeImmediate::Operator::ADD ? " + " :
+                op == TreeImmediate::Operator::SUB ? " - " : "";
+            vec.push_back(std::format("{}{}", imm.to_string(), op_str));
+        }
+        std::size_t length {2};
+        std::string string {'('};
+        for (auto &str : vec) length += str.size();
+        string.reserve(length);
+        for (auto &str : vec) string += str;
+        string += ')';
+        return string;
+    } else {
+        unreachable();
+    }
 }
 
-IntegerData::IntegerData(std::string_view data, Type type)
-    : data(), type(type) {
-    runtime_assert(Type::BYTE <= type && type <= Type::LONG);
-    auto [value] = Parser {data} .match <Immediate> ();
-    this->data = std::move(value);
-}
-
-ZeroBytes::ZeroBytes(std::size_t count) : count(count) {}
-
-ASCIZ::ASCIZ(std::string str) : data(std::move(str)) {}
-
-StrImmediate::StrImmediate(std::string_view data) : data(data) {
-    for (char c : data) throw_if(!is_label_char(c), "Invalid label name: \"{}\"", data);
-}
-
-auto sv_to_reg(std::string_view view) -> Register {
-    auto reg = sv_to_reg_nothrow(view);
-    if (reg.has_value()) return *reg;
-    throw FailToParse { std::format("Invalid register: \"{}\"", view) };
+std::string Immediate::to_string() const {
+    return imm_to_string(data.get());
 }
 
 } // namespace dark

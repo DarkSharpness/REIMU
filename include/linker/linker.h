@@ -10,13 +10,14 @@
 
 namespace dark {
 
+struct Storage;
 struct MemoryLayout;
 struct AssemblyLayout;
 
 struct Linker {
   public:
-    using _Storage_t = std::unique_ptr<Storage>;
-    using _Slice_t  = std::span<_Storage_t>;
+    using _Storage_t    = std::unique_ptr<Storage>;
+    using _Slice_t      = std::span<_Storage_t>;
 
     using LinkResult = MemoryLayout;
     struct SymbolLocation;

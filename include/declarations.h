@@ -9,12 +9,6 @@ struct Parser;
 struct Linker;
 struct Assembler;
 struct Interpreter;
-struct StorageVisitor;
-struct Storage {
-    virtual ~Storage() noexcept = default;
-    virtual void debug(std::ostream&) const = 0;
-    virtual void accept(StorageVisitor&) = 0;
-};
 
 enum class Section : std::uint8_t {
     UNKNOWN, TEXT, DATA, RODATA, BSS,

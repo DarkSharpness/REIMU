@@ -1,86 +1,16 @@
 #include <utility.h>
 #include <assembly/parser.h>
+#include <assembly/immediate.h>
 #include <assembly/exception.h>
 #include <unordered_map>
 
+/* Some static functions. */
 namespace dark {
 
-using View_t = std::span <Parser::Token>;
-using Owner_t = std::unique_ptr <ImmediateBase>;
-using Tree_t = decltype(TreeImmediate::data);
+using View_t    = std::span <Parser::Token>;
+using Owner_t   = std::unique_ptr <ImmediateBase>;
 
-struct ImmediateParser {
-    void make_match(View_t);
-    auto parse(View_t) const -> Owner_t;
-  private:
-    auto find_right_parenthesis(View_t &view) const -> View_t {
-        throw_if(view.empty() || view[0].what != "(", "Invalid immediate");
-
-        auto length = this->matched.at(&view[0]);
-        runtime_assert(length < view.size());
-
-        auto result = view.subspan(1, length - 1);
-        view = view.subspan(length + 1);
-
-        return result;
-    }
-    auto find_single_op(View_t &) const -> Owner_t;
-    std::unordered_map <Parser::Token *, std::size_t> matched;
-};
-
-auto ImmediateParser::parse(View_t tokens) const -> Owner_t {
-    using enum TreeImmediate::Operator;
-
-    throw_if(tokens.empty(), "Invalid immediate");
-    Tree_t tree;
-
-    if (tokens[0].type == Parser::Token::Type::Operator) {
-        throw_if(tokens[0].what != "-", "unsupported operator {}", tokens[0].what);
-        tree.emplace_back(Immediate { 0 }, SUB);
-        tokens = tokens.subspan(1);
-        throw_if(tokens.empty(), "Invalid immediate");
-    }
-
-    do {
-        auto imm = Immediate { this->find_single_op(tokens) };
-        if (tokens.empty()) {
-            tree.emplace_back(std::move(imm), END);
-            return std::make_unique <TreeImmediate> (std::move(tree));
-        } else if (tokens[0].what == "+") {
-            tree.emplace_back(std::move(imm), ADD);
-        } else if (tokens[0].what == "-") {
-            tree.emplace_back(std::move(imm), SUB);
-        } else {
-            throw FailToParse("Invalid immediate");
-        }
-        tokens = tokens.subspan(1); // Remove the operator.
-    } while (true);
-}
-
-auto Parser::parse_immediate(View_t view) -> Immediate {
-    ImmediateParser parser;
-    parser.make_match(view);
-    auto imm = parser.parse(view);
-    return Immediate { std::move(imm) };
-}
-
-void ImmediateParser::make_match(View_t tokens) {
-    std::vector <Parser::Token *> stack;
-    for (auto &token : tokens) {
-        if (token.what == "(") {
-            stack.push_back(&token);
-        } else if (token.what == ")") {
-            throw_if(stack.empty(), "Unmatched right parenthesis");
-            auto prev = stack.back();
-            this->matched[prev] = &token - prev; 
-            stack.pop_back();
-        }
-    }
-
-    throw_if(!stack.empty(), "Unmatched left parenthesis");
-}
-
-static auto parse_integer(std::string_view view) -> std::unique_ptr <ImmediateBase> {
+static auto parse_integer(std::string_view view) -> Owner_t {
     if (view.starts_with('0')) {
         view.remove_prefix(1);
         if (view.empty()) return std::make_unique <IntImmediate> (0);
@@ -144,6 +74,77 @@ static auto parse_character(std::string_view view) -> Owner_t {
     throw FailToParse("Invalid character");
 }
 
+} // namespace dark
+
+
+/* The implementation of ImmediateParser */
+namespace dark {
+
+struct ImmediateParser {
+    void make_match(View_t);
+    auto parse(View_t) const -> Owner_t;
+  private:
+    auto find_right_parenthesis(View_t &view) const -> View_t {
+        throw_if(view.empty() || view[0].what != "(", "Invalid immediate");
+
+        auto length = this->matched.at(&view[0]);
+        runtime_assert(length < view.size());
+
+        auto result = view.subspan(1, length - 1);
+        view = view.subspan(length + 1);
+
+        return result;
+    }
+    auto find_single_op(View_t &) const -> Owner_t;
+    std::unordered_map <Parser::Token *, std::size_t> matched;
+};
+
+void ImmediateParser::make_match(View_t tokens) {
+    std::vector <Parser::Token *> stack;
+    for (auto &token : tokens) {
+        if (token.what == "(") {
+            stack.push_back(&token);
+        } else if (token.what == ")") {
+            throw_if(stack.empty(), "Unmatched right parenthesis");
+            auto prev = stack.back();
+            this->matched[prev] = &token - prev; 
+            stack.pop_back();
+        }
+    }
+
+    throw_if(!stack.empty(), "Unmatched left parenthesis");
+}
+
+auto ImmediateParser::parse(View_t tokens) const -> Owner_t {
+    using enum TreeImmediate::Operator;
+
+    throw_if(tokens.empty(), "Invalid immediate");
+    using Tree_t = decltype(TreeImmediate::data);
+    Tree_t tree;
+
+    if (tokens[0].type == Parser::Token::Type::Operator) {
+        throw_if(tokens[0].what != "-", "unsupported operator {}", tokens[0].what);
+        tree.emplace_back(Immediate { 0 }, SUB);
+        tokens = tokens.subspan(1);
+        throw_if(tokens.empty(), "Invalid immediate");
+    }
+
+    do {
+        auto imm = Immediate { this->find_single_op(tokens) };
+        if (tokens.empty()) {
+            tree.emplace_back(std::move(imm), END);
+            return std::make_unique <TreeImmediate> (std::move(tree));
+        } else if (tokens[0].what == "+") {
+            tree.emplace_back(std::move(imm), ADD);
+        } else if (tokens[0].what == "-") {
+            tree.emplace_back(std::move(imm), SUB);
+        } else {
+            throw FailToParse("Invalid immediate");
+        }
+        tokens = tokens.subspan(1); // Remove the operator.
+    } while (true);
+}
+
 auto ImmediateParser::find_single_op(View_t &tokens) const -> Owner_t {
     throw_if(tokens.empty(), "Invalid immediate");
     using enum Parser::Token::Type;
@@ -194,49 +195,11 @@ auto ImmediateParser::find_single_op(View_t &tokens) const -> Owner_t {
     }
 }
 
-Immediate::Immediate(target_size_t data) : data(std::make_unique <IntImmediate> (data)) {}
-
-static auto imm_to_string(ImmediateBase *imm) -> std::string {
-    if (auto ptr = dynamic_cast <IntImmediate *> (imm)) {
-        return std::to_string(static_cast <target_ssize_t> (ptr->data));
-    } else if (auto ptr = dynamic_cast <StrImmediate *> (imm)) {
-        return std::string(ptr->data.to_sv());
-    } else if (auto ptr = dynamic_cast <RelImmediate *> (imm)) {
-        std::string_view op;
-        switch (ptr->operand) {
-            using enum RelImmediate::Operand;
-            case HI: op = "hi"; break;
-            case LO: op = "lo"; break;
-            case PCREL_HI: op = "pcrel_hi"; break;
-            case PCREL_LO: op = "pcrel_lo"; break;
-            default: unreachable();
-        }
-        std::string str = ptr->imm.to_string();
-        if (str.starts_with('(') && str.ends_with(')'))
-            return std::format("%{}{}", op, str);
-        return std::format("%{}({})", op, str);
-    } else if (auto ptr = dynamic_cast <TreeImmediate *> (imm)) {
-        std::vector <std::string> vec;
-        for (auto &[imm, op] : ptr->data) {
-            std::string_view op_str =
-                op == TreeImmediate::Operator::ADD ? " + " :
-                op == TreeImmediate::Operator::SUB ? " - " : "";
-            vec.push_back(std::format("{}{}", imm.to_string(), op_str));
-        }
-        std::size_t length {2};
-        std::string string {'('};
-        for (auto &str : vec) length += str.size();
-        string.reserve(length);
-        for (auto &str : vec) string += str;
-        string += ')';
-        return string;
-    } else {
-        unreachable();
-    }
-}
-
-std::string Immediate::to_string() const {
-    return imm_to_string(data.get());
+auto Parser::parse_immediate(View_t view) -> Immediate {
+    ImmediateParser parser;
+    parser.make_match(view);
+    auto imm = parser.parse(view);
+    return Immediate { std::move(imm) };
 }
 
 } // namespace dark

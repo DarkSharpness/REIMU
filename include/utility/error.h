@@ -1,10 +1,8 @@
 #pragma once
-#include <declarations.h>
-#include <vector>
+#include <array>
+#include <fmtlib>
 #include <iostream>
 #include <source_location>
-#include <fmtlib>
-#include <ranges>
 
 namespace dark {
 
