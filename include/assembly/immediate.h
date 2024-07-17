@@ -1,6 +1,7 @@
 #pragma once
-#include <assembly/forward.h>
 #include <utility/ustring.h>
+#include <assembly/forward.h>
+#include <assembly/storage/immediate.h>
 #include <vector>
 
 // Immediate
@@ -33,7 +34,5 @@ struct TreeImmediate : ImmediateBase {
     std::vector <Pair> data;
     explicit TreeImmediate(std::vector <Pair> data) : data(std::move(data)) {}
 };
-
-inline Immediate::Immediate(target_size_t data) : data(std::make_unique <IntImmediate> (data)) {}
 
 } // namespace dark

@@ -1,6 +1,7 @@
 #pragma once
 #include <declarations.h>
 #include <riscv/register.h>
+/// TODO: remove this header
 #include <memory>
 
 namespace dark {
@@ -8,7 +9,6 @@ namespace dark {
 struct AssemblyLayout;
 
 struct Assembly;
-struct Parser;
 
 struct ImmediateBase {
     virtual ~ImmediateBase() = default;
@@ -21,7 +21,6 @@ struct Storage {
     virtual void debug(std::ostream&) const = 0;
     virtual void accept(StorageVisitor&) = 0;
 };
-
 
 auto is_label_char(char) -> bool;
 auto sv_to_reg(std::string_view) -> Register;

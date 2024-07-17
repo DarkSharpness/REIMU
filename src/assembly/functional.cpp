@@ -1,5 +1,6 @@
 #include <assembly/layout.h>
 #include <assembly/assembly.h>
+#include <assembly/exception.h>
 #include <utility.h>
 #include <fstream>
 #include <ranges>
@@ -132,6 +133,33 @@ auto Assembler::split_by_section() const -> std::vector <StorageSlice> {
     slices.push_back({ storage, prev_section });
     runtime_assert(prev_section == this->current_section);
     return slices;
+}
+
+void Assembler::set_section(Section section) {
+    this->current_section = section;
+    this->sections.emplace_back(this->storages.size(), section);
+}
+
+/**
+ * @brief Try to add a label to the assembly.
+ * @param label Label name.
+ * @return Whether the label is successfully added.
+ */
+void Assembler::add_label(std::string_view label) {
+    auto [iter, success] = this->labels.try_emplace(std::string(label));
+    auto &label_info = iter->second;
+
+    throw_if(success == false && label_info.is_defined(),
+        "Label \"{}\" already exists\n"
+        "First appearance at line {} in {}",
+        label, label_info.line_number, this->file_name);
+
+    throw_if(this->current_section == Section::UNKNOWN,
+        "Label must be defined in a section");
+
+    label_info.define_at(
+        this->line_number, this->storages.size(),
+        iter->first, this->current_section);
 }
 
 } // namespace dark

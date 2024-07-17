@@ -1,4 +1,3 @@
-#include <assembly/parser.h>
 #include <assembly/storage.h>
 #include <assembly/exception.h>
 #include <utility.h>
@@ -9,12 +8,8 @@ Alignment::Alignment(std::size_t alignment) : alignment(alignment) {
     throw_if(!std::has_single_bit(alignment), "Invalid alignment: \"{}\"", alignment);
 }
 
-IntegerData::IntegerData(std::string_view data, Type type)
-    : data(), type(type) {
-    runtime_assert(Type::BYTE <= type && type <= Type::LONG);
-    auto [value] = Parser {data} .match <Immediate> ();
-    this->data = std::move(value);
-}
+IntegerData::IntegerData(Immediate data, Type type)
+    : data(std::move(data)), type(type) {}
 
 ZeroBytes::ZeroBytes(std::size_t count) : count(count) {}
 

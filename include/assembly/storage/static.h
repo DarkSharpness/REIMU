@@ -1,6 +1,7 @@
 #pragma once
 #include <assembly/forward.h>
 #include <assembly/storage/visitor.h>
+#include <assembly/storage/immediate.h>
 
 namespace dark {
 
@@ -18,7 +19,7 @@ struct IntegerData final : RealData {
     enum class Type {
         BYTE = 0, SHORT = 1, LONG = 2
     } type;
-    explicit IntegerData(std::string_view data, Type type);
+    explicit IntegerData(Immediate data, Type type);
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
 };

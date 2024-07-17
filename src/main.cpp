@@ -6,11 +6,12 @@
 #include <chrono>
 #include <fmtlib>
 
+
 int main(int argc, char** argv) {
     using std::chrono::high_resolution_clock;
     using ms = std::chrono::milliseconds;
 
-    try {
+    // try {
         [[maybe_unused]]
         auto start_time = high_resolution_clock::now();
         auto config_ptr = dark::Config::parse(argc, argv);
@@ -38,12 +39,13 @@ int main(int argc, char** argv) {
                 duration_cast<ms>(interpret_time - build_time).count());
             std::cout << std::format("\n{:=^80}\n\n", interpret_str);
         }
-    } catch (std::exception& e) {
-        std::cerr << std::format("std::exception caught: {}\n", e.what());
-        dark::unreachable();
-    } catch (...) {
-        std::cerr << "unexpected exception caught\n";
-        dark::unreachable();
-    }
+    // }
+    //  catch (std::exception& e) {
+    //     std::cerr << std::format("std::exception caught: {}\n", e.what());
+    //     dark::unreachable();
+    // } catch (...) {
+    //     std::cerr << "unexpected exception caught\n";
+    //     dark::unreachable();
+    // }
     return 0;
 }

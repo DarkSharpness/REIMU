@@ -1,5 +1,6 @@
 #pragma once
 #include <declarations.h>
+#include <assembly/frontend/token.h>
 #include <vector>
 #include <memory>
 #include <unordered_set>
@@ -48,6 +49,8 @@ struct Assembler {
     auto get_standard_layout() -> AssemblyLayout;
 
   private:
+    using Stream = frontend::TokenStream;
+
     Section current_section;    // Current section
 
     std::unordered_map <std::string, LabelData> labels;
@@ -63,6 +66,9 @@ struct Assembler {
     void parse_command(std::string_view, std::string_view);
     void parse_storage(std::string_view, std::string_view);
 
+    void parse_storage_new(std::string_view, const Stream &);
+    void parse_command_new(std::string_view, const Stream &);
+
     auto parse_storage_impl(std::string_view, std::string_view) -> std::string_view;
     void parse_command_impl(std::string_view, std::string_view);
 
@@ -73,7 +79,9 @@ struct Assembler {
 
     template <typename _Tp, typename ..._Args>
     requires std::constructible_from <_Tp, std::remove_reference_t <_Args>...>
-    void push_cmd(_Args &&...args);
+    void push_cmd(_Args &&...args) {
+        this->storages.push_back(std::make_unique <_Tp> (std::move(args)...));   
+    }
 };
 
 } // namespace dark
