@@ -20,4 +20,11 @@ using target_ssize_t = std::int32_t;
 
 static_assert(sizeof(target_size_t) == sizeof(target_ssize_t));
 
+namespace frontend {
+
+struct Token;
+struct TokenStream;
+
+} // namespace frontend
+
 } // namespace dark

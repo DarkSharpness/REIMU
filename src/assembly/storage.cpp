@@ -73,7 +73,7 @@ static auto parse_asciz(std::string_view str) -> std::string {
     __throw_invalid(NOEND);
 }
 
-void Assembler::parse_storage_new(std::string_view token, const TokenStream &rest) {
+void Assembler::parse_storage_new(std::string_view token, const Stream &rest) {
     constexpr auto __set_section = [](Assembler *ptr, TokenStream, Section section) {
         ptr->set_section(section);
     };
@@ -86,22 +86,22 @@ void Assembler::parse_storage_new(std::string_view token, const TokenStream &res
         auto name = get_single <Identifier> (rest);
         auto num = sv_to_integer <std::size_t> (name).value_or(kMaxAlign);
         throw_if(num >= kMaxAlign, "Invalid alignment value.");
-        ptr->push_cmd <Alignment> (std::size_t{1} << num);
+        ptr->push_new <Alignment> (std::size_t{1} << num);
     };
     constexpr auto __set_bytes = [](Assembler *ptr, TokenStream rest, IntegerData::Type n) {
         auto [imm] = match <Immediate> (rest);
-        ptr->push_cmd <IntegerData> (imm, n);
+        ptr->push_new <IntegerData> (imm, n);
     };
     constexpr auto __set_asciz = [](Assembler *ptr, TokenStream rest) {
         auto name = get_single <String> (rest);
-        ptr->push_cmd <ASCIZ> (parse_asciz(name));
+        ptr->push_new <ASCIZ> (parse_asciz(name));
     };
     constexpr auto __set_zeros = [](Assembler *ptr, TokenStream rest) {
         auto name = get_single <Identifier> (rest);
         constexpr std::size_t kMaxZeros = std::size_t{1} << 20;
         auto num = sv_to_integer <std::size_t> (name).value_or(kMaxZeros);
         throw_if(num >= kMaxZeros, "Invalid zero count: \"{}\"", name);
-        ptr->push_cmd <ZeroBytes> (num);
+        ptr->push_new <ZeroBytes> (num);
     };
     // constexpr auto __set_label = [](Assembler *ptr, std::string_view rest) {
     //     auto [label, new_rest] = find_first_token(rest);

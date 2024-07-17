@@ -1,8 +1,6 @@
 #pragma once
 #include <declarations.h>
 #include <riscv/register.h>
-/// TODO: remove this header
-#include <memory>
 
 namespace dark {
 

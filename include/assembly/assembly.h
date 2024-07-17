@@ -1,6 +1,6 @@
 #pragma once
 #include <declarations.h>
-#include <assembly/frontend/token.h>
+#include <assembly/forward.h>
 #include <vector>
 #include <memory>
 #include <unordered_set>
@@ -10,9 +10,6 @@
 #include <ranges>
 
 namespace dark {
-
-struct Storage;
-struct AssemblyLayout;
 
 struct Assembler {
     struct LabelData {
@@ -63,14 +60,9 @@ struct Assembler {
     void set_section(Section);
     void add_label(std::string_view);
     void parse_line(std::string_view);
-    void parse_command(std::string_view, std::string_view);
-    void parse_storage(std::string_view, std::string_view);
 
     void parse_storage_new(std::string_view, const Stream &);
     void parse_command_new(std::string_view, const Stream &);
-
-    auto parse_storage_impl(std::string_view, std::string_view) -> std::string_view;
-    void parse_command_impl(std::string_view, std::string_view);
 
     [[noreturn]]
     void handle_at(std::size_t, std::string) const;
@@ -79,7 +71,7 @@ struct Assembler {
 
     template <typename _Tp, typename ..._Args>
     requires std::constructible_from <_Tp, std::remove_reference_t <_Args>...>
-    void push_cmd(_Args &&...args) {
+    void push_new(_Args &&...args) {
         this->storages.push_back(std::make_unique <_Tp> (std::move(args)...));   
     }
 };

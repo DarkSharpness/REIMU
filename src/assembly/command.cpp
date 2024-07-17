@@ -28,40 +28,40 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
 
     constexpr auto __insert_arith_reg = [](Assembler *ptr, TokenStream rest, Aop opcode) {
         auto [rd, rs1, rs2] = match <Reg, Reg, Reg> (rest);
-        ptr->push_cmd <ArithmeticReg> (opcode, rd, rs1, rs2);
+        ptr->push_new <ArithmeticReg> (opcode, rd, rs1, rs2);
     };
     constexpr auto __insert_arith_imm = [](Assembler *ptr, TokenStream rest, Aop opcode) {
         auto [rd, rs1, imm] = match <Reg, Reg, Imm> (rest);
-        ptr->push_cmd <ArithmeticImm> (opcode, rd, rs1, imm);
+        ptr->push_new <ArithmeticImm> (opcode, rd, rs1, imm);
     };
     constexpr auto __insert_load_store = [](Assembler *ptr, TokenStream rest, Mop opcode) {
         auto [rd, off_rs1]  = match <Reg, OffReg> (rest);
         auto &&[off, rs1]   = off_rs1;
-        ptr->push_cmd <LoadStore> (opcode, rd, rs1, off);
+        ptr->push_new <LoadStore> (opcode, rd, rs1, off);
     };
     constexpr auto __insert_branch = [](Assembler *ptr, TokenStream rest, Bop opcode, bool swap = false) {
         auto [rs1, rs2, offset] = match <Reg, Reg, Imm> (rest);
         if (swap) std::swap(rs1, rs2);
-        ptr->push_cmd <Branch> (opcode, rs1, rs2, offset);
+        ptr->push_new <Branch> (opcode, rs1, rs2, offset);
     };
     constexpr auto __insert_jump = [](Assembler *ptr, TokenStream rest) {
         /// TODO: jal offset
         auto [rd, offset] = match <Reg, Imm> (rest);
-        ptr->push_cmd <JumpRelative> (rd, offset);
+        ptr->push_new <JumpRelative> (rd, offset);
     };
     constexpr auto __insert_jalr = [](Assembler *ptr, TokenStream rest) {
         /// TODO: jalr rs1
         auto [rd, off_rs1]  = match <Reg, OffReg> (rest);
         auto &&[off, rs1]   = off_rs1;
-        ptr->push_cmd <JumpRegister> (rd, rs1, off);
+        ptr->push_new <JumpRegister> (rd, rs1, off);
     };
     constexpr auto __insert_lui  = [](Assembler *ptr, TokenStream rest) {
         auto [rd, imm] = match <Reg, Imm> (rest);
-        ptr->push_cmd <LoadUpperImmediate> (rd, imm);
+        ptr->push_new <LoadUpperImmediate> (rd, imm);
     };
     constexpr auto __insert_auipc = [](Assembler *ptr, TokenStream rest) {
         auto [rd, imm] = match <Reg, Imm> (rest);
-        ptr->push_cmd <AddUpperImmediatePC> (rd, imm);
+        ptr->push_new <AddUpperImmediatePC> (rd, imm);
     };
 
     /**
@@ -72,45 +72,45 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
 
     constexpr auto __insert_mv = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match <Reg, Reg> (rest);
-        ptr->push_cmd <ArithmeticImm> (Aop::ADD, rd, rs1, Immediate(0));
+        ptr->push_new <ArithmeticImm> (Aop::ADD, rd, rs1, Immediate(0));
     };
     constexpr auto __insert_li = [](Assembler *ptr, TokenStream rest) {
         auto [rd, imm] = match <Reg, Imm> (rest);
-        ptr->push_cmd <LoadImmediate> (rd, imm);
+        ptr->push_new <LoadImmediate> (rd, imm);
     };
     constexpr auto __insert_neg = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match <Reg, Reg> (rest);
         using Register::zero;
-        ptr->push_cmd <ArithmeticReg> (Aop::SUB, rd, zero, rs1);
+        ptr->push_new <ArithmeticReg> (Aop::SUB, rd, zero, rs1);
     };
     constexpr auto __insert_not = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match <Reg, Reg> (rest);
-        ptr->push_cmd <ArithmeticImm> (Aop::XOR, rd, rs1, Immediate(-1));
+        ptr->push_new <ArithmeticImm> (Aop::XOR, rd, rs1, Immediate(-1));
     };
     constexpr auto __insert_seqz = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match <Reg, Reg> (rest);
-        ptr->push_cmd <ArithmeticImm> (Aop::SLTU, rd, rs1, Immediate(1)); 
+        ptr->push_new <ArithmeticImm> (Aop::SLTU, rd, rs1, Immediate(1)); 
     };
     constexpr auto __insert_snez = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match <Reg, Reg> (rest);
-        ptr->push_cmd <ArithmeticImm> (Aop::SLTU, rd, rs1, Immediate(0));
+        ptr->push_new <ArithmeticImm> (Aop::SLTU, rd, rs1, Immediate(0));
     };
     constexpr auto __insert_sgtz = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match <Reg, Reg> (rest);
         using Register::zero;
-        ptr->push_cmd <ArithmeticReg> (Aop::SLT, rd, zero, rs1);
+        ptr->push_new <ArithmeticReg> (Aop::SLT, rd, zero, rs1);
     };
     constexpr auto __insert_sltz = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match <Reg, Reg> (rest);
         using Register::zero;
-        ptr->push_cmd <ArithmeticReg> (Aop::SLT, rd, rs1, zero);
+        ptr->push_new <ArithmeticReg> (Aop::SLT, rd, rs1, zero);
     };
     enum class Cmp_type { EQZ, NEZ, LTZ, GTZ, LEZ, GEZ };
     constexpr auto __insert_brz = [](Assembler *ptr, TokenStream rest, Cmp_type opcode) {
         auto [rs1, offset] = match <Reg, Imm> (rest);
 
         #define try_match(cmp, op, ...) case cmp: \
-            ptr->push_cmd <Branch> (op, ##__VA_ARGS__, offset); return
+            ptr->push_new <Branch> (op, ##__VA_ARGS__, offset); return
 
         using Register::zero;
 
@@ -127,31 +127,31 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
     };
     constexpr auto __insert_call = [](Assembler *ptr, TokenStream rest, bool is_tail) {
         auto [offset] = match <Imm> (rest);
-        ptr->push_cmd <CallFunction> (is_tail, offset);
+        ptr->push_new <CallFunction> (is_tail, offset);
     };
     constexpr auto __insert_j = [](Assembler *ptr, TokenStream rest) {
         auto [offset] = match <Imm> (rest);
         using Register::zero;
-        ptr->push_cmd <JumpRelative> (zero, offset);
+        ptr->push_new <JumpRelative> (zero, offset);
     };
     constexpr auto __insert_jr = [](Assembler *ptr, TokenStream rest) {
         auto [rs1] = match <Reg> (rest);
         using Register::zero;
-        ptr->push_cmd <JumpRegister> (zero, rs1, Immediate(0));
+        ptr->push_new <JumpRegister> (zero, rs1, Immediate(0));
     };
     constexpr auto __insert_ret = [](Assembler *ptr, TokenStream rest) {
         static_cast <void> (match <> (rest));
         using Register::zero, Register::ra;
-        ptr->push_cmd <JumpRegister> (zero, ra, Immediate(0));
+        ptr->push_new <JumpRegister> (zero, ra, Immediate(0));
     };
     constexpr auto __insert_lla = [](Assembler *ptr, TokenStream rest) {
         auto [rd, offset] = match <Reg, Imm> (rest);
-        ptr->push_cmd <LoadImmediate> (rd, offset);
+        ptr->push_new <LoadImmediate> (rd, offset);
     };
     constexpr auto __insert_nop = [](Assembler *ptr, TokenStream rest) {
         static_cast <void> (match <> (rest));
         using Register::zero;
-        ptr->push_cmd <ArithmeticImm> (Aop::ADD, zero, zero, Immediate(0));
+        ptr->push_new <ArithmeticImm> (Aop::ADD, zero, zero, Immediate(0));
     };
 
     using hash::switch_hash_impl;
