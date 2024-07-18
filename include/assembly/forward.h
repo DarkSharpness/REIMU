@@ -1,6 +1,7 @@
 #pragma once
 #include <declarations.h>
 #include <riscv/register.h>
+#include <optional>
 
 namespace dark {
 
@@ -22,5 +23,6 @@ struct Storage {
 
 auto is_label_char(char) -> bool;
 auto sv_to_reg(std::string_view) -> Register;
+auto sv_to_reg_nothrow(std::string_view) noexcept -> std::optional<Register>;
 
 } // namespace dark

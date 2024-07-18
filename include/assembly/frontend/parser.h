@@ -13,6 +13,7 @@ struct OffsetRegister {
 auto parse_register(TokenStream)  -> Register;
 auto parse_immediate(TokenStream) -> Immediate;
 auto parse_offset_register(TokenStream) -> OffsetRegister;
+auto try_parse_offset_register(TokenStream tokens) -> std::optional<OffsetRegister>;
 
 struct ImmediateParser {
     using Owner_t = std::unique_ptr<ImmediateBase>;

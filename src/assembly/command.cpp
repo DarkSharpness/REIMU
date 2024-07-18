@@ -2,7 +2,10 @@
 #include <assembly/assembly.h>
 #include <assembly/storage.h>
 #include <assembly/frontend/match.h>
+#include <assembly/immediate.h>
 #include <assembly/exception.h>
+#include <ranges>
+#include <algorithm>
 
 namespace dark {
 
@@ -10,6 +13,10 @@ using frontend::Token;
 using frontend::TokenStream;
 using frontend::OffsetRegister;
 using frontend::match;
+
+static auto count_args(TokenStream rest) -> std::size_t {
+    return std::ranges::count(rest, Token::Type::Comma, &Token::type) + 1;
+}
 
 void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
     using Aop = ArithmeticReg::Opcode;
@@ -34,10 +41,49 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
         auto [rd, rs1, imm] = match <Reg, Reg, Imm> (rest);
         ptr->push_new <ArithmeticImm> (opcode, rd, rs1, imm);
     };
-    constexpr auto __insert_load_store = [](Assembler *ptr, TokenStream rest, Mop opcode) {
-        auto [rd, off_rs1]  = match <Reg, OffReg> (rest);
-        auto &&[off, rs1]   = off_rs1;
-        ptr->push_new <LoadStore> (opcode, rd, rs1, off);
+    static constexpr auto __load_store_label = []
+        (Assembler *ptr, Mop opcode, Immediate &hi, Immediate &lo, Register rd, Register rt) {
+        // This is because only 32-bit int can be divided into lui + offset
+        // for 64-bit, we plan to use a new command store-tmp instead
+        static_assert(sizeof(target_size_t) == 4, "Only support 32-bit target");
+
+        using enum RelImmediate::Operand;
+        auto hi_imm = std::make_unique <RelImmediate> (std::move(hi), HI);
+        auto lo_imm = std::make_unique <RelImmediate> (std::move(lo), LO);
+
+        ptr->push_new <LoadUpperImmediate> (rt, Immediate {std::move(hi_imm) });
+        ptr->push_new <LoadStore> (opcode, rd, rt, Immediate {std::move(lo_imm) });
+    };
+    constexpr auto __insert_load = [](Assembler *ptr, TokenStream rest, Mop opcode) {
+        using PlaceHolder = Token::Placeholder;
+        auto [rd, _]  = match <Reg, PlaceHolder> (rest);
+        throw_if(count_args(rest) != 1); // Too many arguments.
+        auto offreg = frontend::try_parse_offset_register(rest);
+        if (offreg.has_value()) {
+            auto &&[off, rs1] = *offreg;
+            ptr->push_new <LoadStore> (opcode, rd, rs1, off);
+        } else {
+            /// TODO: implement tree copy to avoid matching twice
+            auto hi = frontend::parse_immediate(rest);
+            auto lo = frontend::parse_immediate(rest);
+
+            __load_store_label(ptr, opcode, hi, lo, rd, rd);
+        }
+    };
+    constexpr auto __insert_store = [](Assembler *ptr, TokenStream rest, Mop opcode) {
+        if (count_args(rest) == 2) {
+            auto [rs2, off_rs1] = match <Reg, OffReg> (rest);
+            auto &&[off, rs1]   = off_rs1;
+            ptr->push_new <LoadStore> (opcode, rs2, rs1, off);
+        } else { // store rs2, label, rt
+            auto bak = rest;
+
+            /// TODO: implement tree copy to avoid matching twice
+            auto [rs2, hi, rt] = match <Reg, Imm, Reg> (bak);
+            auto [___, lo, __] = match <Reg, Imm, Reg> (rest);
+
+            __load_store_label(ptr, opcode, hi, lo, rs2, rt);
+        }
     };
     constexpr auto __insert_branch = [](Assembler *ptr, TokenStream rest, Bop opcode, bool swap = false) {
         auto [rs1, rs2, offset] = match <Reg, Reg, Imm> (rest);
@@ -45,15 +91,25 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
         ptr->push_new <Branch> (opcode, rs1, rs2, offset);
     };
     constexpr auto __insert_jump = [](Assembler *ptr, TokenStream rest) {
-        /// TODO: jal offset
-        auto [rd, offset] = match <Reg, Imm> (rest);
-        ptr->push_new <JumpRelative> (rd, offset);
+        if (count_args(rest) == 1) {
+            auto [offset] = match <Imm> (rest);
+            using Register::ra;
+            ptr->push_new <JumpRelative> (ra, offset);
+        } else {
+            auto [rd, offset] = match <Reg, Imm> (rest);
+            ptr->push_new <JumpRelative> (rd, offset);
+        }
     };
     constexpr auto __insert_jalr = [](Assembler *ptr, TokenStream rest) {
-        /// TODO: jalr rs1
-        auto [rd, off_rs1]  = match <Reg, OffReg> (rest);
-        auto &&[off, rs1]   = off_rs1;
-        ptr->push_new <JumpRegister> (rd, rs1, off);
+        if (count_args(rest) == 1) {
+            auto [rs1] = match <Reg> (rest);
+            using Register::ra;
+            ptr->push_new <JumpRegister> (ra, rs1, Immediate(0));
+        } else {
+            auto [rd, off_rs1]  = match <Reg, OffReg> (rest);
+            auto &&[off, rs1]   = off_rs1;
+            ptr->push_new <JumpRegister> (rd, rs1, off);
+        }
     };
     constexpr auto __insert_lui  = [](Assembler *ptr, TokenStream rest) {
         auto [rd, imm] = match <Reg, Imm> (rest);
@@ -190,14 +246,14 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
         match_or_break("slti",  __insert_arith_imm, Aop::SLT);
         match_or_break("sltiu", __insert_arith_imm, Aop::SLTU);
     
-        match_or_break("lb",    __insert_load_store, Mop::LB);
-        match_or_break("lh",    __insert_load_store, Mop::LH);
-        match_or_break("lw",    __insert_load_store, Mop::LW);
-        match_or_break("lbu",   __insert_load_store, Mop::LBU);
-        match_or_break("lhu",   __insert_load_store, Mop::LHU);
-        match_or_break("sb",    __insert_load_store, Mop::SB);
-        match_or_break("sh",    __insert_load_store, Mop::SH);
-        match_or_break("sw",    __insert_load_store, Mop::SW);
+        match_or_break("lb",    __insert_load, Mop::LB);
+        match_or_break("lh",    __insert_load, Mop::LH);
+        match_or_break("lw",    __insert_load, Mop::LW);
+        match_or_break("lbu",   __insert_load, Mop::LBU);
+        match_or_break("lhu",   __insert_load, Mop::LHU);
+        match_or_break("sb",    __insert_store, Mop::SB);
+        match_or_break("sh",    __insert_store, Mop::SH);
+        match_or_break("sw",    __insert_store, Mop::SW);
 
         match_or_break("beq",   __insert_branch, Bop::BEQ);
         match_or_break("bne",   __insert_branch, Bop::BNE);

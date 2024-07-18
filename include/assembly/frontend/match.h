@@ -20,12 +20,14 @@ inline static auto match_value_aux(TokenStream stream) -> bool {
 
 template <std::size_t _Nm, std::size_t _Size, typename ..._Args>
 inline static void match_type_aux(TokenStream &stream, std::tuple <_Args...> &ref) {
+    constexpr auto __consume = [] (TokenStream &stream) {
+        throw_if(stream.empty() || stream[0].type != Token::Type::Comma,
+            "Expected a comma after the previous argument");
+        stream = stream.subspan(1);
+    };
+
     if constexpr (_Nm < _Size) {
-        if constexpr (_Nm != 0) {
-            throw_if(stream.empty() || stream[0].type != Token::Type::Comma,
-                "Expected a comma after the previous argument");
-            stream = stream.subspan(1); // Remove the comma.
-        }
+        if constexpr (_Nm > 0) __consume(stream);
 
         // Extract the content until the next comma.
         auto pos = std::ranges::find(stream, Token::Type::Comma, &Token::type);
@@ -46,6 +48,8 @@ inline static void match_type_aux(TokenStream &stream, std::tuple <_Args...> &re
     } else {
         if constexpr (_Size == sizeof...(_Args))
             throw_if(!stream.empty(), "Expected end of line");
+        else// Note that placeholder will also consume a comma.
+            __consume(stream);
     }
 }
 
