@@ -26,6 +26,14 @@ static void handle_unknown_instruction(command_size_t cmd) {
 }
 
 /**
+ * This function should not be called.
+ * It is meant to avoid segmentation faults,
+ * serve as the default value of the function pointer.
+ */
+auto Executable::fn(Executable &, RegisterFile &, Memory &, Device &)
+-> Executable * { unreachable(); }
+
+/**
  * A function which will parse the command at runtime,
  * and reset the executable function pointer.
  * 
@@ -33,7 +41,7 @@ static void handle_unknown_instruction(command_size_t cmd) {
  * Since each command will only be parsed once (on the first execution).
  * Subsequent executions will not require parsing.
  */
-void Executable::fn(Executable &exe, RegisterFile &rf, Memory &mem, Device &dev) {
+auto compile_once(Executable &exe, RegisterFile &rf, Memory &mem, Device &dev) -> Executable * {
     const auto pc = rf.get_pc();
     dev.counter.iparse += 1;
 
@@ -57,7 +65,7 @@ static auto parse_r_type(command_size_t cmd) -> _Pair_t {
     auto rs2 = int_to_reg(r_type.rs2);
     auto rd  = int_to_reg(r_type.rd);
     auto arg = Executable::MetaData {
-        .rd = rd, .rs1 = rs1, .rs2 = rs2, .imm = {}
+        .rd = rd, .rs1 = rs1, .rs2 = rs2,
     };
 
     #define match_and_return(a) \
@@ -97,7 +105,7 @@ static auto parse_i_type(command_size_t cmd) -> _Pair_t {
     auto rs1 = int_to_reg(i_type.rs1);
     auto rd  = int_to_reg(i_type.rd);
     auto arg = Executable::MetaData {
-        .rd = rd, .rs1 = rs1, .rs2 = {}, .imm = i_type.get_imm()
+        .rd = rd, .rs1 = rs1, .imm = i_type.get_imm()
     };
 
     #define match_and_return(a) \
@@ -136,7 +144,7 @@ static auto parse_s_type(command_size_t cmd) -> _Pair_t {
     auto rs1 = int_to_reg(s_type.rs1);
     auto rs2 = int_to_reg(s_type.rs2);
     auto arg = Executable::MetaData {
-        .rd = {}, .rs1 = rs1, .rs2 = rs2, .imm = s_type.get_imm()
+        .rs1 = rs1, .rs2 = rs2, .imm = s_type.get_imm()
     };
 
     #define match_and_return(a) \
@@ -159,7 +167,7 @@ static auto parse_l_type(command_size_t cmd) -> _Pair_t {
     auto rs1 = int_to_reg(l_type.rs1);
     auto rd  = int_to_reg(l_type.rd);
     auto arg = Executable::MetaData {
-        .rd = rd, .rs1 = rs1, .rs2 = {}, .imm = l_type.get_imm()
+        .rd = rd, .rs1 = rs1, .imm = l_type.get_imm()
     };
 
     #define match_and_return(a) \
@@ -184,7 +192,7 @@ static auto parse_b_type(command_size_t cmd) -> _Pair_t {
     auto rs1 = int_to_reg(b_type.rs1);
     auto rs2 = int_to_reg(b_type.rs2);
     auto arg = Executable::MetaData {
-        .rd = {}, .rs1 = rs1, .rs2 = rs2, .imm = b_type.get_imm()
+        .rs1 = rs1, .rs2 = rs2, .imm = b_type.get_imm()
     };
 
     #define match_and_return(a) \
@@ -209,7 +217,7 @@ static auto parse_auipc(command_size_t cmd) -> _Pair_t {
     auto auipc = command::auipc::from_integer(cmd);
     auto rd  = int_to_reg(auipc.rd);
     auto arg = Executable::MetaData {
-        .rd = rd, .rs1 = {}, .rs2 = {}, .imm = auipc.get_imm()
+        .rd = rd, .imm = auipc.get_imm()
     };
 
     return { interpreter::Auipc::fn, arg };
@@ -219,7 +227,7 @@ static auto parse_lui(command_size_t cmd) -> _Pair_t {
     auto lui = command::lui::from_integer(cmd);
     auto rd  = int_to_reg(lui.rd);
     auto arg = Executable::MetaData {
-        .rd = rd, .rs1 = {}, .rs2 = {}, .imm = lui.get_imm()
+        .rd = rd, .imm = lui.get_imm()
     };
 
     return { interpreter::Lui::fn, arg };
@@ -229,7 +237,7 @@ static auto parse_jal(command_size_t cmd) -> _Pair_t {
     auto jal = command::jal::from_integer(cmd);
     auto rd  = int_to_reg(jal.rd);
     auto arg = Executable::MetaData {
-        .rd = rd, .rs1 = {}, .rs2 = {}, .imm = jal.get_imm()
+        .rd = rd, .imm = jal.get_imm()
     };
 
     return { interpreter::Jump::fn, arg };
@@ -240,7 +248,7 @@ static auto parse_jalr(command_size_t cmd) -> _Pair_t {
     auto rs1 = int_to_reg(jalr.rs1);
     auto rd  = int_to_reg(jalr.rd);
     auto arg = Executable::MetaData {
-        .rd = rd, .rs1 = rs1, .rs2 = {}, .imm = jalr.get_imm()
+        .rd = rd, .rs1 = rs1, .imm = jalr.get_imm()
     };
 
     return { interpreter::Jalr::fn, arg };

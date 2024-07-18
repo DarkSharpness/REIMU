@@ -26,7 +26,7 @@ consteval auto nameofs() {
     return names;
 }
 
-using _Fn_t = void (Executable &, RegisterFile &, Memory &, Device &);
+using _Fn_t = Executable *(Executable &, RegisterFile &, Memory &, Device &);
 
 #define register_functions(...) \
     _Fn_t __VA_ARGS__; \

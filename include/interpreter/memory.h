@@ -8,8 +8,6 @@ namespace dark {
 struct MemoryLayout;
 
 struct Memory {
-    auto fetch_executable(target_size_t pc) -> Executable &;
-
     static auto create(const Config &, const MemoryLayout &) -> std::unique_ptr<Memory>;
 
     auto load_i8(target_size_t addr)  -> std::int8_t;
@@ -32,6 +30,9 @@ struct Memory {
 
     // For libc functions.
     auto libc_access(target_size_t) -> std::span<char>;
+
+    // For ICache.
+    auto get_text_range() -> Interval;
 
     ~Memory();
 

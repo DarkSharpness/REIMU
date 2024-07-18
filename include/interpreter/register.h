@@ -12,7 +12,7 @@ struct RegisterFile {
     target_size_t pc;
     target_size_t new_pc;
 
-    static constexpr target_size_t end_pc = 0x2;
+    static constexpr target_size_t end_pc = 0x4;
 
   public:
     /* Constructor. */

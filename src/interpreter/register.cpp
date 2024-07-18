@@ -8,8 +8,8 @@
 
 namespace dark {
 
-RegisterFile::RegisterFile(target_size_t start, const Config &config)
-    : regs(), pc(), new_pc(start) {
+RegisterFile::RegisterFile(target_size_t entry, const Config &config)
+    : regs(), pc(), new_pc(entry) {
     (*this)[Register::sp] = config.get_stack_top();
     (*this)[Register::ra] = this->end_pc;
 }

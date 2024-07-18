@@ -4,6 +4,7 @@
 #include <interpreter/register.h>
 #include <interpreter/exception.h>
 #include <interpreter/executable.h>
+#include <interpreter/icache.h>
 #include <linker/layout.h>
 #include <config/config.h>
 #include <libc/libc.h>
@@ -34,15 +35,17 @@ struct LabelMap {
 };
 
 static void simulate_normal
-    (RegisterFile &regfile, Memory &memory, Device &device, std::size_t timeout) {
+    (RegisterFile &rf, Memory &mem, Device &dev, std::size_t timeout) {
+    ICache icache { mem };
     try {
-        while (regfile.advance() && timeout --> 0) {
-            auto &exe = memory.fetch_executable(regfile.get_pc());
-            exe(regfile, memory, device);
+        Executable *hint = {};
+        while (timeout --> 0 && rf.advance()) {
+            auto exe = icache.ifetch(rf.get_pc(), hint);
+            hint = exe(rf, mem, dev);
         }
-        panic_if(timeout + 1 == std::size_t{}, "Time Limit Exceeded");
+        panic_if(timeout + 1 == 0, "Time Limit Exceeded");
     } catch (FailToInterpret &e) {
-        panic("{}", e.what(regfile, memory, device));
+        panic("{}", e.what(rf, mem, dev));
     } catch (std::exception &e) {
         std::cerr << std::format("std::exception caught: {}\n", e.what());
         unreachable();

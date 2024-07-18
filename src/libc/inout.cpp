@@ -117,30 +117,29 @@ static auto checked_scanf_impl(
     return 0;
 }
 
-
-void puts(Executable &, RegisterFile &rf, Memory &mem, Device &dev) {
+auto puts(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Executable * {
     auto ptr = rf[Register::a0];
     auto str = checked_get_string<_Index::puts>(mem, ptr);
     dev.out << str << '\n';
-    return_to_user(rf, mem, 0);
+    return return_to_user(rf, mem, 0);
 }
 
-void putchar(Executable &, RegisterFile &rf, Memory &mem, Device &dev) {
+auto putchar(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Executable * {
     auto c = rf[Register::a0];
     dev.out.put(static_cast<char>(c));
-    return_to_user(rf, mem, 0);
+    return return_to_user(rf, mem, 0);
 }
 
-void printf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) {
+auto printf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Executable * {
     auto ptr = rf[Register::a0];
     auto fmt = checked_get_string<_Index::printf>(mem, ptr);
     auto &os = dev.out;
 
     checked_printf_impl <_Index::printf> (rf, mem, os, fmt, Register::a1);
-    return_to_user(rf, mem, 0);
+    return return_to_user(rf, mem, 0);
 }
 
-void sprintf(Executable &, RegisterFile &rf, Memory &mem, Device &) {
+auto sprintf(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
     auto fmt  = checked_get_string<_Index::sprintf>(mem, ptr1);
@@ -152,24 +151,24 @@ void sprintf(Executable &, RegisterFile &rf, Memory &mem, Device &) {
     auto raw  = checked_get_area<_Index::sprintf>(mem, ptr0, str.size() + 1);
 
     std::memcpy(raw, str.data(), str.size() + 1);
-    return_to_user(rf, mem, ptr0);
+    return return_to_user(rf, mem, ptr0);
 }
 
-void getchar(Executable &, RegisterFile &rf, Memory &mem, Device &dev) {
+auto getchar(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Executable * {
     auto c = dev.in.get();
-    return_to_user(rf, mem, c);
+    return return_to_user(rf, mem, c);
 }
 
-void scanf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) {
+auto scanf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Executable * {
     auto ptr = rf[Register::a0];
     auto fmt = checked_get_string<_Index::scanf>(mem, ptr);
     auto &is = dev.in;
 
     auto result = checked_scanf_impl <_Index::scanf> (rf, mem, is, fmt, Register::a1);
-    return_to_user(rf, mem, result);
+    return return_to_user(rf, mem, result);
 }
 
-void sscanf(Executable &, RegisterFile &rf, Memory &mem, Device &) {
+auto sscanf(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
     auto str  = checked_get_string<_Index::sscanf>(mem, ptr0);
@@ -178,16 +177,16 @@ void sscanf(Executable &, RegisterFile &rf, Memory &mem, Device &) {
     std::stringstream ss { std::string(str) };
 
     auto result = checked_scanf_impl <_Index::sscanf> (rf, mem, ss, fmt, Register::a2);
-    return_to_user(rf, mem, result);
+    return return_to_user(rf, mem, result);
 }
 
-void memset(Executable &, RegisterFile &rf, Memory &mem, Device &) {
+auto memset(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
     auto ptr  = rf[Register::a0];
     auto fill = rf[Register::a1];
     auto size = rf[Register::a2];
     auto raw  = checked_get_area<_Index::memset>(mem, ptr, size);
     std::memset(raw, fill, size);
-    return_to_user(rf, mem, ptr);
+    return return_to_user(rf, mem, ptr);
 }
 
 } // namespace dark::libc::__details

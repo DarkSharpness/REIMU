@@ -19,7 +19,7 @@ using u16   = std::uint16_t;
 using u32   = std::uint32_t;
 
 template <std::integral _Int>
-static _Int &int_cast(std::byte *ptr) {
+static auto int_cast(std::byte *ptr) -> _Int & {
     return *reinterpret_cast <_Int *> (ptr);
 }
 
@@ -40,9 +40,6 @@ struct Memory_Impl : StaticArea, HeapArea, StackArea {
  
     template <std::unsigned_integral _Int>
     void check_store(target_size_t, _Int);
-
-    auto fetch_exe(target_size_t) -> Executable &;
-    auto fetch_exe_libc(target_size_t) -> Executable &;
 
     auto get_segment(target_size_t) -> std::span <char>;
 };
@@ -130,12 +127,12 @@ auto Memory::sbrk(target_ssize_t inc) -> std::pair <char *, target_size_t> {
     return this->get_impl().grow(inc);
 }
 
-Memory::~Memory() {
-    static_cast <Memory_Impl &> (this->get_impl()).~Memory_Impl();
+auto Memory::get_text_range() -> Interval {
+    return static_cast <StaticArea &> (this->get_impl()).get_text_range();
 }
 
-auto Memory::fetch_executable(target_size_t pc) -> Executable & {
-    return this->get_impl().fetch_exe(pc); 
+Memory::~Memory() {
+    static_cast <Memory_Impl &> (this->get_impl()).~Memory_Impl();
 }
 
 auto Memory::libc_access(target_size_t addr) -> std::span <char> {
@@ -213,37 +210,6 @@ void Memory_Impl::check_store(target_size_t addr, _Int val) {
         return void(int_cast <_Int> (this->get_stack(addr)) = val);
 
     handle_outofbound <Error::StoreOutOfBound, _Int> (addr);
-}
-
-/**
- * 2 cases:
- * - 1. Builtin libc functions, return a user-written handle.
- * - 2. User-defined functions, return the actual function handle.
- */
-auto Memory_Impl::fetch_exe(target_size_t pc) -> Executable & {
-    if (pc < libc::kLibcEnd)
-        return this->fetch_exe_libc(pc);
-
-    this->checked_ifetch(pc);
-    return this->unchecked_fetch_exe(pc);
-}
-
-auto Memory_Impl::fetch_exe_libc(target_size_t pc) -> Executable & {
-    if (pc % alignof(command_size_t) != 0)
-        handle_misaligned <Error::InsMisAligned, command_size_t> (pc);
-
-    if (pc < libc::kLibcStart)
-        handle_outofbound <Error::InsOutOfBound, command_size_t> (pc);
-
-    static auto libc_exe = []() {
-        std::array <Executable, std::size(libc::funcs)> result;
-        std::size_t i = 0;
-        for (auto *fn : libc::funcs) result.at(i++).set_handle(fn, {});
-        runtime_assert(i == std::size(libc::funcs));
-        return result;
-    }();
-
-    return libc_exe.at((pc - libc::kLibcStart) / sizeof(pc));
 }
 
 auto Memory_Impl::get_segment(target_size_t addr) -> std::span <char> {

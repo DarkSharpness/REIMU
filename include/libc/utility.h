@@ -106,7 +106,7 @@ static auto checked_get_areas(Memory &mem, target_size_t dst, target_size_t src,
     return std::make_pair(area0.data(), area1.data());
 }
 
-static void return_to_user(RegisterFile &rf, Memory &, target_size_t retval) {
+static auto return_to_user(RegisterFile &rf, Memory &, target_size_t retval) -> Executable * {
     using enum Register;
 
     // Necessary setup
@@ -123,6 +123,8 @@ static void return_to_user(RegisterFile &rf, Memory &, target_size_t retval) {
 
     // Enjoy the magic number ~
     for (auto reg : caller_saved_poison) rf[reg] = 0xDEADBEEF;
+
+    return nullptr;
 }
 
 } // namespace dark::libc::__details

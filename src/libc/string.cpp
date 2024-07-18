@@ -10,7 +10,7 @@
 
 namespace dark::libc::__details {
 
-void strcpy(Executable &, RegisterFile &rf, Memory &mem, Device &) {
+auto strcpy(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
 
@@ -19,16 +19,16 @@ void strcpy(Executable &, RegisterFile &rf, Memory &mem, Device &) {
     auto raw  = checked_get_area<_Index::strcpy>(mem, ptr0, size);
 
     std::memcpy(raw, str.data(), size);
-    return_to_user(rf, mem, ptr0);
+    return return_to_user(rf, mem, ptr0);
 }
 
-void strlen(Executable &, RegisterFile &rf, Memory &mem, Device &) {
+auto strlen(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
     auto ptr = rf[Register::a0];
     auto str = checked_get_string<_Index::strlen>(mem, ptr);
-    return_to_user(rf, mem, str.size());
+    return return_to_user(rf, mem, str.size());
 }
 
-void strcat(Executable &, RegisterFile &rf, Memory &mem, Device &) {
+auto strcat(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
 
@@ -38,10 +38,10 @@ void strcat(Executable &, RegisterFile &rf, Memory &mem, Device &) {
 
     // Copy the string and the null terminator
     std::memcpy(raw, str1.data(), str1.size() + 1);
-    return_to_user(rf, mem, ptr0);
+    return return_to_user(rf, mem, ptr0);
 }
 
-void strcmp(Executable &, RegisterFile &rf, Memory &mem, Device &) {
+auto strcmp(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
 
@@ -49,7 +49,7 @@ void strcmp(Executable &, RegisterFile &rf, Memory &mem, Device &) {
     auto str1 = checked_get_string<_Index::strcmp>(mem, ptr1);
 
     auto result = std::strcmp(str0.data(), str1.data());
-    return_to_user(rf, mem, result);
+    return return_to_user(rf, mem, result);
 }
 
 } // namespace dark::libc::__details

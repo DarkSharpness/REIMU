@@ -77,44 +77,48 @@ static void arith_impl(target_size_t &rd, target_size_t rs1, target_size_t rs2, 
 
 struct ArithReg {
     template <general::ArithOp op>
-    static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
+    static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         __details::arith_impl <op> (rd, rs1, rs2, dev);
+        return exe.next();
     }
 };
 
 struct ArithImm {
     template <general::ArithOp op>
-    static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
+    static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         __details::arith_impl <op> (rd, rs1, imm, dev);
+        return exe.next();
     }
 };
 
 struct LoadStore {
     template <general::MemoryOp op>
-    static void fn(Executable &exe, RegisterFile &rf, Memory &mem, Device &dev) {
+    static auto fn(Executable &exe, RegisterFile &rf, Memory &mem, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         auto addr = rs1 + imm;
 
         using enum general::MemoryOp;
         switch (op) {
-            case LB:    rd = mem.load_i8(addr); dev.counter.lb++; return;
-            case LH:    rd = mem.load_i16(addr); dev.counter.lh++; return;
-            case LW:    rd = mem.load_i32(addr); dev.counter.lw++; return;
-            case LBU:   rd = mem.load_u8(addr); dev.counter.lbu++; return;
-            case LHU:   rd = mem.load_u16(addr); dev.counter.lhu++; return;
-            case SB:    mem.store_u8(addr, rs2); dev.counter.sb++; return;
-            case SH:    mem.store_u16(addr, rs2); dev.counter.sh++; return;
-            case SW:    mem.store_u32(addr, rs2); dev.counter.sw++; return;
+            case LB:    rd = mem.load_i8(addr); dev.counter.lb++; break;
+            case LH:    rd = mem.load_i16(addr); dev.counter.lh++; break;
+            case LW:    rd = mem.load_i32(addr); dev.counter.lw++; break;
+            case LBU:   rd = mem.load_u8(addr); dev.counter.lbu++; break;
+            case LHU:   rd = mem.load_u16(addr); dev.counter.lhu++; break;
+            case SB:    mem.store_u8(addr, rs2); dev.counter.sb++; break;
+            case SH:    mem.store_u16(addr, rs2); dev.counter.sh++; break;
+            case SW:    mem.store_u32(addr, rs2); dev.counter.sw++; break;
             default:    unreachable();
         }
+
+        return exe.next();
     }
 };
 
 struct Branch {
     template <general::BranchOp op>
-    static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
+    static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         static_assert(sizeof(target_size_t) == 4);
 
@@ -135,45 +139,57 @@ struct Branch {
         }
 
         dev.predict(rf.get_pc(), result);
-        if (result) rf.set_pc(rf.get_pc() + imm);
+        if (result) {
+            rf.set_pc(rf.get_pc() + imm);
+            return exe.next(imm);
+        } else {
+            return exe.next();
+        }
     }
 };
 
 struct Jump {
-    static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
+    static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
 
         rd = rf.get_pc() + 4;
         rf.set_pc(rf.get_pc() + imm);
-
         dev.counter.jal++;
+
+        return exe.next(imm);
     }
 };
 
 struct Jalr {
-    static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
+    static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
 
-        rd = rf.get_pc() + 4;
-        rf.set_pc((rs1 + imm) & ~1);
+        auto target = (rs1 + imm) & ~1;
+        auto offset = target - rf.get_pc();
 
+        rd = rf.get_pc() + 4;
+        rf.set_pc(target);
         dev.counter.jalr++;
+
+        return exe.next(offset);
     }
 };
 
 struct Lui {
-    static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
+    static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         rd = imm;
         dev.counter.lui++;
+        return exe.next();
     }
 };
 
 struct Auipc {
-    static void fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
+    static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         rd = rf.get_pc() + imm;
         dev.counter.auipc++;
+        return exe.next();
     }
 };
 

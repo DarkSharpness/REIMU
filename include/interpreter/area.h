@@ -1,8 +1,9 @@
 // Should only be included in memory.cpp
-#include <declarations.h>
+#include <utility.h>
+#include <libc/libc.h>
 #include <config/config.h>
-#include <interpreter/executable.h>
 #include <linker/layout.h>
+#include <interpreter/forward.h>
 #include <memory>
 #include <vector>
 #include <ranges>
@@ -10,31 +11,18 @@
 
 namespace dark {
 
-static auto align_to_page(target_size_t addr) {
-    return (addr + 0xfff) & ~0xfff;
-}
-
 struct StaticArea {
   private:
-    target_size_t const text_start;
-    target_size_t const text_finish;
-    target_size_t const data_start;
-    target_size_t const data_finish;
+    const Interval text;
+    const Interval data;
     std::byte *const storage;
-
-    static constexpr auto kTextSize = sizeof(target_size_t);
-
   public:
-    std::vector <Executable> exes;
-
     explicit StaticArea(const MemoryLayout &layout) :
-        text_start(layout.text.begin()),
-        text_finish(layout.text.end()),
-        data_start(layout.data.begin()),
-        data_finish(layout.bss.end()),
-        storage(new std::byte[data_finish - text_start] {} - text_start),
-        exes((text_finish - text_start) / kTextSize)
+        text({layout.text.begin(), layout.text.end()}),
+        data({layout.data.begin(), layout.bss.end()}),
+        storage(new std::byte[data.finish - text.start] {} - text.start)
     {
+        runtime_assert(text.start == libc::kLibcEnd);
         constexpr auto __copy = [](StaticArea *area, const auto &section) {
             std::ranges::copy(section.storage, area->get_static(section.begin()));
         };
@@ -44,27 +32,24 @@ struct StaticArea {
         __copy(this, layout.bss);
     }
     bool in_text(target_size_t lo, target_size_t hi) const {
-        return this->text_start <= lo && hi <= this->text_finish;
+        return this->text.contains(lo, hi);
     }
     bool in_data(target_size_t lo, target_size_t hi) const {
-        return this->data_start <= lo && hi <= this->data_finish;
+        return this->data.contains(lo, hi);
     }
     auto get_static(target_size_t addr) -> std::byte * {
         return this->storage + addr;
     }
-    auto unchecked_fetch_exe(target_size_t pc) -> Executable & {
-        return this->exes[(pc - this->text_start) / kTextSize];
-    }
-    auto get_range() const {
-        return std::make_pair(this->text_start, this->data_finish);
+    auto get_range() const -> Interval {
+        return { this->text.start, this->data.finish };
     }
     auto get_text_range() const {
-        return std::make_pair(this->text_start, this->text_finish);
+        return this->text;
     }
     auto get_data_range() const {
-        return std::make_pair(this->data_start, this->data_finish);
+        return this->data;
     }
-    ~StaticArea() { delete (this->storage + this->text_start); }
+    ~StaticArea() { delete (this->storage + this->text.start); }
 };
 
 struct HeapArea {
@@ -72,24 +57,26 @@ struct HeapArea {
     std::vector <std::byte> storage;
     target_size_t const heap_start;
     target_size_t       heap_finish;
+    static auto align_to_page(target_size_t addr) {
+       return (addr + 0xfff) & ~0xfff;
+    }
   public:
     explicit HeapArea(const MemoryLayout &layout) :
         heap_start(align_to_page(layout.bss.end())),
         heap_finish(heap_start) {}
-    bool in_heap(target_size_t lo, target_size_t hi) {
+    bool in_heap(target_size_t lo, target_size_t hi) const {
         return this->heap_start <= lo && hi <= this->heap_finish;
     }
     auto *get_heap(target_size_t addr) {
         return this->storage.data() - this->heap_start + addr;
     }
-    auto get_range() const {
-        return std::make_pair(this->heap_start, this->heap_finish);
+    auto get_range() const -> Interval {
+        return { this->heap_start, this->heap_finish };
     }
     auto grow(target_ssize_t size) {
         /// TODO: remove this useless check
         const auto old_size = this->heap_finish - this->heap_start;
-
-        if (old_size != this->storage.size()) throw;
+        runtime_assert(old_size == this->storage.size());
 
         const auto retval = this->heap_finish;
         this->heap_finish += size;
@@ -105,26 +92,24 @@ struct HeapArea {
 
 struct StackArea {
   private:
-    target_size_t const stack_start;
-    target_size_t const stack_finish;
+    const Interval stack;
     std::byte * const storage;
   public:
     explicit StackArea(const Config &config) :
-        stack_start(config.get_stack_low()),
-        stack_finish(config.get_stack_top()),
-        storage(new std::byte[stack_finish - stack_start] {} - stack_start)
+        stack({config.get_stack_low(), config.get_stack_top()}),
+        storage(new std::byte[stack.finish - stack.start] {} - stack.start)
     {}
 
     bool in_stack(target_size_t lo, target_size_t hi) const {
-        return this->stack_start <= lo && hi <= this->stack_finish;
+        return this->stack.contains(lo, hi);
     }
     auto *get_stack(target_size_t addr) {
         return this->storage + addr;
     }
     auto get_range() const {
-        return std::make_pair(this->stack_start, this->stack_finish);
+        return this->stack;
     }
-    ~StackArea() { delete (this->storage + this->stack_start); }
+    ~StackArea() { delete (this->storage + this->stack.start); }
 };
 
 } // namespace dark
