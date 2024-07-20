@@ -117,20 +117,20 @@ static auto checked_scanf_impl(
     return 0;
 }
 
-auto puts(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Executable * {
+auto puts(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto ptr = rf[Register::a0];
     auto str = checked_get_string<_Index::puts>(mem, ptr);
     dev.out << str << '\n';
     return return_to_user(rf, mem, 0);
 }
 
-auto putchar(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Executable * {
+auto putchar(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto c = rf[Register::a0];
     dev.out.put(static_cast<char>(c));
     return return_to_user(rf, mem, 0);
 }
 
-auto printf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Executable * {
+auto printf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto ptr = rf[Register::a0];
     auto fmt = checked_get_string<_Index::printf>(mem, ptr);
     auto &os = dev.out;
@@ -139,7 +139,7 @@ auto printf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Executa
     return return_to_user(rf, mem, 0);
 }
 
-auto sprintf(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto sprintf(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
     auto fmt  = checked_get_string<_Index::sprintf>(mem, ptr1);
@@ -154,12 +154,12 @@ auto sprintf(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executabl
     return return_to_user(rf, mem, ptr0);
 }
 
-auto getchar(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Executable * {
+auto getchar(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto c = dev.in.get();
     return return_to_user(rf, mem, c);
 }
 
-auto scanf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Executable * {
+auto scanf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto ptr = rf[Register::a0];
     auto fmt = checked_get_string<_Index::scanf>(mem, ptr);
     auto &is = dev.in;
@@ -168,7 +168,7 @@ auto scanf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Executab
     return return_to_user(rf, mem, result);
 }
 
-auto sscanf(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto sscanf(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
     auto str  = checked_get_string<_Index::sscanf>(mem, ptr0);
@@ -180,7 +180,7 @@ auto sscanf(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable
     return return_to_user(rf, mem, result);
 }
 
-auto memset(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto memset(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto ptr  = rf[Register::a0];
     auto fill = rf[Register::a1];
     auto size = rf[Register::a2];

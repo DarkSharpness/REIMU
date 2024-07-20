@@ -6,10 +6,11 @@
 #include <interpreter/memory.h>
 #include <interpreter/register.h>
 #include <interpreter/implement.h>
+#include <interpreter/hint.h>
 
 namespace dark {
 
-using _Pair_t = std::pair <Executable::_Func_t *, Executable::MetaData>;
+using _Pair_t = std::pair <Function_t *, Executable::MetaData>;
 
 static auto parse_cmd(command_size_t cmd) -> _Pair_t;
 
@@ -30,8 +31,7 @@ static void handle_unknown_instruction(command_size_t cmd) {
  * It is meant to avoid segmentation faults,
  * serve as the default value of the function pointer.
  */
-auto Executable::fn(Executable &, RegisterFile &, Memory &, Device &)
--> Executable * { unreachable(); }
+auto Executable::fn(Executable &, RegisterFile &, Memory &, Device &) -> Hint { unreachable(); }
 
 /**
  * A function which will parse the command at runtime,
@@ -41,7 +41,7 @@ auto Executable::fn(Executable &, RegisterFile &, Memory &, Device &)
  * Since each command will only be parsed once (on the first execution).
  * Subsequent executions will not require parsing.
  */
-auto compile_once(Executable &exe, RegisterFile &rf, Memory &mem, Device &dev) -> Executable * {
+auto compile_once(Executable &exe, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     const auto pc = rf.get_pc();
     dev.counter.iparse += 1;
 

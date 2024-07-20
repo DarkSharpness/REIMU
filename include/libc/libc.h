@@ -26,12 +26,10 @@ consteval auto nameofs() {
     return names;
 }
 
-using _Fn_t = Executable *(Executable &, RegisterFile &, Memory &, Device &);
-
 #define register_functions(...) \
-    _Fn_t __VA_ARGS__; \
+    Function_t __VA_ARGS__; \
     enum class _Index : libc_index_t { __VA_ARGS__ }; \
-    inline constexpr _Fn_t *funcs[] = { __VA_ARGS__ }; \
+    inline constexpr Function_t *funcs[] = { __VA_ARGS__ }; \
     inline constexpr auto names = nameofs <__VA_ARGS__>()
 
 register_functions(

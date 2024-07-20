@@ -3,6 +3,7 @@
 #include <interpreter/memory.h>
 #include <interpreter/register.h>
 #include <interpreter/exception.h>
+#include <interpreter/hint.h>
 #include <cstring>
 
 namespace dark::libc::__details {
@@ -106,7 +107,7 @@ static auto checked_get_areas(Memory &mem, target_size_t dst, target_size_t src,
     return std::make_pair(area0.data(), area1.data());
 }
 
-static auto return_to_user(RegisterFile &rf, Memory &, target_size_t retval) -> Executable * {
+static auto return_to_user(RegisterFile &rf, Memory &, target_size_t retval) -> Hint {
     using enum Register;
 
     // Necessary setup
@@ -124,7 +125,7 @@ static auto return_to_user(RegisterFile &rf, Memory &, target_size_t retval) -> 
     // Enjoy the magic number ~
     for (auto reg : caller_saved_poison) rf[reg] = 0xDEADBEEF;
 
-    return nullptr;
+    return Hint {}; // No hint
 }
 
 } // namespace dark::libc::__details

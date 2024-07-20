@@ -10,7 +10,7 @@
 
 namespace dark::libc::__details {
 
-auto strcpy(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto strcpy(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
 
@@ -22,13 +22,13 @@ auto strcpy(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable
     return return_to_user(rf, mem, ptr0);
 }
 
-auto strlen(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto strlen(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto ptr = rf[Register::a0];
     auto str = checked_get_string<_Index::strlen>(mem, ptr);
     return return_to_user(rf, mem, str.size());
 }
 
-auto strcat(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto strcat(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
 
@@ -41,7 +41,7 @@ auto strcat(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable
     return return_to_user(rf, mem, ptr0);
 }
 
-auto strcmp(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto strcmp(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
 

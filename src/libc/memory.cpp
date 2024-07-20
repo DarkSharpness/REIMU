@@ -8,32 +8,32 @@
 
 namespace dark::libc::__details {
 
-auto malloc(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto malloc(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto size = rf[Register::a0];
     auto [_, retval] = malloc_manager.allocate(mem, size);
     return return_to_user(rf, mem, retval);
 }
 
-auto calloc(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto calloc(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto size = rf[Register::a0] * rf[Register::a1];
     auto [ptr, retval] = malloc_manager.allocate(mem, size);
     std::memset(ptr, 0, size);
     return return_to_user(rf, mem, retval);
 }
 
-auto realloc(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto realloc(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto new_size = rf[Register::a1];
     malloc_manager.free(mem, rf[Register::a0]);
     auto [_, retval] = malloc_manager.allocate(mem, new_size);
     return return_to_user(rf, mem, retval);
 }
 
-auto free(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto free(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     malloc_manager.free(mem, rf[Register::a0]);
     return return_to_user(rf, mem, 0);
 }
 
-auto memcmp(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto memcmp(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
     auto size = rf[Register::a2];
@@ -44,7 +44,7 @@ auto memcmp(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable
     return return_to_user(rf, mem, result);
 }
 
-auto memcpy(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto memcpy(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
     auto size = rf[Register::a2];
@@ -55,7 +55,7 @@ auto memcpy(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable
     return return_to_user(rf, mem, ptr0);
 }
 
-auto memmove(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Executable * {
+auto memmove(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
     auto size = rf[Register::a2];

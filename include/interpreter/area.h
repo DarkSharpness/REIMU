@@ -4,6 +4,7 @@
 #include <config/config.h>
 #include <linker/layout.h>
 #include <interpreter/forward.h>
+#include <interpreter/interval.h>
 #include <memory>
 #include <vector>
 #include <ranges>

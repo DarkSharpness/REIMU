@@ -1,5 +1,6 @@
 #pragma once
 #include <interpreter/executable.h>
+#include <interpreter/interval.h>
 #include <interpreter/memory.h>
 #include <libc/libc.h>
 #include <utility.h>
@@ -10,7 +11,7 @@ namespace dark {
 struct ICache {
     using Ref_t = std::reference_wrapper<Executable>;
     explicit ICache(Memory &);
-    auto ifetch(target_size_t, Executable *) noexcept -> Ref_t;
+    auto ifetch(target_size_t, Hint) noexcept -> Ref_t;
   private:
     target_size_t length;
     std::unique_ptr <Executable[]> cached;
@@ -59,8 +60,8 @@ ICache::ICache(Memory &mem) : length(make_icache_range(mem)) {
 }
 
 /* ifetch with some hint */
-auto ICache::ifetch(target_size_t pc, Executable *hint) noexcept -> Ref_t {
-    if (hint) return *hint; // Take the hint
+auto ICache::ifetch(target_size_t pc, Hint hint) noexcept -> Ref_t {
+    if (hint != Hint {}) return *hint.next;
 
     auto which = (pc - kTextStart) / sizeof(command_size_t);
     if (pc % alignof(command_size_t) != 0 || which >= this->length)

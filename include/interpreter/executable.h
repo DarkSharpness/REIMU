@@ -1,5 +1,6 @@
 #pragma once
 #include <interpreter/forward.h>
+#include <interpreter/hint.h>
 #include <riscv/register.h>
 #include <new>
 
@@ -8,10 +9,11 @@ namespace dark {
 struct Executable {
   private:
     [[noreturn]]
-    static auto fn(Executable &, RegisterFile &, Memory &, Device &) -> Executable *;
+    static auto fn(Executable &, RegisterFile &, Memory &, Device &) -> Hint;
 
   public:
     using _Func_t = decltype(fn);
+    static_assert(std::same_as<_Func_t, Function_t>);
 
     struct MetaData {
         struct PackData;
@@ -46,14 +48,16 @@ struct Executable {
 
     auto &get_meta() const { return this->meta; }
 
-    auto next(target_size_t n = 4) -> Executable * {
+    /* Return the hint for the next command.  */
+    auto next(target_size_t n = 4) -> Hint {
         static_assert(sizeof(command_size_t) == 4,
             "We assume that the size of command is 4 bytes.");
-        return n % 4 == 0 ?
-            this + (target_ssize_t(n) >> 2) :nullptr; 
+        return n % 4 == 0 ? Hint {this + (target_ssize_t(n) >> 2)} : Hint {}; 
     }
 };
 
-auto compile_once(Executable &, RegisterFile &, Memory &, Device &) -> Executable *;
+// Declare the compile_once function.
+// This function can be used to compile those functions.
+Function_t compile_once;
 
 } // namespace dark

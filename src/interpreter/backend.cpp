@@ -4,7 +4,7 @@
 #include <interpreter/register.h>
 #include <interpreter/exception.h>
 #include <interpreter/executable.h>
-#include <interpreter/icache.h>
+#include <user/icache.h>
 #include <linker/layout.h>
 #include <config/config.h>
 #include <libc/libc.h>
@@ -38,7 +38,7 @@ static void simulate_normal
     (RegisterFile &rf, Memory &mem, Device &dev, std::size_t timeout) {
     ICache icache { mem };
     try {
-        Executable *hint = {};
+        Hint hint {};
         while (rf.advance() && timeout --> 0) {
             auto exe = icache.ifetch(rf.get_pc(), hint);
             hint = exe(rf, mem, dev);
