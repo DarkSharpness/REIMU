@@ -56,8 +56,4 @@ struct Executable {
     }
 };
 
-// Declare the compile_once function.
-// This function can be used to compile those functions.
-Function_t compile_once;
-
 } // namespace dark
