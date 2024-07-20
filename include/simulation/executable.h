@@ -1,4 +1,4 @@
-#pragma once
+// Should only be included in interpreter/executable.cpp
 #include <general.h>
 #include <utility.h>
 #include <riscv/register.h>

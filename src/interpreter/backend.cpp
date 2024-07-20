@@ -4,7 +4,7 @@
 #include <interpreter/register.h>
 #include <interpreter/exception.h>
 #include <interpreter/executable.h>
-#include <user/icache.h>
+#include <simulation/icache.h>
 #include <linker/layout.h>
 #include <config/config.h>
 #include <libc/libc.h>

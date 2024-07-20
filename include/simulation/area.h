@@ -1,4 +1,4 @@
-// Should only be included in memory.cpp
+// Should only be included in interpreter/memory.cpp
 #include <utility.h>
 #include <libc/libc.h>
 #include <config/config.h>

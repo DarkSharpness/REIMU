@@ -1,7 +1,7 @@
-#include <interpreter/area.h>
 #include <interpreter/memory.h>
 #include <interpreter/exception.h>
 #include <interpreter/executable.h>
+#include <simulation/area.h>
 #include <libc/libc.h>
 #include <utility.h>
 #include <cstddef>
