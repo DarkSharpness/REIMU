@@ -298,10 +298,11 @@ Options:
   --cache                                   Enable cache simulation.
 
   -w<name>=<value>, -weight-<name>=<value>  Set weight (cycles) for a specific assembly command.
-                                            The name can be either a opcode name or a group name.
+                                            The name can be either an opcode name or a group name.
                                             Example: -wadd=1 -wmul=3 -wmemory=100 -wbranch=3
 
-  -t=<time>, -time=<time>                   Set maximum instructions for the simulator, default unlimited.
+  -t=<time>, -time=<time>                   Set maximum instructions for the simulator.
+                                            If <time> is 0, there is no limit (which is default).
 
   -m=<mem>, -mem=<mem>, -memory=<mem>       Set memory size (bytes) for the simulator, default 256MB.
                                             We support K/M suffix for kilobytes/megabytes.

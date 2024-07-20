@@ -39,7 +39,7 @@ static void simulate_normal
     ICache icache { mem };
     try {
         Executable *hint = {};
-        while (timeout --> 0 && rf.advance()) {
+        while (rf.advance() && timeout --> 0) {
             auto exe = icache.ifetch(rf.get_pc(), hint);
             hint = exe(rf, mem, dev);
         }
