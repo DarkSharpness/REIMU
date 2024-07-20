@@ -13,7 +13,7 @@ local other_cxflags = {
     "-Wswitch-default",     -- warn if no default case in a switch statement
 }
 
-target("simulator")
+target("reimu")
     set_kind("binary")
     set_warnings(warnings)
     add_cxflags(other_cxflags)

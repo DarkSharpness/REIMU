@@ -1,1 +1,1 @@
-simulator -f=$1 -o="<stdout>" --silent -i=$2
+reimu -f=$1 -o="<stdout>" --silent -i=$2

@@ -288,7 +288,7 @@ Config_Impl::Config_Impl(int argc, char** argv) {
 
     constexpr auto __help = [](std::string_view) {
         std::cout <<
-R"(This is a RISC-V simulator. Usage: simulator [options]
+R"(This is a RISC-V simulator. Usage: reimu [options]
 Options:
   -h, --help                                Display help information.
   -v, --version                             Display version information.
@@ -301,12 +301,13 @@ Options:
                                             The name can be either a opcode name or a group name.
                                             Example: -wadd=1 -wmul=3 -wmemory=100 -wbranch=3
 
-  -t=<time>, -time=<time>                   Set maximum time (cycles) for the simulator, default unlimited.
+  -t=<time>, -time=<time>                   Set maximum instructions for the simulator, default unlimited.
 
   -m=<mem>, -mem=<mem>, -memory=<mem>       Set memory size (bytes) for the simulator, default 256MB.
                                             We support K/M suffix for kilobytes/megabytes.
                                             Note that the memory has a hard limit of 1GB.
                                             Example: -m=114K -m=514M -mem=1919 -memory=810
+
   -s=<mem>, -stack=<mem>                    Set stack size (bytes) for the simulator, default 1MB.
                                             We support K/M suffix for kilobytes/megabytes.
                                             Note that the stack has a hard limit of 1GB.
@@ -315,7 +316,9 @@ Options:
                                             If <file> is <stdin>, the simulator will read from stdin.
   -o=<file>, -output=<file>                 Set output file for the simulator.
                                             If <file> is <stdout>, the simulator will write to stdout.
-  -f=<file>,... -file=<file>,...            Set input files as the assembly code.
+
+  -f=<file>,... -file=<file>,...            Set input assembly files for the simulator.
+                                            The simulator will decode and link these files in order.
 )";
         std::exit(EXIT_SUCCESS);
     };
