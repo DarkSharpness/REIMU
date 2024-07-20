@@ -2,7 +2,7 @@
 #include <interpreter/memory.h>
 #include <interpreter/device.h>
 #include <interpreter/register.h>
-#include <fmtlib>
+#include <fmtlib.h>
 #include <iostream>
 #include <ranges>
 

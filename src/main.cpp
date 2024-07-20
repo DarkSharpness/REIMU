@@ -4,7 +4,7 @@
 #include <iostream>
 #include <algorithm>
 #include <chrono>
-#include <fmtlib>
+#include <fmtlib.h>
 
 
 int main(int argc, char** argv) {

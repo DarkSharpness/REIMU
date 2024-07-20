@@ -2,7 +2,7 @@
 #include <assembly/storage.h>
 #include <assembly/immediate.h>
 #include <assembly/exception.h>
-#include <fmtlib>
+#include <fmtlib.h>
 
 namespace dark {
 
