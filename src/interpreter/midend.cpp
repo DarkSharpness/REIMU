@@ -24,19 +24,20 @@ static void check_no_overlap(const MemoryLayout &result) {
 }
 
 static void print_link_result(const Linker::LinkResult &result) {
+    using dark::console::message;
     auto print_section = [](const std::string &name, const Linker::LinkResult::Section &section) {
-        std::cout << std::format("Section {} \t at [{:x}, {:x})\n",
+        message << std::format("Section {} \t at [{:x}, {:x})\n",
             name, section.start, section.start + section.storage.size());
     };
 
-    std::cout << std::format("\n{:=^80}\n\n", " Section details ");
+    message << std::format("\n{:=^80}\n\n", " Section details ");
 
     print_section("text", result.text);
     print_section("data", result.data);
     print_section("rodata", result.rodata);
     print_section("bss", result.bss);
 
-    std::cout << std::format("\n{:=^80}\n\n", "");
+    message << std::format("\n{:=^80}\n\n", "");
 }
 
 void Interpreter::link() {

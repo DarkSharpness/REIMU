@@ -28,11 +28,9 @@ Assembler::Assembler(std::string_view file_name)
             file.close();
             this->handle_at(this->line_number, std::move(e.inner));
         } catch(std::exception &e) {
-            std::cerr << std::format("Unexpected error: {}\n", e.what());
-            unreachable();
+            unreachable(std::format("Unexpected error: {}\n", e.what()));
         } catch(...) {
-            std::cerr << "Unexpected error.\n";
-            unreachable();
+            unreachable(std::format("Unexpected error.\n"));
         }
     }
 }

@@ -10,6 +10,7 @@
 #include <fstream>
 #include <memory>
 #include <vector>
+#include <iostream>
 
 namespace dark {
 
@@ -167,47 +168,48 @@ void Config_Impl::initialize_with_check() {
 }
 
 void Config_Impl::print_in_detail() const {
-    std::cout << std::format("\n{:=^80}\n\n", " Configuration details ");
+    using dark::console::message;
 
-    std::cout << std::format("  Input file: {}\n", this->input_file);
-    std::cout << std::format("  Output file: {}\n", this->output_file);
-    std::cout << std::format("  Assembly files: ");
+    message << std::format("\n{:=^80}\n\n", " Configuration details ");
+    message << std::format("  Input file: {}\n", this->input_file);
+    message << std::format("  Output file: {}\n", this->output_file);
+    message << std::format("  Assembly files: ");
 
     for (const auto& file : this->assembly_files)
-        std::cout << file << ' ';
+        message << file << ' ';
 
-    std::cout << std::format("\n  Storage size: {} bytes ({:.2f} MB)\n",
+    message << std::format("\n  Storage size: {} bytes ({:.2f} MB)\n",
         this->storage_size, double(this->storage_size) / (1024 * 1024));
 
     if (this->maximum_time == config::kInitTimeOut) {
-        std::cout << "  Maximum time: no limit\n";
+        message << "  Maximum time: no limit\n";
     } else {
-        std::cout << std::format("  Maximum time: {} cycles\n", this->maximum_time);
+        message << std::format("  Maximum time: {} cycles\n", this->maximum_time);
     }
 
     // Format string for printing options and weights
     static constexpr char kFormat[] = "    - {:<8} = {}\n";
 
-    std::cout << "  Options:\n";
+    message << "  Options:\n";
     for (const auto &key : config::kSupportedOptions)
-        std::cout << std::format(kFormat, key, this->has_option(key));
+        message << std::format(kFormat, key, this->has_option(key));
 
-    std::cout << "  Weights:\n";
+    message << "  Weights:\n";
     for (const auto &[name, list, weight] : kWeightRanges) {
-        std::cout << "    " << name << ":\n";
+        message << "    " << name << ":\n";
         if (weight != kManual) {
             for (auto iter : list) {
-                std::cout << std::format(kFormat, iter, this->weight_table.at(iter));
+                message << std::format(kFormat, iter, this->weight_table.at(iter));
             }
         } else {
             for (auto iter : list) {
                 auto name = parse_manual(iter).first;
-                std::cout << std::format(kFormat, name, this->weight_table.at(name));
+                message << std::format(kFormat, name, this->weight_table.at(name));
             }
         }
     }
 
-    std::cout << std::format("\n{:=^80}\n\n", "");
+    message << std::format("\n{:=^80}\n\n", "");
 }
 
 bool Config_Impl::has_option(std::string_view name) const {
@@ -256,6 +258,8 @@ auto Config::get_assembly_names() const -> std::span <const std::string_view> {
 Config_Impl::Config_Impl(int argc, char** argv) {
     static constexpr const char kInvalid[] = "Invalid command line argument: {}";
 
+    using dark::console::message;
+
     enum class CastError {
         Invalid,    //  Invalid argument
         Overflow,   //  Overflow
@@ -287,7 +291,7 @@ Config_Impl::Config_Impl(int argc, char** argv) {
     };
 
     constexpr auto __help = [](std::string_view) {
-        std::cout <<
+        message <<
 R"(This is a RISC-V simulator. Usage: reimu [options]
 Options:
   -h, --help                                Display help information.
@@ -325,7 +329,7 @@ Options:
     };
 
     constexpr auto __version = [](std::string_view) {
-        std::cout << "Version: 0.1.0\n";
+        message << "Version: 0.1.0\n";
         std::exit(EXIT_SUCCESS);
     };
 
@@ -499,8 +503,9 @@ Options:
 void Config_Impl::parse_options() {
     // Silent will kill all other options.
     if (this->has_option("silent")) {
-        this->option_table = { "silent" };
-        ::dark::warning_shutdown = true;
+        this->option_table.clear(); // Clear all options
+        ::dark::console::warning.rdbuf(nullptr);
+        ::dark::console::message.rdbuf(nullptr);
         return;
     }
     if (this->has_option("detail")) this->print_in_detail();

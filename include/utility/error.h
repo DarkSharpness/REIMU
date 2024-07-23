@@ -1,12 +1,16 @@
 #pragma once
 #include <array>
 #include <fmtlib.h>
-#include <iostream>
 #include <source_location>
 
 namespace dark {
 
 namespace console {
+
+extern std::ostream error;          // Fatal errors.
+extern std::ostream warning;        // Warnings.
+extern std::ostream message;        // Necessary messages.
+extern std::ostream program_info;   // Program runtime information.
 
 enum class Color {
     RED         = 31,
@@ -47,76 +51,59 @@ static constexpr std::string_view color_code = {
 
 } // namespace console
 
-// Global visibility, one definition.
-inline bool warning_shutdown {};
-
 template <typename ...Args>
 inline static void warning(std::format_string <Args...> fmt = "", Args &&...args) {
-    if (warning_shutdown) return;
-    std::cerr
-        << console::color_code <console::Color::YELLOW>
-        << "Warning: "
-        << console::color_code <console::Color::RESET>
-        << std::format(fmt, std::forward <Args>(args)...)
-        << std::endl;
-}
-
-template <typename ...Args>
-inline static void warning_if(bool condition, std::format_string <Args...> fmt = "", Args &&...args) {
-    if (condition) return warning(fmt, std::forward <Args>(args)...);
+    console::warning << std::format(
+        "{}Warning{}: {}\n",
+        console::color_code <console::Color::YELLOW>,
+        console::color_code <console::Color::RESET>,
+        std::format(fmt, std::forward <Args>(args)...)
+    );
 }
 
 template <typename ..._Args>
-__attribute__((noinline, noreturn, cold))
+[[noreturn]]
 inline static void panic(std::format_string <_Args...> fmt = "", _Args &&...args) {
     // Failure case, print the message and exit
-    std::cerr
-        << std::format("\n{:=^80}\n\n", "")
-        << console::color_code <console::Color::RED>
-        << "Fatal error: "
-        << console::color_code <console::Color::RESET>
-        << std::format(fmt, std::forward <_Args>(args)...)
-        << console::color_code <console::Color::RESET>
-        << std::format("\n\n{:=^80}\n", "");
+    console::error << std::format(
+        "\n{:=^80}\n\n"
+        "{}Fatal error{}: {}\n"
+        "\n{:=^80}\n",
+        "",
+        console::color_code <console::Color::RED>,
+        console::color_code <console::Color::RESET>,
+        std::format(fmt, std::forward <_Args>(args)...),
+        ""
+    );
     std::exit(EXIT_FAILURE);
 }
 
 template <typename _Tp, typename ..._Args>
-__attribute((always_inline))
 inline static void panic_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&...args) {
     if (condition) return panic(fmt, std::forward <_Args>(args)...);
 }
 
-/**
- * @brief Runtime unreachable, exit the program with a message.
- */
-__attribute__((noinline, noreturn, cold))
-inline static void unreachable(std::source_location where = std::source_location::current()) {
+[[noreturn]]
+inline static void unreachable(std::string message = "",
+    std::source_location where = std::source_location::current()) {
     // Failure case, print the message and exit
-    std::cerr << std::format(
+    console::error << std::format(
+        "{}"
         "{}"
         "Assertion failed at {}:{} in {}:\n"
         "Internal error, please report this issue to the developer.\n"
         "{}",
+        message,
         console::color_code <console::Color::RED>,
         where.file_name(), where.line(), where.function_name(),
         console::color_code <console::Color::RESET>);
     std::exit(EXIT_FAILURE);
 }
 
-/**
- * @brief Runtime assertion, if the condition is false, print the message and exit.
- * @param condition Assertion condition.
- */
 template <typename _Tp>
-__attribute__((always_inline))
-inline static void runtime_assert(_Tp &&condition, std::source_location where = std::source_location::current()) {
-    if (condition) return;
-    // Failure case, print the message and exit
-    return unreachable(where);
+inline static void runtime_assert(_Tp &&condition,
+    std::source_location where = std::source_location::current()) {
+    if (!condition) return unreachable("", where);
 }
-
-template <typename ..._Args>
-static void allow_unused(_Args &&...) {}
 
 } // namespace dark

@@ -8,7 +8,6 @@
 #include <linker/layout.h>
 #include <config/config.h>
 #include <libc/libc.h>
-#include <utility.h>
 #include <map>
 #include <fstream>
 
@@ -47,11 +46,9 @@ static void simulate_normal
     } catch (FailToInterpret &e) {
         panic("{}", e.what(rf, mem, dev));
     } catch (std::exception &e) {
-        std::cerr << std::format("std::exception caught: {}\n", e.what());
-        unreachable();
+        unreachable(std::format("std::exception caught: {}\n", e.what()));
     } catch (...) {
-        std::cerr << "unexpected exception caught\n";
-        unreachable();
+        unreachable(std::format("unexpected exception caught\n"));
     }
 }
 
@@ -77,7 +74,6 @@ void Interpreter::simulate() {
         simulate_normal(regfile, memory, device, config.get_timeout());
     }
 
-    if (config.has_option("silent")) return;
     bool enable_detail = config.has_option("detail");
     regfile.print_details(enable_detail);
     memory.print_details(enable_detail);
@@ -85,8 +81,7 @@ void Interpreter::simulate() {
 }
 
 static void simulate_debug
-    (RegisterFile &regfile, Memory &memory, Device &device, std::size_t timeout) {
-    allow_unused(regfile, memory, device, timeout);
+    (RegisterFile &, Memory &, Device &, std::size_t) {
     panic("Debug Mode is not implemented yet");
 }
 

@@ -2,6 +2,7 @@
 #include <assembly/frontend/token.h>
 #include <assembly/frontend/parser.h>
 #include <assembly/exception.h>
+#include <ranges>
 
 namespace dark::frontend {
 
