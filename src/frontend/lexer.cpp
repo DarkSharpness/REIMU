@@ -1,5 +1,7 @@
 #include <assembly/frontend/lexer.h>
 #include <assembly/exception.h>
+#include <ranges>
+#include <algorithm>
 
 /* Tokenlize the input string.  */
 namespace dark::frontend {
