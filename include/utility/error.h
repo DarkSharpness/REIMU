@@ -7,10 +7,10 @@ namespace dark {
 
 namespace console {
 
-extern std::ostream error;          // Fatal errors.
-extern std::ostream warning;        // Warnings.
-extern std::ostream message;        // Necessary messages.
-extern std::ostream program_info;   // Program runtime information.
+extern std::ostream error;      // Fatal errors.
+extern std::ostream warning;    // Warnings.
+extern std::ostream message;    // Necessary messages.
+extern std::ostream profile;    // Program runtime information.
 
 enum class Color {
     RED         = 31,

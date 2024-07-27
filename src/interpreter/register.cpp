@@ -7,7 +7,7 @@
 
 namespace dark {
 
-using dark::console::program_info;
+using dark::console::profile;
 
 RegisterFile::RegisterFile(target_size_t entry, const Config &config)
     : regs(), pc(), new_pc(entry) {
@@ -17,12 +17,12 @@ RegisterFile::RegisterFile(target_size_t entry, const Config &config)
 
 void RegisterFile::print_details(bool detail) const {
     const auto exit_code = this->regs[static_cast<int>(Register::a0)];
-    program_info << std::format("Exit code: {}\n", exit_code);
+    profile << std::format("Exit code: {}\n", exit_code);
 
     if (!detail) return;
 
     for (std::size_t i = 0 ; i < this->regs.size() ; ++i)
-        program_info << std::format("- {:<4} = 0x{:08x}\n",
+        profile << std::format("- {:<4} = 0x{:08x}\n",
             reg_to_sv(static_cast<Register>(i)), this->regs[i]);
 }
 

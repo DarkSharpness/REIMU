@@ -5,7 +5,7 @@
 
 namespace dark {
 
-using console::program_info;
+using console::profile;
 
 // Some hidden implementation data.
 struct Device_Impl {
@@ -53,7 +53,7 @@ void Device::print_details(bool details) const {
         + impl.counter.bgeu + impl.counter.bltu
         + impl.counter.bge + impl.counter.blt;
 
-    program_info << std::format(
+    profile << std::format(
         "Branch Prediction: {}, Failed: {}, Failure Rate: {:.2f}%\n",
         total, failed, failed * 100.0 / total
     );
