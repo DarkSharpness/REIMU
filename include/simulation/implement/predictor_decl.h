@@ -8,7 +8,7 @@ namespace dark {
  * A simple 2 bit branch predictor.
  */
 // template <std::size_t _Nm = 4096>
-struct branch_predictor {
+struct BranchPredictor {
   private:
     using _Data_t = std::uint8_t;
 
@@ -29,7 +29,7 @@ struct branch_predictor {
     auto set_bits(target_size_t, target_size_t) -> void;
 
   public:
-    branch_predictor();
+    BranchPredictor();
     bool predict(target_size_t) const;
     void update(target_size_t, bool);
 };
