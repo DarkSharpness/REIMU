@@ -21,7 +21,7 @@ target("reimu")
     add_files("src/*/*.cpp")
     add_files("src/main.cpp")
     set_toolchains("gcc")
-    set_languages("c++20")
+    set_languages("c++23")
     add_packages("fmt")
 
 --
