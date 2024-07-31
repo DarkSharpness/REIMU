@@ -2,11 +2,27 @@
 #include <libc/libc.h>
 #include <utility.h>
 #include <interpreter/memory.h>
+#include <span>
+#include <cstring>
 
 namespace dark::libc {
 
 static struct MemoryManager {
     struct Header {
+    public:
+        auto get_prev_size() const {
+            return this->prev;
+        }
+        auto get_this_size() const {
+            return this->self;
+        }
+        void set_prev_size(std::uint32_t size) {
+            this->prev = size;
+        }
+        void set_this_size(std::uint32_t size) {
+            this->self = size;
+        }
+    private:
         std::uint32_t prev;
         std::uint32_t self;
     };
@@ -20,14 +36,43 @@ static struct MemoryManager {
 
     consteval MemoryManager() : start(), brk() {}
 
-    void init(Memory &mem) {
+private:
+    static auto align(target_size_t ptr) -> target_size_t {
         constexpr auto kMask = kMinAlignment - 1;
+        return (ptr + kMask) & ~kMask;
+    }
 
+    static auto get_header(char *ptr) -> Header & {
+        return *std::bit_cast <Header *> (ptr - kHeaderSize);
+    }
+
+    [[noreturn]]
+    static void unknown_malloc_pointer(target_size_t);
+
+    static auto get_required_size(target_size_t size) -> target_size_t {
+        return align(std::max(size + kHeaderSize, kMinAllocSize + kHeaderSize));
+    }
+
+    [[nodiscard]]
+    auto allocate_required(Memory &mem, target_size_t required) {
+        const auto ret_pair = mem.sbrk(required);
+        const auto [real_ptr, old_brk] = ret_pair;
+        runtime_assert(this->brk == old_brk);
+
+        this->brk += required;
+        this->get_header(real_ptr).set_this_size(required);
+
+        return ret_pair;
+    }
+
+public:
+
+    void init(Memory &mem) {
         // We have no restrictions on the start address
         this->start = mem.sbrk(0).second;
 
         // We should make sure the (brk + kHeaderSize) is aligned to kMinAlignment
-        this->brk = (this->start + kHeaderSize + kMask) & ~kMask;
+        this->brk = this->align(this->start + kHeaderSize);
 
         auto [real_ptr, old_brk] = mem.sbrk(this->brk - this->start);
 
@@ -36,38 +81,61 @@ static struct MemoryManager {
             std::bit_cast <std::size_t> (real_ptr) % kMinAlignment == 0);
     }
 
-    static auto get_header(char *ptr) -> Header & {
-        return *std::bit_cast <Header *> (ptr - kHeaderSize);
-    }
-
     [[nodiscard]]
-    auto allocate(Memory &mem, target_size_t required) {
-        constexpr auto kMask = kMinAlignment - 1;
-
-        required = std::max(required, kMinAllocSize);
-        required = (required + kHeaderSize + kMask) & ~kMask;
-
-        const auto ret_pair = mem.sbrk(required);
-        const auto [real_ptr, old_brk] = ret_pair;
-        runtime_assert(this->brk == old_brk);
-
-        this->brk += required;
-        this->get_header(real_ptr).self = required;
-
-        return ret_pair;
+    auto allocate(Memory &mem, target_size_t new_size) {
+        return this->allocate_required(mem, this->get_required_size(new_size));
     }
 
     void free(Memory &, target_size_t) {
         // Do nothing for now
     }
 
-    auto malloc_usable_size(char *ptr) -> target_size_t {
-        return get_header(ptr).self - kHeaderSize;
+    [[nodiscard]]
+    auto reallocate(Memory &mem, target_size_t old_ptr, target_size_t new_size)
+    -> target_size_t {
+        const auto area = parse_malloc_ptr(mem, old_ptr);
+        auto old_data = area.data();
+        auto old_size = area.size();
+        auto required = this->get_required_size(new_size);
+        if (old_size == 0) {
+            unknown_malloc_pointer(old_ptr);
+        } else if (old_size >= required) {
+            return old_ptr;
+        } else {
+            auto [new_data, new_ptr] = this->allocate_required(mem, required);
+            std::memcpy(new_data, old_data, old_size);
+            this->free(mem, old_ptr);
+            return new_ptr;
+        }
     }
-} malloc_manager;
 
-void libc_init(RegisterFile &, Memory &mem, Device &) {
-    malloc_manager.init(mem);
-}
+    auto parse_malloc_ptr(Memory &mem, const target_size_t malloc_ptr)
+    const -> std::span <char> {
+        if (malloc_ptr % kMinAlignment != 0)
+            return {};
+
+        const auto header_ptr = malloc_ptr - kHeaderSize;
+        if (header_ptr < this->start || malloc_ptr >= this->brk)
+            return {};
+
+        auto area = mem.libc_access(header_ptr);
+        if (kHeaderSize > area.size())
+            return {};
+
+        auto *data_ptr  = area.data() + kHeaderSize;
+        auto  rest_size = area.size() - kHeaderSize;
+        auto &header    = this->get_header(data_ptr);
+        auto this_size  = header.get_this_size();
+
+        if (this_size % kMinAlignment != 0)
+            return {};
+
+        if (this_size > rest_size)
+            return {};
+
+        return { data_ptr, this_size };
+    }
+
+} malloc_manager;
 
 } // namespace dark::libc

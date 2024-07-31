@@ -8,6 +8,10 @@
 
 namespace dark::libc::__details {
 
+void libc_init(RegisterFile &, Memory &mem, Device &) {
+    malloc_manager.init(mem);
+}
+
 auto malloc(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto size = rf[Register::a0];
     auto [_, retval] = malloc_manager.allocate(mem, size);
@@ -22,9 +26,9 @@ auto calloc(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
 }
 
 auto realloc(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
+    auto old_data = rf[Register::a0];
     auto new_size = rf[Register::a1];
-    malloc_manager.free(mem, rf[Register::a0]);
-    auto [_, retval] = malloc_manager.allocate(mem, new_size);
+    auto retval = malloc_manager.reallocate(mem, old_data, new_size);
     return return_to_user(rf, mem, retval);
 }
 
