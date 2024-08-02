@@ -42,17 +42,14 @@ static void handle_misaligned(target_size_t addr, target_size_t alignment) {
     };
 }
 
-static char __libc_io_fmt_error[] = "unknown format specifier: % ";
 
 template <_Index index>
 [[noreturn]]
 static void handle_unknown_fmt(char what) {
-    auto data = std::span(__libc_io_fmt_error);
-    data.rbegin()[1] = what;
     throw FailToInterpret {
         .error      = Error::LibcError,
         .libc_which = static_cast<libc_index_t>(index),
-        .message    = data.data()
+        .message    = std::format("nknown format specifier: %{}", what)
     };
 }
 

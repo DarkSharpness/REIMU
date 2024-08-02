@@ -229,9 +229,7 @@ auto Memory_Impl::get_segment(target_size_t addr) -> std::span <char> {
     if (auto [low, top] = StackArea::get_range(); low <= addr && addr <= top)
         return { __wash(this->get_stack(addr)), top - addr };
 
-    // Dummy return value, but to avoid UB.
-    static char dummy;
-    return { &dummy, 0 };
+    return {}; // Not found.
 }
 
 } // namespace dark

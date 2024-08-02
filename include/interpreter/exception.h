@@ -43,7 +43,7 @@ struct FailToInterpret {
     };
 
     ErrorDetail detail {};
-    const char *message {};
+    std::string message {};
 
     auto what(RegisterFile &, Memory &, Device &) const -> std::string;
 };

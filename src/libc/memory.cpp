@@ -6,11 +6,25 @@
 #include <interpreter/memory.h>
 #include <interpreter/register.h>
 
-namespace dark::libc::__details {
+namespace dark::libc {
+
+static MemoryManager malloc_manager {};
 
 void libc_init(RegisterFile &, Memory &mem, Device &) {
     malloc_manager.init(mem);
 }
+
+void MemoryManager::unknown_malloc_pointer(target_size_t ptr, __details::_Index index) {
+    throw FailToInterpret {
+        .error      = Error::LibcError,
+        .libc_which = static_cast<libc_index_t>(index),
+        .message    = std::format("not a malloc pointer: {:#x}", ptr),
+    };
+}
+
+} // namespace dark::libc
+
+namespace dark::libc::__details {
 
 auto malloc(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
     auto size = rf[Register::a0];

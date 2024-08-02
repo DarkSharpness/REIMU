@@ -7,7 +7,7 @@
 
 namespace dark::libc {
 
-static struct MemoryManager {
+struct MemoryManager {
     struct Header {
     public:
         auto get_prev_size() const {
@@ -47,7 +47,7 @@ private:
     }
 
     [[noreturn]]
-    static void unknown_malloc_pointer(target_size_t);
+    static void unknown_malloc_pointer(target_size_t, __details::_Index);
 
     static auto get_required_size(target_size_t size) -> target_size_t {
         return align(std::max(size + kHeaderSize, kMinAllocSize + kHeaderSize));
@@ -98,7 +98,7 @@ public:
         auto old_size = area.size();
         auto required = this->get_required_size(new_size);
         if (old_size == 0) {
-            unknown_malloc_pointer(old_ptr);
+            unknown_malloc_pointer(old_ptr, __details::_Index::realloc);
         } else if (old_size >= required) {
             return old_ptr;
         } else {
@@ -136,6 +136,6 @@ public:
         return { data_ptr, this_size };
     }
 
-} malloc_manager;
+};
 
 } // namespace dark::libc

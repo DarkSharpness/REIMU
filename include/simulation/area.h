@@ -58,12 +58,16 @@ struct HeapArea {
     std::vector <std::byte> storage;
     target_size_t const heap_start;
     target_size_t       heap_finish;
-    static auto align_to_page(target_size_t addr) {
-       return (addr + 0xfff) & ~0xfff;
+    // Our implementation require that the end of static area
+    // should not overlap with the start of heap area
+    // So, we need to choose the next page even if already aligned
+    static auto next_page(target_size_t addr) {
+        constexpr auto kPageSize = 1 << 12;
+        return (addr & ~(kPageSize - 1)) + kPageSize;
     }
   public:
     explicit HeapArea(const MemoryLayout &layout) :
-        heap_start(align_to_page(layout.bss.end())),
+        heap_start(next_page(layout.bss.end())),
         heap_finish(heap_start) {}
     bool in_heap(target_size_t lo, target_size_t hi) const {
         return this->heap_start <= lo && hi <= this->heap_finish;
