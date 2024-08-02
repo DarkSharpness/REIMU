@@ -19,7 +19,7 @@ static void checked_printf_impl(
         if (reg == reg_to_int(Register::a7) + 1)
             throw FailToInterpret {
                 .error = Error::NotImplemented,
-                .message = "Too many arguments for (s)printf"
+                .message = "Too many arguments for printf"
             };
         return rf[int_to_reg(reg++)];
     };
@@ -67,7 +67,7 @@ static auto checked_scanf_impl(
         if (reg == reg_to_int(Register::a7) + 1)
             throw FailToInterpret {
                 .error = Error::NotImplemented,
-                .message = "Too many arguments for (s)printf"
+                .message = "Too many arguments for scanf"
             };
         return rf[int_to_reg(reg++)];
     };

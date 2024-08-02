@@ -41,15 +41,17 @@ auto FailToInterpret::what(RegisterFile &rf, Memory &, Device &) const -> std::s
             return __outofbound(__libc_name());
 
         case InsUnknown:
-            return std::format("Unknown instruction at 0x{:x}: 0x{}",
+            return std::format("Unknown instruction at 0x{:x}: 0x{:x}",
                 rf.get_pc(), this->detail.command);
 
         case DivideByZero:
             return std::format("Divide by zero at 0x{:x}", rf.get_pc());
 
+        case LibcError:
+            return std::format("{}: {}", __libc_name(), this->message);
+
         case NotImplemented:
             return "Not implemented";
-
 
         default:
             unreachable();
