@@ -1,4 +1,5 @@
 #include <simulation/implement/icache_decl.h>
+#include <iostream>
 
 namespace dark {
 
@@ -15,14 +16,14 @@ static auto make_icache_range(Memory &mem) -> target_size_t {
 }
 
 [[maybe_unused]]
-static auto no_compile(Executable &, RegisterFile &rf, Memory &mem, Device &dev) {
+static auto compile_always(Executable &, RegisterFile &rf, Memory &mem, Device &dev) {
     Executable exe { compile_once, {} };
     return exe(rf, mem, dev);
 }
 
 [[maybe_unused]]
 static auto handle_cache_miss() -> Executable & {
-    static Executable exe { no_compile, {} };
+    static Executable exe { compile_always, {} };
     return exe;
 }
 
@@ -32,26 +33,27 @@ static auto handle_cache_miss() -> Executable & {
  * - normal text
  */
 ICache::ICache(Memory &mem) : length(make_icache_range(mem)) {
-    const auto reserved = this->length / sizeof(Executable) + 1;
+    const auto reserved = this->length / sizeof(Executable);
+    const auto libcsize = std::size(libc::funcs);
 
     // Initialize the cache
-
     this->cached = std::make_unique<Executable[]>(reserved);
 
-    // Other functions are left as compile_once
-    for (std::size_t i = 0 ; i < reserved ; ++i)
-        this->cached[i].set_handle(compile_once, {});
-
     // libc functions
-    for (std::size_t i = 0 ; i < std::size(libc::funcs) ; ++i)
+    for (std::size_t i = 0 ; i < libcsize ; ++i)
         this->cached[i].set_handle(libc::funcs[i], {});
+
+    // Other functions are left as compile_once
+    for (std::size_t i = libcsize ; i < reserved ; ++i)
+        this->cached[i].set_handle(compile_once, {});
 }
 
 /* ifetch with some hint */
-auto ICache::ifetch(target_size_t pc, Hint hint) noexcept -> Ref_t {
-    if (hint != Hint {}) return *hint.next;
+auto ICache::ifetch(target_size_t pc, Hint hint) noexcept -> Executable & {
+    if (std::size_t(hint.next - this->cached.get()) < this->length)
+        [[likely]] return *hint.next;
 
-    auto which = (pc - kTextStart) / sizeof(command_size_t);
+    std::size_t which = (pc - kTextStart) / sizeof(command_size_t);
     if (pc % alignof(command_size_t) != 0 || which >= this->length)
         return handle_cache_miss();
 

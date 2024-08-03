@@ -39,7 +39,7 @@ static void simulate_normal
     try {
         Hint hint {};
         while (rf.advance() && timeout --> 0) {
-            auto exe = icache.ifetch(rf.get_pc(), hint);
+            auto &exe = icache.ifetch(rf.get_pc(), hint);
             hint = exe(rf, mem, dev);
         }
         panic_if(timeout + 1 == 0, "Time Limit Exceeded");
