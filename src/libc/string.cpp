@@ -6,7 +6,6 @@
 #include <interpreter/register.h>
 #include <interpreter/exception.h>
 #include <cstring>
-#include <sstream>
 
 namespace dark::libc::__details {
 

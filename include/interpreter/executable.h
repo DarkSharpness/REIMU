@@ -2,7 +2,6 @@
 #include <interpreter/forward.h>
 #include <interpreter/hint.h>
 #include <riscv/register.h>
-#include <new>
 
 namespace dark {
 

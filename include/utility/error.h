@@ -80,7 +80,10 @@ inline static void panic(std::format_string <_Args...> fmt = "", _Args &&...args
 
 template <typename _Tp, typename ..._Args>
 inline static void panic_if(_Tp &&condition, std::format_string <_Args...> fmt = "", _Args &&...args) {
-    if (condition) return panic(fmt, std::forward <_Args>(args)...);
+    if (condition) {
+        [[unlikely]]
+        return panic(fmt, std::forward <_Args>(args)...);
+    }
 }
 
 [[noreturn]]
@@ -103,7 +106,10 @@ inline static void unreachable(std::string message = "",
 template <typename _Tp>
 inline static void runtime_assert(_Tp &&condition,
     std::source_location where = std::source_location::current()) {
-    if (!condition) return unreachable("", where);
+    if (!condition) {
+        [[unlikely]]
+        return unreachable("", where);
+    }
 }
 
 } // namespace dark

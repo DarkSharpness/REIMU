@@ -1,7 +1,6 @@
 #pragma once
 #include <declarations.h>
 #include <bit>
-#include <cstdint>
 #include <concepts>
 
 namespace dark::command {
@@ -94,9 +93,7 @@ static constexpr auto make_std(command_size_t cmd) -> command_layout {
 } // namespace __details
 
 struct r_type : __details::crtp <r_type> {
-  private:
     const command_size_t _op : 7;
-  public:
     command_size_t rd        : 5;
     command_size_t funct3    : 3;
     command_size_t rs1       : 5;
@@ -113,9 +110,7 @@ struct r_type : __details::crtp <r_type> {
 
 
 struct i_type : __details::crtp <i_type> {
-  private:
     const command_size_t _op : 7;
-  public:
     command_size_t rd        : 5;
     command_size_t funct3    : 3;
     command_size_t rs1       : 5;
@@ -139,9 +134,7 @@ struct i_type : __details::crtp <i_type> {
 
 
 struct s_type : __details::crtp <s_type> {
-  private:
     const command_size_t _op : 7;
-  public:
     command_size_t imm_4_0   : 5;
     command_size_t funct3    : 3;
     command_size_t rs1       : 5;
@@ -171,9 +164,7 @@ struct s_type : __details::crtp <s_type> {
 
 
 struct l_type : __details::crtp <l_type> {
-  private:
     const command_size_t _op : 7;
-  public:
     command_size_t rd        : 5;
     command_size_t funct3    : 3;
     command_size_t rs1       : 5;
@@ -201,9 +192,7 @@ struct l_type : __details::crtp <l_type> {
 
 
 struct b_type : __details::crtp <b_type> {
-  private:
     const command_size_t _op : 7;
-  public:
     command_size_t imm_11    : 1;
     command_size_t imm_4_1   : 4;
     command_size_t funct3    : 3;
@@ -239,9 +228,7 @@ struct b_type : __details::crtp <b_type> {
 };
 
 struct auipc : __details::crtp <auipc> {
-  private:
     const command_size_t _op : 7;
-  public:
     command_size_t rd        : 5;
     command_size_t imm       : 20;
 
@@ -259,9 +246,7 @@ struct auipc : __details::crtp <auipc> {
 };
 
 struct lui : __details::crtp <lui> {
-  private:
     const command_size_t _op : 7;
-  public:
     command_size_t rd        : 5;
     command_size_t imm       : 20;
 
@@ -280,13 +265,9 @@ struct lui : __details::crtp <lui> {
 
 
 struct jalr : __details::crtp <jalr> {
-  private:
     const command_size_t _op     : 7;
-  public:
     command_size_t rd            : 5;
-  private:
     const command_size_t funct3  : 3;
-  public:
     command_size_t rs1           : 5;
     command_size_t imm           : 12;
 
@@ -305,6 +286,7 @@ struct jalr : __details::crtp <jalr> {
 
 struct jal : __details::crtp <jal> {
   private:
+    friend struct __details::crtp <jal>;
     const command_size_t _op     : 7;
   public:
     command_size_t rd            : 5;
@@ -349,6 +331,5 @@ constexpr auto crtp <_Derived>::from_integer(command_size_t cmd)
 -> _Derived { return std::bit_cast <_Derived> (cmd); }
 
 } // namespace __details
-
 
 } // namespace dark::command

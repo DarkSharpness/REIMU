@@ -1,6 +1,5 @@
 #pragma once
 #include <span>
-#include <array>
 #include <string_view>
 
 /* Some weight configurations. */

@@ -7,7 +7,6 @@
 #include <interpreter/register.h>
 #include <interpreter/exception.h>
 #include <interpreter/executable.h>
-#include <bit>
 
 namespace dark {
 
@@ -18,7 +17,7 @@ struct Executable::MetaData::PackData  {
     target_size_t  imm;
 };
 
-auto Executable::MetaData::parse(RegisterFile &rf) const -> PackData {
+inline auto Executable::MetaData::parse(RegisterFile &rf) const -> PackData {
     auto &rd = rf[this->rd];
     auto rs1 = rf[this->rs1];
     auto rs2 = rf[this->rs2];

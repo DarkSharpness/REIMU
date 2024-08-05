@@ -3,7 +3,6 @@
 #include <assembly/frontend/lexer.h>
 #include <assembly/frontend/match.h>
 #include <fstream>
-#include <algorithm>
 
 namespace dark {
 

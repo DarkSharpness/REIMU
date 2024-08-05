@@ -4,7 +4,6 @@
 #include <assembly/frontend/match.h>
 #include <assembly/immediate.h>
 #include <assembly/exception.h>
-#include <ranges>
 #include <algorithm>
 
 namespace dark {

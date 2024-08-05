@@ -81,7 +81,7 @@ Linker::Linker(std::span <AssemblyLayout> data) {
 
 void Linker::add_file(AssemblyLayout &layout, _Symbol_Table_t &local_table) {
     using _Pair_t = std::pair <_Storage_t *, StorageDetails *>;
-    using _Section_Map_t = struct : std::vector <_Pair_t> {
+    using _Section_Map_t = struct _ : std::vector <_Pair_t> {
         void add_mapping(_Storage_t *pointer, StorageDetails *details)
         {   this->emplace_back(pointer, details);   }
 

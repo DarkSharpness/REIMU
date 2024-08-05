@@ -3,9 +3,7 @@
 #include <utility/any.h>
 #include <span>
 #include <deque>
-#include <vector>
 #include <memory>
-#include <optional>
 #include <unordered_map>
 
 namespace dark {
@@ -80,7 +78,7 @@ struct Linker {
         }
 
       private:
-        friend class SymbolLocation;
+        friend struct SymbolLocation;
         _Slice_t    storage;                    // Storage in the section
         target_size_t begin_position;             // Position in the output file
         std::unique_ptr<target_size_t[]> offsets; // Sizes of sections in the storage

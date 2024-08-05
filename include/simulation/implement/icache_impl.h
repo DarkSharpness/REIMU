@@ -1,5 +1,4 @@
 #include <simulation/implement/icache_decl.h>
-#include <iostream>
 
 namespace dark {
 
@@ -32,7 +31,7 @@ static auto handle_cache_miss() -> Executable & {
  * - libc functions:
  * - normal text
  */
-ICache::ICache(Memory &mem) : length(make_icache_range(mem)) {
+inline ICache::ICache(Memory &mem) : length(make_icache_range(mem)) {
     const auto reserved = this->length / sizeof(Executable);
     const auto libcsize = std::size(libc::funcs);
 
@@ -49,7 +48,7 @@ ICache::ICache(Memory &mem) : length(make_icache_range(mem)) {
 }
 
 /* ifetch with some hint */
-auto ICache::ifetch(target_size_t pc, Hint hint) noexcept -> Executable & {
+inline auto ICache::ifetch(target_size_t pc, Hint hint) noexcept -> Executable & {
     if (std::size_t(hint.next - this->cached.get()) < this->length)
         [[likely]] return *hint.next;
 

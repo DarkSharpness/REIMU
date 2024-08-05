@@ -2,7 +2,6 @@
 #include <assembly/forward.h>
 #include <assembly/frontend/token.h>
 #include <riscv/register.h>
-#include <span>
 #include <vector>
 
 namespace dark::frontend {

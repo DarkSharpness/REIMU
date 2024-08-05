@@ -396,11 +396,12 @@ void Linker::link() {
     for (auto &[name, location] : this->global_symbol_table)
         result.position_table.emplace(name, location.get_location());
 
-    EncodingPass(this->global_symbol_table, result.text, this->get_section(Section::TEXT));
-    EncodingPass(this->global_symbol_table, result.data, this->get_section(Section::DATA));
-    EncodingPass(this->global_symbol_table, result.rodata, this->get_section(Section::RODATA));
-    EncodingPass(this->global_symbol_table, result.unknown, this->get_section(Section::UNKNOWN));
-    EncodingPass(this->global_symbol_table, result.bss, this->get_section(Section::BSS));
+    
+    void(EncodingPass(this->global_symbol_table, result.text, this->get_section(Section::TEXT)));
+    void(EncodingPass(this->global_symbol_table, result.data, this->get_section(Section::DATA)));
+    void(EncodingPass(this->global_symbol_table, result.rodata, this->get_section(Section::RODATA)));
+    void(EncodingPass(this->global_symbol_table, result.unknown, this->get_section(Section::UNKNOWN)));
+    void(EncodingPass(this->global_symbol_table, result.bss, this->get_section(Section::BSS)));
 
     connect(result.text, result.data);
     connect(result.data, result.rodata);

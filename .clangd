@@ -1,0 +1,2 @@
+CompileFlags:
+  Add: [-Wno-gnu-zero-variadic-macro-arguments]

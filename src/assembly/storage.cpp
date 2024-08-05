@@ -3,8 +3,7 @@
 #include <assembly/assembly.h>
 #include <assembly/exception.h>
 #include <assembly/storage.h>
-#include <fstream>
-#include <algorithm>
+#include <unordered_set>
 
 namespace dark {
 
