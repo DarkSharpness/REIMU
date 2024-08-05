@@ -5,9 +5,6 @@
 #include <libc/libc.h>
 #include <utility.h>
 #include <cstddef>
-#include <array>
-#include <ranges>
-#include <algorithm>
 
 namespace dark {
 

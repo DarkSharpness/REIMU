@@ -1,7 +1,6 @@
 #pragma once
 #include <declarations.h>
 #include <string_view>
-#include <array>
 
 namespace dark::config {
 
@@ -14,6 +13,7 @@ static constexpr std::string_view kStderr       = "<stderr>";
 static constexpr std::string_view kInitStdin    = "<stdin>";
 static constexpr std::string_view kInitStdout   = "<stdout>";
 static constexpr std::string_view kInitProfile  = "<stderr>";
+static constexpr std::string_view kInitAnswer   = "test.ans";
 
 static constexpr std::string_view kSupportedOptions[] = {
     "--silent",
@@ -48,7 +48,7 @@ Options:
   --oj-mode                         Settings for the online judge.
 
 Configurations:
-  <option>                          Enable a specific option (see above).
+  --<option>                        Enable a specific option (see above).
 
   -w<name>=<value>,
   --weight-<name>=<value>           Set weight (cycles) for a specific assembly command.
@@ -65,11 +65,11 @@ Configurations:
   -s=<mem>, -stack=<mem>            Set stack size (bytes) for the simulator, default 32KB.
                                     We support K/M suffix for kilobytes/megabytes.
 
-  -i=<file>, -input=<file>          Set input file for the simulator, default stdin.
+  -i=<file>, -input=<file>          Set input file for the simulator, default <stdin>.
                                     If <file> = <stdin>, the simulator will read from stdin.
                                     - Example: -i=test.in, -i="<stdin>"
 
-  -o=<file>, -output=<file>         Set output file for the simulator, default stdout.
+  -o=<file>, -output=<file>         Set output file for the simulator, default <stdout>.
                                     If <file> = <stdout>, the simulator will write to stdout.
                                     If <file> = <stderr>, the simulator will write to stderr.
                                     - Example: -o=test.out, -o="<stdout>", -o="<stderr>"
@@ -77,10 +77,13 @@ Configurations:
   -f=<file>,... -file=<file>,...    Set input assembly files for the simulator.
                                     The simulator will decode and link these files in order.
 
-  -p=<file>, -profile=<file>        Set the profiling output for the simulator, default stderr.
+  -p=<file>, -profile=<file>        Set the profiling output for the simulator, default <stderr>.
                                     If <file> = <stdout>, the simulator will write to stdout.
                                     If <file> = <stderr>, the simulator will write to stderr.
                                     - Example: -p=prof.txt, -p="<stdout>"
+
+  -a=<file>, -answer=<file>         Set the answer file for the simulator, default test.ans.
+                                    This option can only work with the oj-mode.
 )";
 
 static constexpr std::string_view kVersionMessage = "reimu 1.0.0\n";

@@ -73,8 +73,6 @@ void Interpreter::simulate() {
         simulate_normal(regfile, memory, device, config.get_timeout());
     }
 
-    if (config.has_option("silent")) return;
-
     console::profile << '\n';
 
     bool enable_detail = config.has_option("detail");

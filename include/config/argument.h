@@ -1,6 +1,4 @@
 #pragma once
-#include <span>
-#include <vector>
 #include <string_view>
 #include <unordered_map>
 #include <optional>
@@ -60,7 +58,7 @@ struct ArgumentParser {
     }
 
     template <typename _Fn>
-    auto match_k(_Match_Result_t result, _Fn &&fn) {
+    auto match_k(_Match_Result_t result, _Fn &&fn) -> void {
         if (result.has_value()) {
             auto iter = result.value();
             auto [key, value] = *iter;
@@ -70,7 +68,7 @@ struct ArgumentParser {
         }
     }
 
-    auto match_kv(_Match_Result_t result) {
+    auto match_kv(_Match_Result_t result) -> std::optional <std::string_view> {
         std::optional <std::string_view> retval;
         if (result.has_value()) {
             auto iter = result.value();

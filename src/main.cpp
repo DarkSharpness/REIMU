@@ -1,7 +1,6 @@
 #include <utility.h>
 #include <config/config.h>
 #include <interpreter/interpreter.h>
-#include <algorithm>
 #include <chrono>
 #include <fmtlib.h>
 

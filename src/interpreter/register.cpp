@@ -2,7 +2,6 @@
 #include <interpreter/memory.h>
 #include <interpreter/device.h>
 #include <interpreter/register.h>
-#include <ranges>
 #include <utility.h>
 
 namespace dark {
