@@ -22,7 +22,9 @@ struct Config {
 
     auto enable_detail()    const -> bool;
     auto enable_debug()     const -> bool;
+
     auto has_option(std::string_view) const -> bool;
+    auto get_weight(std::string_view) const -> std::size_t;
 
     ~Config();
   private:

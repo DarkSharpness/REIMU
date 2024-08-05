@@ -9,7 +9,6 @@
 #include <config/config.h>
 #include <libc/libc.h>
 #include <map>
-#include <fstream>
 
 namespace dark {
 
@@ -73,6 +72,10 @@ void Interpreter::simulate() {
     } else {
         simulate_normal(regfile, memory, device, config.get_timeout());
     }
+
+    if (config.has_option("silent")) return;
+
+    console::profile << '\n';
 
     bool enable_detail = config.has_option("detail");
     regfile.print_details(enable_detail);

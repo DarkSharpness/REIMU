@@ -402,6 +402,11 @@ auto Config::get_assembly_names() const -> std::span <const std::string_view> {
     return this->get_impl().assembly_files;
 }
 
+auto Config::get_weight(std::string_view name) const -> std::size_t {
+    return this->get_impl().weight_table.at(name);
+}
+
+
 Config::~Config() {
     auto *impl_ptr = static_cast <Impl*> (this);
     std::destroy_at <Config_Impl> (impl_ptr);
