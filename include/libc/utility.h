@@ -5,6 +5,7 @@
 #include <interpreter/exception.h>
 #include <interpreter/hint.h>
 #include <cstring>
+#include <fmtlib.h>
 
 namespace dark::libc::__details {
 
@@ -104,6 +105,7 @@ static auto checked_get_areas(Memory &mem, target_size_t dst, target_size_t src,
     return std::make_pair(area0.data(), area1.data());
 }
 
+[[maybe_unused]]
 static auto return_to_user(RegisterFile &rf, Memory &, target_size_t retval) -> Hint {
     using enum Register;
 

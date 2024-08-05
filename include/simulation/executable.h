@@ -74,25 +74,25 @@ static void arith_impl(target_size_t &rd, target_size_t rs1, target_size_t rs2, 
 
 } // namespace __details
 
-struct ArithReg {
+namespace ArithReg {
     template <general::ArithOp op>
     static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         __details::arith_impl <op> (rd, rs1, rs2, dev);
         return exe.next();
     }
-};
+} // namespace ArithReg
 
-struct ArithImm {
+namespace ArithImm {
     template <general::ArithOp op>
     static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         __details::arith_impl <op> (rd, rs1, imm, dev);
         return exe.next();
     }
-};
+} // namespace ArithImm
 
-struct LoadStore {
+namespace LoadStore {
     template <general::MemoryOp op>
     static auto fn(Executable &exe, RegisterFile &rf, Memory &mem, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
@@ -113,9 +113,9 @@ struct LoadStore {
 
         return exe.next();
     }
-};
+} // namespace LoadStore
 
-struct Branch {
+namespace Branch {
     template <general::BranchOp op>
     static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
@@ -145,9 +145,10 @@ struct Branch {
             return exe.next();
         }
     }
-};
+} // namespace Branch
 
-struct Jump {
+namespace Jump {
+    [[maybe_unused]]
     static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
 
@@ -157,9 +158,10 @@ struct Jump {
 
         return exe.next(imm);
     }
-};
+} // namespace Jump
 
-struct Jalr {
+namespace Jalr {
+    [[maybe_unused]]
     static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
 
@@ -172,24 +174,26 @@ struct Jalr {
 
         return exe.next(offset);
     }
-};
+} // namespace Jalr
 
-struct Lui {
+namespace Lui {
+    [[maybe_unused]]
     static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         rd = imm;
         dev.counter.lui++;
         return exe.next();
     }
-};
+} // namespace Lui
 
-struct Auipc {
+namespace Auipc {
+    [[maybe_unused]]
     static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         rd = rf.get_pc() + imm;
         dev.counter.auipc++;
         return exe.next();
     }
-};
+} // namespace Auipc
 
 } // namespace dark::interpreter
