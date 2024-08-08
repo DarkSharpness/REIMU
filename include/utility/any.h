@@ -54,6 +54,15 @@ struct any {
     any(_Tp&& value) :
         _M_ptr(new __details::any_object<std::decay_t<_Tp>>(std::forward<_Tp>(value))) {}
 
+    any &operator=(any &&other) noexcept {
+        if (this != &other) {
+            delete _M_ptr;
+            _M_ptr = other._M_ptr;
+            other._M_ptr = nullptr;
+        }
+        return *this;
+    }
+
     template <__details::non_any_type _Tp>
     any &operator=(_Tp&& value) {
         delete _M_ptr;
