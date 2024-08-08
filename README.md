@@ -5,3 +5,11 @@ REIMU is short for **R**isc-v **E**asy s**IMU**lator. It is a simple RISC-V simu
 It's designed for better scalability and readability.
 
 This project is named after Hakurei Reimu, the main character of Touhou Project.
+
+## Quick Start
+
+See [Quick Start](docs/manual.md#quick-start).
+
+## User Extension
+
+See [User Extension](docs/extension.md).
