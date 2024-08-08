@@ -6,6 +6,10 @@
 #include <string>
 #include <string_view>
 
+namespace std {
+extern std::ostream cerr;
+} // namespace std
+
 namespace dark {
 
 namespace console {
@@ -94,7 +98,7 @@ inline static void panic_if(_Tp &&condition, std::format_string <_Args...> fmt =
 inline static void unreachable(std::string message = "",
     std::source_location where = std::source_location::current()) {
     // Failure case, print the message and exit
-    console::error << std::format(
+    std::cerr << std::format(
         "{}"
         "{}"
         "Assertion failed at {}:{} in {}:\n"
