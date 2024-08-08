@@ -1,4 +1,5 @@
 #include "utility/error.h"
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility.h>
@@ -21,8 +22,12 @@ namespace dark {
 template <typename... _Args>
 [[noreturn]]
 static void handle_error(std::format_string <_Args...> fmt, _Args &&...args) {
-    panic("Fail to parse command line argument.\n  {}",
-        std::format(fmt, std::forward <_Args> (args)...));
+    try {
+        panic("Fail to parse command line argument.\n  {}",
+            std::format(fmt, std::forward <_Args> (args)...));
+    } catch (dark::PanicError) {
+        std::exit(EXIT_FAILURE);
+    }
 }
 
 void ArgumentParser::handle(std::string_view str) {
@@ -33,11 +38,24 @@ using _Option_Set_t = std::unordered_set <std::string_view>;
 using _Weight_Map_t = std::unordered_map <std::string_view, std::size_t>;
 
 struct InputFile {
-    mutable std::istream *stream;
-    std::unique_ptr <std::ifstream> owning;
-    std::string_view name;
+    explicit InputFile(std::string_view name) : name(name) {}
 
-    explicit InputFile(std::string_view name) : name(name) {
+    auto get_name() const -> std::string_view {
+        return this->name;
+    }
+
+    auto get_file_name() const -> std::optional<std::string_view> {
+        using _Option_t = std::optional <std::string_view>;
+        return this->name == config::kStdin ? _Option_t {} : this->name;
+    }
+
+    auto get_stream() const -> std::istream & {
+        runtime_assert(this->stream != nullptr);
+        return *this->stream;
+    }
+
+    auto init() -> void {
+        runtime_assert(this->stream == nullptr);
         if (this->name == config::kStdin) {
             this->stream = &std::cin;
         } else {
@@ -45,14 +63,41 @@ struct InputFile {
             this->stream = this->owning.get();
         }
     }
+
+    auto try_init() -> bool {
+        if (this->stream == nullptr) {
+            this->init();
+            return true;
+        }
+        return false;
+    }
+
+private:
+    std::istream *stream;
+    std::unique_ptr <std::ifstream> owning;
+    std::string_view name;
 };
 
 struct OutputFile {
-    mutable std::ostream *stream;
-    std::unique_ptr <std::ofstream> owning;
-    std::string_view name;
+    explicit OutputFile(std::string_view name) : name(name) {}
 
-    explicit OutputFile(std::string_view name) : name(name) {
+    auto get_name() const -> std::string_view {
+        return this->name;
+    }
+
+    auto get_file_name() const -> std::optional <std::string_view> {
+        using _Option_t = std::optional <std::string_view>;
+        return this->name == config::kStdout
+            || this->name == config::kStderr ? _Option_t {} : this->name;
+    }
+
+    auto get_stream() const -> std::ostream & {
+        runtime_assert(this->stream != nullptr);
+        return *this->stream;
+    }
+
+    auto init_stream() -> void {
+        runtime_assert(this->stream == nullptr);
         if (this->name == config::kStdout) {
             this->stream = &std::cout;
         } else if (this->name == config::kStderr) {
@@ -62,6 +107,24 @@ struct OutputFile {
             this->stream = this->owning.get();
         }
     }
+
+    auto init_stream(std::ostream *stream) -> void {
+        runtime_assert(this->stream == nullptr);
+        this->stream = stream;
+    }
+
+    auto try_init() -> bool {
+        if (this->stream == nullptr) {
+            this->init_stream();
+            return true;
+        }
+        return false;
+    }
+
+private:
+    std::ostream *stream;
+    std::unique_ptr <std::ofstream> owning;
+    std::string_view name;
 };
 
 struct OJInfo {
@@ -71,9 +134,9 @@ struct OJInfo {
 };
 
 struct Config_Impl {
-    const InputFile  input;      // Program input
-    const OutputFile output;     // Program output
-    const OutputFile profile;    // Profile output
+    InputFile  input;   // Program input
+    OutputFile output;  // Program output
+    OutputFile profile; // Profile output
     const std::string_view answer;  // Answer file
 
     const std::size_t max_timeout = {};       // Maximum time
@@ -96,6 +159,7 @@ struct Config_Impl {
     void print_in_detail() const;
     void initialize_with_check();
     void initialize_configuration();
+    void initialize_iostream();
     void oj_handle();
 };
 
@@ -154,7 +218,13 @@ static void check_invalid_weight(_Weight_Map_t &table) {
     for (const auto &pair : default_weights) table.insert(pair);
 }
 
-static void check_duplicate_files(std::span <const std::string_view> files) {
+static void check_duplicate_files(
+    std::span <const std::string_view> files,
+    std::optional<std::string_view> input_file,
+    std::optional<std::string_view> answer_file,
+    std::optional<std::string_view> output_file,
+    std::optional<std::string_view> profile_file
+) {
     std::unordered_set <std::string_view> existing_files;
     if (files.empty()) {
         handle_error("No assembly file is provided.");
@@ -164,6 +234,34 @@ static void check_duplicate_files(std::span <const std::string_view> files) {
         if (!existing_files.insert(name).second) {
             handle_error("Duplicate assembly file: {}", name);
         }
+    }
+
+    auto input_files = std::move(existing_files);
+
+    if (input_file)  input_files.insert(*input_file);
+    if (answer_file) input_files.insert(*answer_file);
+
+    constexpr auto kOutputOverlapInput =
+        "File {} is both used as program input and program output.";
+    constexpr auto kProfileOverlapInput =
+        "File {} is both used as program input and profile output.";
+    constexpr auto kOutputOverlapProfile =
+        "File {} is both used as program output and profile output.";
+
+    if (output_file) {
+        if (input_files.contains(*output_file)) {
+            handle_error(kOutputOverlapInput, *output_file);
+        }
+    }
+
+    if (profile_file) {
+        if (input_files.contains(*profile_file)) {
+            handle_error(kProfileOverlapInput, *profile_file);
+        }
+    }
+
+    if (output_file && profile_file && *output_file == *profile_file) {
+        handle_error(kOutputOverlapProfile, *output_file);
     }
 }
 
@@ -256,11 +354,10 @@ Config_Impl::Config_Impl(ArgumentParser &parser) :
             handle_error("Unknown command line argument: {}", name);
         }
         auto [_, sucess] = this->weight_table.try_emplace(what, get_integer(weight, "weight"));
-        if (!sucess) handle_error("Duplicate weight: {}", what);
+        if (!sucess) {
+            handle_error("Duplicate weight: {}", what);
+        }
     }
-
-    // Binding io, and check the configuration.
-    this->initialize_with_check();
 }
 
 bool Config_Impl::has_option(std::string_view name) const {
@@ -276,12 +373,21 @@ void Config_Impl::initialize_with_check() {
         handle_error("Stack size exceeds memory size: "
             "0x{:x} > 0x{:x}", this->stack_size, this->memory_size);
 
-    check_duplicate_files(this->assembly_files);
     check_invalid_weight(this->weight_table);
 
-    console::profile.rdbuf(this->profile.stream->rdbuf());
+    check_duplicate_files(this->assembly_files,
+        this->input.get_file_name(),
+        // Remark: answer file is only useful in OJ mode for now.
+        this->has_option("oj-mode") ? std::optional<std::string_view> {} : this->answer,
+        this->output.get_file_name(),
+        this->profile.get_file_name());
+}
 
-    this->initialize_configuration();
+void Config_Impl::initialize_iostream() {
+    this->input.try_init();
+    this->output.try_init();
+    if (this->profile.try_init())
+        console::profile.rdbuf(this->profile.get_stream().rdbuf());
 }
 
 void Config_Impl::initialize_configuration() {
@@ -298,17 +404,17 @@ void Config_Impl::initialize_configuration() {
 
     const auto __oj_mode = [&] {
         __all();
+        __silent();
 
         this->oj_data.error = std::make_unique <std::ostringstream> ();
         this->oj_data.output = std::make_unique <std::ostringstream> ();
         this->oj_data.profile = std::make_unique <std::ostringstream> ();
 
-        console::warning.rdbuf(nullptr);
-        console::message.rdbuf(nullptr);
         console::error.rdbuf(this->oj_data.error->rdbuf());
         console::profile.rdbuf(this->oj_data.profile->rdbuf());
 
-        this->output.stream = this->oj_data.output.get();
+        this->output.init_stream(this->oj_data.output.get());
+        this->profile.init_stream(this->oj_data.profile.get());
     };
 
     const auto __detail = [&] {
@@ -328,8 +434,8 @@ void Config_Impl::print_in_detail() const {
     using console::message;
 
     message << std::format("\n{:=^80}\n\n", " Configuration details ");
-    message << std::format("  Input file: {}\n", this->input.name);
-    message << std::format("  Output file: {}\n", this->output.name);
+    message << std::format("  Input file: {}\n", this->input.get_name());
+    message << std::format("  Output file: {}\n", this->output.get_name());
     message << std::format("  Assembly files: ");
 
     for (const auto& file : this->assembly_files)
@@ -348,12 +454,13 @@ void Config_Impl::print_in_detail() const {
     }
 
     // Format string for printing options and weights
-    static constexpr char kFormat[] = "    - {:<8} = {}\n";
+    static constexpr char kFormat[] = "    - {:<10} = {}\n";
 
     message << "  Options:\n";
-    for (const auto &key : config::kSupportedOptions)
-        // substr(2) to remove "--" prefix
-        message << std::format(kFormat, key.substr(2), this->has_option(key));
+    for (const auto &key : config::kSupportedOptions) {
+        auto option = key.substr(2); // substr(2) to remove "--" prefix
+        message << std::format(kFormat, option, this->has_option(option));
+    }
 
     message << "  Weights:\n";
     for (const auto &[name, list, weight] : kWeightRanges) {
@@ -418,7 +525,16 @@ auto Config::parse(int argc, char** argv) -> std::unique_ptr <Config> {
         std::exit(EXIT_SUCCESS);
     });
 
-    return std::unique_ptr <Config> (new Impl { parser });
+    auto retval = std::make_unique <Impl> (parser);
+
+    // Check input and try to init io.
+    retval->initialize_with_check();
+    // Check configuration
+    retval->initialize_configuration();
+    // Initialize input and output stream.
+    retval->initialize_iostream();
+
+    return retval;
 }
 
 auto Config::has_option(std::string_view name) const -> bool {
@@ -430,11 +546,11 @@ auto Config::get_impl() const -> const Impl & {
 }
 
 auto Config::get_input_stream() const -> std::istream& {
-    return *this->get_impl().input.stream;
+    return this->get_impl().input.get_stream();
 }
 
 auto Config::get_output_stream() const -> std::ostream& {
-    return *this->get_impl().output.stream;
+    return this->get_impl().output.get_stream();
 }
 
 auto Config::get_stack_top() const -> target_size_t {
