@@ -157,6 +157,7 @@ struct Config_Impl {
     bool has_option(std::string_view) const;
     void add_option(std::string_view);
     void print_in_detail() const;
+    void initialize();
     void initialize_with_check();
     void initialize_configuration();
     void initialize_iostream();
@@ -242,11 +243,11 @@ static void check_duplicate_files(
     if (answer_file) input_files.insert(*answer_file);
 
     constexpr auto kOutputOverlapInput =
-        "File {} is both used as program input and program output.";
+        "File {} is both used as program input and program output. Potential overwrite!";
     constexpr auto kProfileOverlapInput =
-        "File {} is both used as program input and profile output.";
+        "File {} is both used as program input and profile output. Potential overwrite!";
     constexpr auto kOutputOverlapProfile =
-        "File {} is both used as program output and profile output.";
+        "File {} is both used as program output and profile output. Potential overwrite!";
 
     if (output_file) {
         if (input_files.contains(*output_file)) {
@@ -368,6 +369,15 @@ void Config_Impl::add_option(std::string_view name) {
     this->option_table.insert(name);
 }
 
+void Config_Impl::initialize() {
+    // Check input arguments.
+    this->initialize_with_check();
+    // Initialize configuration.
+    this->initialize_configuration();
+    // Initialize input and output stream.
+    this->initialize_iostream();
+}
+
 void Config_Impl::initialize_with_check() {
     if (this->stack_size > this->memory_size)
         handle_error("Stack size exceeds memory size: "
@@ -403,6 +413,22 @@ void Config_Impl::initialize_configuration() {
     };
 
     const auto __oj_mode = [&] {
+        constexpr auto kOutputOverlapAnswer =
+            "File {} is both used as program output and answer file. Potential overwrite!";
+        constexpr auto kProfileOverlapAnswer =
+            "File {} is both used as profile output and answer file. Potential overwrite!";
+
+        if (auto file = this->output.get_file_name()) {
+            if (*file == this->answer) {
+                handle_error(kOutputOverlapAnswer, *file);
+            }
+        }
+        if (auto file = this->profile.get_file_name()) {
+            if (*file == this->answer) {
+                handle_error(kProfileOverlapAnswer, *file);
+            }
+        }
+
         __all();
         __silent();
 
@@ -527,12 +553,7 @@ auto Config::parse(int argc, char** argv) -> std::unique_ptr <Config> {
 
     auto retval = std::make_unique <Impl> (parser);
 
-    // Check input and try to init io.
-    retval->initialize_with_check();
-    // Check configuration
-    retval->initialize_configuration();
-    // Initialize input and output stream.
-    retval->initialize_iostream();
+    retval->initialize();
 
     return retval;
 }
