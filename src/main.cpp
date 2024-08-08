@@ -1,3 +1,4 @@
+#include "utility/error.h"
 #include <utility.h>
 #include <config/config.h>
 #include <interpreter/interpreter.h>
@@ -33,6 +34,8 @@ int main(int argc, char** argv) {
         auto interpret_str = std::format(" Interpret time: {}ms ",
             duration_cast<ms>(interpret_time - build_time).count());
         message << std::format("\n{:=^80}\n\n", interpret_str);
+    } catch (dark::PanicError &e) {
+        // do nothing, just as expected
     } catch (std::exception& e) {
         dark::unreachable(std::format("std::exception caught: {}\n", e.what()));
     } catch (...) {

@@ -46,8 +46,6 @@ static void simulate_normal
         panic("{}", e.what(rf, mem, dev));
     } catch (std::exception &e) {
         unreachable(std::format("std::exception caught: {}\n", e.what()));
-    } catch (...) {
-        unreachable(std::format("unexpected exception caught\n"));
     }
 }
 

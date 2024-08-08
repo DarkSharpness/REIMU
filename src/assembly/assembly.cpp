@@ -26,10 +26,8 @@ Assembler::Assembler(std::string_view file_name)
         } catch (FailToParse &e) {
             file.close();
             this->handle_at(this->line_number, std::move(e.inner));
-        } catch(std::exception &e) {
+        } catch (std::exception &e) {
             unreachable(std::format("Unexpected error: {}\n", e.what()));
-        } catch(...) {
-            unreachable(std::format("Unexpected error.\n"));
         }
     }
 }

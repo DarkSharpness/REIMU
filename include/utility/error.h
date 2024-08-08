@@ -1,7 +1,10 @@
 #pragma once
 #include <array>
+#include <cstdlib>
 #include <fmtlib.h>
 #include <source_location>
+#include <string>
+#include <string_view>
 
 namespace dark {
 
@@ -51,6 +54,8 @@ static constexpr std::string_view color_code = {
 
 } // namespace console
 
+struct PanicError {};
+
 template <typename ...Args>
 inline static void warning(std::format_string <Args...> fmt = "", Args &&...args) {
     console::warning << std::format(
@@ -64,7 +69,6 @@ inline static void warning(std::format_string <Args...> fmt = "", Args &&...args
 template <typename ..._Args>
 [[noreturn]]
 inline static void panic(std::format_string <_Args...> fmt = "", _Args &&...args) {
-    // Failure case, print the message and exit
     console::error << std::format(
         "\n{:=^80}\n\n"
         "{}Fatal error{}: {}\n"
@@ -75,7 +79,7 @@ inline static void panic(std::format_string <_Args...> fmt = "", _Args &&...args
         std::format(fmt, std::forward <_Args>(args)...),
         ""
     );
-    std::exit(EXIT_FAILURE);
+    throw PanicError {};
 }
 
 template <typename _Tp, typename ..._Args>
@@ -99,7 +103,8 @@ inline static void unreachable(std::string message = "",
         message,
         console::color_code <console::Color::RED>,
         where.file_name(), where.line(), where.function_name(),
-        console::color_code <console::Color::RESET>);
+        console::color_code <console::Color::RESET>
+    );
     std::exit(EXIT_FAILURE);
 }
 

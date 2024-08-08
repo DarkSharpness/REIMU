@@ -387,7 +387,7 @@ void Config_Impl::oj_handle() {
     // using console::message;
     auto error_str = std::move(*this->oj_data.error).str();
     if (!error_str.empty()) {
-        std::cerr << "Error: " << error_str;
+        std::cerr << "Fatal Error:\n" << error_str;
         return;
     }
 
