@@ -167,6 +167,9 @@ struct Config_Impl {
 struct Config::Impl : Config, Config_Impl {
     explicit Impl(ArgumentParser &parser) : Config_Impl(parser) {}
     using Config_Impl::has_option;
+    ~Impl() {
+        if (this->has_option("oj-mode")) this->oj_handle();
+    }
 };
 
 using weight::kWeightRanges;
@@ -537,7 +540,7 @@ void Config_Impl::oj_handle() {
 
 /* The commands below are just forwarded to impl.  */
 
-auto Config::parse(int argc, char** argv) -> std::unique_ptr <Config> {
+auto Config::parse(int argc, char** argv) -> unique_t {
     using console::message;
     ArgumentParser parser { argc, argv };
 
@@ -592,14 +595,6 @@ auto Config::get_assembly_names() const -> std::span <const std::string_view> {
 
 auto Config::get_weight(std::string_view name) const -> std::size_t {
     return this->get_impl().weight_table.at(name);
-}
-
-Config::~Config() {
-    auto *impl_ptr = static_cast <Impl*> (this);
-    if (this->has_option("oj-mode"))
-        impl_ptr->oj_handle();
-
-    std::destroy_at <Config_Impl> (impl_ptr);
 }
 
 } // namespace dark

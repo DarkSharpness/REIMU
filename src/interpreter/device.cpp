@@ -32,9 +32,8 @@ struct Device::Impl : Device, Device_Impl {
     }
 };
 
-auto Device::create(const Config &config)
--> std::unique_ptr <Device> {
-    return std::unique_ptr <Device> (new Device::Impl {config});
+auto Device::create(const Config &config) -> unique_t {
+    return unique_t { new Device::Impl {config} };
 }
 
 void Device::predict(target_size_t pc, bool what) {
@@ -44,10 +43,6 @@ void Device::predict(target_size_t pc, bool what) {
     auto result = bp.predict(pc);
     impl.bp_failed += (result != what);
     bp.update(pc, what);
-}
-
-Device::~Device() {
-    std::destroy_at <Device_Impl> (&this->get_impl());
 }
 
 template <typename _Tp>

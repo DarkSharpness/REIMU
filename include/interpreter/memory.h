@@ -1,6 +1,6 @@
 #pragma once
+#include <utility/deleter.h>
 #include <interpreter/forward.h>
-#include <memory>
 #include <span>
 
 namespace dark {
@@ -8,7 +8,10 @@ namespace dark {
 struct MemoryLayout;
 
 struct Memory {
-    static auto create(const Config &, const MemoryLayout &) -> std::unique_ptr<Memory>;
+  private:
+    using unique_t = dark::derival_ptr<Memory>;
+  public:
+    static auto create(const Config &, const MemoryLayout &) -> unique_t;
 
     auto load_i8(target_size_t addr)  -> std::int8_t;
     auto load_i16(target_size_t addr) -> std::int16_t;
@@ -33,8 +36,6 @@ struct Memory {
 
     // For ICache.
     auto get_text_range() -> Interval;
-
-    ~Memory();
 
     void print_details(bool) const;
   private:

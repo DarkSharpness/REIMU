@@ -1,6 +1,7 @@
 #include <interpreter/memory.h>
 #include <interpreter/exception.h>
 #include <interpreter/executable.h>
+#include <memory>
 #include <simulation/area.h>
 #include <libc/libc.h>
 #include <utility.h>
@@ -90,10 +91,9 @@ void Memory::store_u32(target_size_t addr, u32 value) {
     this->get_impl().check_store(addr, value);
 }
 
-auto Memory::create(const Config &config, const MemoryLayout &result)
--> std::unique_ptr <Memory> {
-    auto ptr = new Memory::Impl { config, result };
-    auto ret = std::unique_ptr <Memory> { ptr };
+auto Memory::create(const Config &config, const MemoryLayout &result) -> unique_t {
+    auto retval = std::make_unique <Impl> (config, result);
+    auto *ptr = retval.get();
 
     auto [static_low, static_top] = static_cast <StaticArea *> (ptr)->get_range();
     auto [heap_low, heap_top] = static_cast <HeapArea *> (ptr)->get_range();
@@ -117,7 +117,7 @@ auto Memory::create(const Config &config, const MemoryLayout &result)
             stack_top,
             heap_top + stack_top - stack_low);
 
-    return ret;
+    return retval;
 }
 
 auto Memory::sbrk(target_ssize_t inc) -> std::pair <char *, target_size_t> {
@@ -126,10 +126,6 @@ auto Memory::sbrk(target_ssize_t inc) -> std::pair <char *, target_size_t> {
 
 auto Memory::get_text_range() -> Interval {
     return static_cast <StaticArea &> (this->get_impl()).get_text_range();
-}
-
-Memory::~Memory() {
-    static_cast <Memory_Impl &> (this->get_impl()).~Memory_Impl();
 }
 
 auto Memory::libc_access(target_size_t addr) -> std::span <char> {

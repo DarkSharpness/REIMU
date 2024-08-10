@@ -1,15 +1,16 @@
 #pragma once
 #include <declarations.h>
+#include <utility/deleter.h>
 #include <span>
 #include <iosfwd>
-#include <memory>
 #include <string_view>
 
 namespace dark {
 
 struct Config {
   public:
-    static auto parse(int argc, char **argv) -> std::unique_ptr <Config>;
+    using unique_t = derival_ptr<Config>;
+    static auto parse(int argc, char **argv) -> unique_t;
 
     auto get_input_stream() const -> std::istream &;
     auto get_output_stream() const -> std::ostream &;
@@ -22,8 +23,6 @@ struct Config {
 
     auto has_option(std::string_view) const -> bool;
     auto get_weight(std::string_view) const -> std::size_t;
-
-    ~Config();
   private:
     struct Impl;
     auto get_impl() const -> const Impl &;
