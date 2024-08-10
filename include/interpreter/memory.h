@@ -8,9 +8,9 @@ namespace dark {
 struct MemoryLayout;
 
 struct Memory {
-  private:
+private:
     using unique_t = dark::derival_ptr<Memory>;
-  public:
+public:
     static auto create(const Config &, const MemoryLayout &) -> unique_t;
 
     auto load_i8(target_size_t addr)  -> std::int8_t;
@@ -38,7 +38,7 @@ struct Memory {
     auto get_text_range() -> Interval;
 
     void print_details(bool) const;
-  private:
+private:
     struct Impl;
     Impl &get_impl();
 };

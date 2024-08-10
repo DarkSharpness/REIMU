@@ -10,7 +10,7 @@ namespace dark {
 struct ICache {
     explicit ICache(Memory &);
     auto ifetch(target_size_t, Hint) noexcept -> Executable &;
-  private:
+private:
     const std::size_t length;
     std::unique_ptr <Executable[]> cached;
 };

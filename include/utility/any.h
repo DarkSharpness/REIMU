@@ -32,7 +32,7 @@ struct any_object : any_base {
 } // namespace __details
 
 struct any {
-  private:
+private:
     __details::any_base *_M_ptr;
 
     template <typename _Tp>
@@ -43,7 +43,7 @@ struct any {
         return ptr;
     }
 
-  public:
+public:
     any() : _M_ptr(nullptr) {}
     any(const any &other) = delete;
     any &operator=(const any &other) = delete;

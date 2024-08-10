@@ -109,9 +109,9 @@ struct JumpRegister final : Command {
 };
 
 struct CallFunction final : Command {
-  private:
+private:
     bool tail;
-  public:
+public:
     Immediate imm;
 
     explicit CallFunction(bool is_tail, Immediate imm) :

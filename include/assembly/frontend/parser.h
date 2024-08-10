@@ -21,7 +21,7 @@ struct ImmediateParser {
     explicit ImmediateParser(TokenStream);
     auto parse(TokenStream) const -> Owner_t;
 
-  private:
+private:
     auto find_right_parenthesis(TokenStream &view) const -> TokenStream;
     auto find_single_op(TokenStream &) const -> Owner_t;
     std::unordered_map <const Token *, std::size_t> matched;

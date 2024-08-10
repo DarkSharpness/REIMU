@@ -38,7 +38,7 @@ struct EncodingPass final : Evaluator, StorageVisitor {
         }
     }
 
-  private:
+private:
 
     void align_to(target_size_t alignment) {
         runtime_assert(std::has_single_bit(alignment));

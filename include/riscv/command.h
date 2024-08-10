@@ -285,10 +285,10 @@ struct jalr : __details::crtp <jalr> {
 };
 
 struct jal : __details::crtp <jal> {
-  private:
+private:
     friend struct __details::crtp <jal>;
     const command_size_t _op     : 7;
-  public:
+public:
     command_size_t rd            : 5;
     command_size_t imm_19_12     : 8;
     command_size_t imm_11        : 1;

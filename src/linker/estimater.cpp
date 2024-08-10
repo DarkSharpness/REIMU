@@ -38,7 +38,7 @@ struct SizeEstimator final : StorageVisitor {
         }
     }
 
-  private:
+private:
     target_size_t position;
 
     void visitStorage(ArithmeticReg &storage)       override { this->update(storage, 1); }

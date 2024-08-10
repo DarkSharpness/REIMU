@@ -6,11 +6,11 @@
 namespace dark {
 
 struct Executable {
-  private:
+private:
     [[noreturn]]
     static auto fn(Executable &, RegisterFile &, Memory &, Device &) -> Hint;
 
-  public:
+public:
     using _Func_t = decltype(fn);
     static_assert(std::same_as<_Func_t, Function_t>);
 
@@ -23,13 +23,13 @@ struct Executable {
         auto parse(RegisterFile &) const -> PackData;
     };
 
-  private:
+private:
     static_assert(sizeof(_Func_t *) == sizeof(std::size_t));
 
     _Func_t *   func = fn;  // Function pointer.
     MetaData    meta = {};  // Some in hand data.
 
-  public:
+public:
     constexpr explicit Executable() = default;
     constexpr explicit Executable(_Func_t *func, MetaData meta) : func(func), meta(meta) {}
 

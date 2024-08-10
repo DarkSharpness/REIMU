@@ -13,7 +13,7 @@ struct MemoryLayout;
 struct AssemblyLayout;
 
 struct Linker {
-  public:
+public:
     using _Storage_t    = std::unique_ptr<Storage>;
     using _Slice_t      = std::span<_Storage_t>;
 
@@ -34,16 +34,16 @@ struct Linker {
      * and the pointer of the offset in the storage.
      */
     struct SymbolLocation {
-      public:
+    public:
         explicit SymbolLocation(const StorageDetails &details, std::size_t index);
         auto get_location() const { return *absolute + *offset; }
         void next_offset() { ++offset; }
 
-      protected:
+    protected:
         explicit SymbolLocation(const target_size_t *pos, const target_size_t *off)
             : absolute(pos), offset(off) {}
 
-      private:
+    private:
         const target_size_t *absolute;
         const target_size_t *offset;
     };
@@ -54,7 +54,7 @@ struct Linker {
      * And offset.back() = next storage's start - storage's start
      */
     struct StorageDetails {
-      public:
+    public:
         explicit StorageDetails(_Slice_t storage, _Symbol_Table_t &table);
 
         struct Iterator {
@@ -77,7 +77,7 @@ struct Linker {
             return { offsets.get(), storage.size() + 1 };
         }
 
-      private:
+    private:
         friend struct SymbolLocation;
         _Slice_t    storage;                    // Storage in the section
         target_size_t begin_position;             // Position in the output file
@@ -85,7 +85,7 @@ struct Linker {
         _Symbol_Table_t *table;                 // Local symbol table
     };
 
-  private:
+private:
 
     static constexpr auto kSections = static_cast<std::size_t>(Section::MAXCOUNT);
 

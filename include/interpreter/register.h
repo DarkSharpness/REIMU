@@ -6,7 +6,7 @@
 namespace dark {
 
 struct RegisterFile {
-  private:
+private:
     std::array <target_size_t, 32> regs;
 
     target_size_t pc;
@@ -14,7 +14,7 @@ struct RegisterFile {
 
     static constexpr target_size_t end_pc = 0x4;
 
-  public:
+public:
     /* Constructor. */
     explicit RegisterFile(target_size_t, const Config &);
     /* Return reference to given register. */

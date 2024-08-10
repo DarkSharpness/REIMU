@@ -8,7 +8,7 @@
 namespace dark {
 
 struct Config {
-  public:
+public:
     using unique_t = derival_ptr<Config>;
     static auto parse(int argc, char **argv) -> unique_t;
 
@@ -23,7 +23,7 @@ struct Config {
 
     auto has_option(std::string_view) const -> bool;
     auto get_weight(std::string_view) const -> std::size_t;
-  private:
+private:
     struct Impl;
     auto get_impl() const -> const Impl &;
 };

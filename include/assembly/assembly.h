@@ -42,7 +42,7 @@ struct Assembler {
     /* Return the standard layout of a linker. */
     auto get_standard_layout() -> AssemblyLayout;
 
-  private:
+private:
     using Stream = frontend::TokenStream;
 
     Section current_section;    // Current section

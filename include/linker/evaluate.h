@@ -7,16 +7,16 @@
 namespace dark {
 
 struct Evaluator {
-  protected:
+protected:
     using _Storage_t    = Linker::_Storage_t;
     using _Table_t      = Linker::_Symbol_Table_t;
 
-  private:
+private:
     const _Table_t &global_table;   // Table of global symbols.
     const _Table_t *local_table;    // Table within a file.
     target_size_t position;
 
-  protected:
+protected:
     /**
      * An evaluator which can evaluate the immediate values.
      * It need global and local table to query the symbol position.

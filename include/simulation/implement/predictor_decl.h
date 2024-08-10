@@ -9,7 +9,7 @@ namespace dark {
  */
 // template <std::size_t _Nm = 4096>
 struct BranchPredictor {
-  private:
+private:
     using _Data_t = std::uint8_t;
 
     static constexpr target_size_t _Nm    = 4096;
@@ -28,7 +28,7 @@ struct BranchPredictor {
     auto get_bits(target_size_t) const -> target_size_t;
     auto set_bits(target_size_t, target_size_t) -> void;
 
-  public:
+public:
     BranchPredictor();
     bool predict(target_size_t) const;
     void update(target_size_t, bool);

@@ -11,11 +11,11 @@
 namespace dark {
 
 struct StaticArea {
-  private:
+private:
     const Interval text;
     const Interval data;
     std::byte *const storage;
-  public:
+public:
     explicit StaticArea(const MemoryLayout &layout) :
         text({layout.text.begin(), layout.text.end()}),
         data({layout.data.begin(), layout.bss.end()}),
@@ -52,7 +52,7 @@ struct StaticArea {
 };
 
 struct HeapArea {
-  private:
+private:
     std::vector <std::byte> storage;
     target_size_t const heap_start;
     target_size_t       heap_finish;
@@ -63,7 +63,7 @@ struct HeapArea {
         constexpr auto kPageSize = 1 << 12;
         return (addr & ~(kPageSize - 1)) + kPageSize;
     }
-  public:
+public:
     explicit HeapArea(const MemoryLayout &layout) :
         heap_start(next_page(layout.bss.end())),
         heap_finish(heap_start) {}
@@ -94,10 +94,10 @@ struct HeapArea {
 };
 
 struct StackArea {
-  private:
+private:
     const Interval stack;
     std::byte * const storage;
-  public:
+public:
     explicit StackArea(const Config &config) :
         stack({config.get_stack_low(), config.get_stack_top()}),
         storage(new std::byte[stack.finish - stack.start] {} - stack.start)

@@ -13,10 +13,10 @@
 namespace dark {
 
 struct LabelMap {
-  private:
+private:
     std::map <target_size_t, std::string_view> labels;
 
-  public:
+public:
     void add(target_size_t pc, std::string_view label) {
         labels[pc] = label;
     }

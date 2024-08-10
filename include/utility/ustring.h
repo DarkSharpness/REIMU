@@ -6,10 +6,10 @@
 namespace dark {
 
 struct unique_string {
-  private:
+private:
     std::unique_ptr<char[]> _M_data;    // data of the string
     std::size_t             _M_size;    // size of the string
-  public:
+public:
     unique_string(std::string_view str)
         : _M_data(std::make_unique<char[]>(str.size())), _M_size(str.size())
     { std::copy(str.begin(), str.end(), _M_data.get()); }

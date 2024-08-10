@@ -4,7 +4,7 @@
 namespace dark {
 
 struct TrivialPass {
-  public:
+public:
     /**
      * Trivial pass is a simple rewriter that can rewrite any constant
      * 
@@ -21,7 +21,7 @@ struct TrivialPass {
         bool result = (this->evaluate(args) & ...);
     }
 
-  private:
+private:
     /* Rewrite an immediate with given constant. */
     static void rewrite(Immediate &data, target_size_t value) {
         data.data = std::make_unique <IntImmediate> (value);
@@ -111,10 +111,10 @@ struct TrivialPass {
 };
 
 struct RelaxtionPass final : private Evaluator, StorageVisitor {
-  private:
+private:
     _Storage_t retval;
 
-  public:
+public:
     /**
      * A relaxation pass which can patch up the code to make it more efficient.
      * 
@@ -133,7 +133,7 @@ struct RelaxtionPass final : private Evaluator, StorageVisitor {
         }
     }
 
-  private:
+private:
 
     void visitStorage(ArithmeticReg &storage)       override { allow_unused(storage); }
     void visitStorage(ArithmeticImm &storage)       override { TrivialPass{storage.imm}; }

@@ -8,7 +8,7 @@
 namespace dark {
 
 struct ArgumentParser {
-  public:
+public:
     explicit ArgumentParser(int argc, char** argv);
 
     enum class Rule {
@@ -31,7 +31,7 @@ struct ArgumentParser {
 
     const auto &get_map() const { return this->kv_map; }
 
-  private:
+private:
     std::unordered_map <std::string_view, std::string_view> kv_map;
     using _Match_Result_t = std::optional <typename decltype(kv_map)::iterator>;
 

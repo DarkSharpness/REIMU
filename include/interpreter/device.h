@@ -7,7 +7,7 @@
 namespace dark {
 
 struct Device {
-  public:
+public:
     using unique_t = derival_ptr<Device>;
 
     struct Counter : config::Counter {
@@ -23,7 +23,7 @@ struct Device {
     // Print in details
     void print_details(bool) const;
 
-  private:
+private:
     struct Impl;
 
     auto get_impl() -> Impl &;
