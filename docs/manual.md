@@ -8,6 +8,7 @@ To run the simulator, you need `xmake` and `gcc-12` or higher. Install the simul
 git clone git@github.com:DarkSharpness/REIMU.git
 cd REIMU
 xmake f -p linux -a x86_64 -m release
+xmake
 xmake install --admin
 # You may need to enter your password to install the simulator
 ```
