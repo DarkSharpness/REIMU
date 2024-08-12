@@ -1,29 +1,48 @@
+#include "assembly/forward.h"
+#include "assembly/storage/visitor.h"
+#include <libc/libc.h>
+#include <cctype>
+#include <declarations.h>
+#include <utility/error.h>
 #include <riscv/command.h>
 #include <assembly/storage.h>
 #include <linker/linker.h>
 #include <linker/layout.h>
 #include <linker/evaluate.h>
 #include <linker/estimate.h>
+#include <string_view>
 
 namespace dark {
 
-template <int _Nm>
-static bool within_bits(target_size_t value) {
-    static_assert(_Nm > 0 && _Nm < 32);
-    constexpr auto min = static_cast <target_size_t> (-1) << (_Nm - 1);
-    constexpr auto max = ~min;
-    return value >= min && value <= max;
+template <int _Nm, bool _Signed>
+static auto check_bits(target_size_t imm, std::string_view name) -> command_size_t {
+    static_assert(0 < _Nm && _Nm < 32, "Invalid bit width");
+    constexpr auto min = _Signed ? target_size_t(-1) << (_Nm - 1) : 0;
+    constexpr auto max = _Signed ? ~min : (target_size_t(1) << _Nm) - 1;
+
+    if ((imm - min) <= (max - min))
+        [[likely]] return imm;
+
+    // From upper to lower
+    std::string name_str {name};
+    for (auto &ch : name_str) ch = std::tolower(ch);
+
+    panic(
+        "Fail to link source assembly\n"
+        "  \"{}\" immediate out of range, should be within [{}, {}]",
+        name_str, static_cast<target_ssize_t> (min), max
+    );
 }
 
-struct EncodingPass final : Evaluator, StorageVisitor {
+struct Encoder final : Evaluator, StorageVisitor {
+public:
     using Section = Linker::LinkResult::Section;
-    Section &data;
 
     /**
      * An encoding pass which will encode actual command/data
      * into real binary data in form of byte array.
      */
-    explicit EncodingPass(const _Table_t &global_table, 
+    explicit Encoder(const _Table_t &global_table, 
         Section &data, const Linker::_Details_Vec_t &details)
             : Evaluator(global_table), data(data) {
         if (details.empty()) return;
@@ -39,6 +58,13 @@ struct EncodingPass final : Evaluator, StorageVisitor {
     }
 
 private:
+    void visit(Storage &storage) {
+        StorageVisitor::visit(storage);
+        /// TODO: catch the exception, and format the error message
+        /// Plan to add detailed information about where crashed
+    }
+
+    Section &data;
 
     void align_to(target_size_t alignment) {
         runtime_assert(std::has_single_bit(alignment));
@@ -87,6 +113,10 @@ private:
         this->command_align();
         command::r_type cmd {};
 
+        cmd.rd  = reg_to_int(storage.rd);
+        cmd.rs1 = reg_to_int(storage.rs1);
+        cmd.rs2 = reg_to_int(storage.rs2);
+
         #define match_and_set(_Op_) \
             case (ArithmeticReg::Opcode::_Op_): \
                 cmd.funct3 = command::r_type::Funct3::_Op_; \
@@ -116,69 +146,61 @@ private:
 
             default: unreachable();
         }
-
         #undef match_and_set
-
-        cmd.rd  = reg_to_int(storage.rd);
-        cmd.rs1 = reg_to_int(storage.rs1);
-        cmd.rs2 = reg_to_int(storage.rs2);
 
         this->push_command(cmd.to_integer());
     }
 
     void visitStorage(ArithmeticImm &storage) {
         this->command_align();
-        using enum ArithmeticImm::Opcode;
         command::i_type cmd {};
-
-        #define match_and_set(_Op_) \
-            case (ArithmeticImm::Opcode::_Op_): \
-                cmd.funct3 = command::i_type::Funct3::_Op_; \
-                break
-
-        switch (storage.opcode) {
-            match_and_set(ADD);
-            match_and_set(SLL);
-            match_and_set(SLT);
-            match_and_set(SLTU);
-            match_and_set(XOR);
-            match_and_set(SRL);
-            match_and_set(SRA);
-            match_and_set(OR);
-            match_and_set(AND);
-
-            default: unreachable();
-        }
-
-        #undef match_and_set
 
         cmd.rd  = reg_to_int(storage.rd);
         cmd.rs1 = reg_to_int(storage.rs1);
         auto imm = imm_to_int(storage.imm);
 
-        if (storage.opcode != SRA) {
-            cmd.set_imm(imm);
-        } else { // SRA has a different encoding
-            cmd.set_imm(imm | command::i_type::Funct7::SRA << 5);
+        #define match_and_set(_Op_, len, flag, str) \
+            case (ArithmeticImm::Opcode::_Op_): \
+                cmd.funct3 = command::i_type::Funct3::_Op_; \
+                cmd.set_imm(check_bits<len, flag>(imm, str) | command::i_type::Funct7::_Op_ << len); \
+                break
+
+        switch (storage.opcode) {
+            match_and_set(ADD,  12, true, "addi");
+            match_and_set(SLL,  5, false, "slli");
+            match_and_set(SLT,  12, true, "slti");
+            match_and_set(SLTU, 12, true, "sltiu");
+            match_and_set(XOR,  12, true, "xori");
+            match_and_set(SRL,  5, false, "srli");
+            match_and_set(SRA,  5, false, "srai");
+            match_and_set(OR,   12, true, "ori");
+            match_and_set(AND,  12, true, "andi");
+
+            default: unreachable();
         }
+        #undef match_and_set
 
         this->push_command(cmd.to_integer());
     }
 
     void visitStorage(LoadStore &storage) {
         this->command_align();
-        if (storage.is_load())  return this->visitLoad(storage);
-        else                    return this->visitStore(storage);
-        unreachable();
+        if (storage.is_load())
+            return this->visitLoad(storage);
+        else
+            return this->visitStore(storage);
     }
 
     void visitLoad(LoadStore &storage) {
-        using enum LoadStore::Opcode;
         command::l_type cmd {};
+        cmd.rd  = reg_to_int(storage.rd);
+        cmd.rs1 = reg_to_int(storage.rs1);
+        auto imm = imm_to_int(storage.imm);
 
         #define match_and_set(_Op_) \
             case (LoadStore::Opcode::_Op_): \
                 cmd.funct3 = command::l_type::Funct3::_Op_; \
+                cmd.set_imm(check_bits<12, true>(imm, #_Op_)); \
                 break
 
         switch (storage.opcode) {
@@ -189,23 +211,21 @@ private:
             match_and_set(LHU);
             default: unreachable();
         }
-
         #undef match_and_set
-
-        cmd.rd  = reg_to_int(storage.rd);
-        cmd.rs1 = reg_to_int(storage.rs1);
-        cmd.set_imm(imm_to_int(storage.imm));
 
         this->push_command(cmd.to_integer());
     }
 
     void visitStore(LoadStore &storage) {
-        using enum LoadStore::Opcode;
         command::s_type cmd {};
+        cmd.rs1 = reg_to_int(storage.rs1);
+        cmd.rs2 = reg_to_int(storage.rd); // In fact rs2
+        auto imm = imm_to_int(storage.imm);
 
         #define match_and_set(_Op_) \
             case (LoadStore::Opcode::_Op_): \
                 cmd.funct3 = command::s_type::Funct3::_Op_; \
+                cmd.set_imm(check_bits<12, true>(imm, #_Op_)); \
                 break
 
         switch (storage.opcode) {
@@ -214,24 +234,25 @@ private:
             match_and_set(SW);
             default: unreachable();
         }
-
         #undef match_and_set
-
-        cmd.rs1 = reg_to_int(storage.rs1);
-        cmd.rs2 = reg_to_int(storage.rd); // In fact rs2
-        cmd.set_imm(imm_to_int(storage.imm));
 
         this->push_command(cmd.to_integer());
     }
 
     void visitStorage(Branch &storage) {
         this->command_align();
-        using enum Branch::Opcode;
         command::b_type cmd {};
+
+        const auto target   = imm_to_int(storage.imm);
+        const auto distance = target - this->get_current_position();
+
+        cmd.rs1 = reg_to_int(storage.rs1);
+        cmd.rs2 = reg_to_int(storage.rs2);
 
         #define match_and_set(_Op_) \
             case (Branch::Opcode::_Op_): \
                 cmd.funct3 = command::b_type::Funct3::_Op_; \
+                cmd.set_imm(check_bits<13, true>(distance, #_Op_)); \
                 break
 
         switch (storage.opcode) {
@@ -243,15 +264,7 @@ private:
             match_and_set(BGEU);
             default: unreachable();
         }
-
         #undef match_and_set
-
-        const auto target   = imm_to_int(storage.imm);
-        const auto distance = target - this->get_current_position();
-
-        cmd.rs1 = reg_to_int(storage.rs1);
-        cmd.rs2 = reg_to_int(storage.rs2);
-        cmd.set_imm(distance);
 
         this->push_command(cmd.to_integer());
     }
@@ -264,7 +277,7 @@ private:
         const auto distance = target - this->get_current_position();
 
         cmd.rd = reg_to_int(storage.rd);
-        cmd.set_imm(distance);
+        cmd.set_imm(check_bits <21, true> (distance, "jal"));
 
         this->push_command(cmd.to_integer());
     }
@@ -275,7 +288,8 @@ private:
 
         cmd.rd  = reg_to_int(storage.rd);
         cmd.rs1 = reg_to_int(storage.rs1);
-        cmd.set_imm(imm_to_int(storage.imm));
+
+        cmd.set_imm(check_bits<12, true>(imm_to_int(storage.imm), "jalr"));
 
         this->push_command(cmd.to_integer());
     }
@@ -291,6 +305,7 @@ private:
         command::auipc  cmd_0 {};
         command::jalr   cmd_1 {};
 
+        // No need to check the range of distance, always safe
         cmd_0.set_imm(hi);
         cmd_1.set_imm(lo);
 
@@ -319,6 +334,8 @@ private:
         command::lui    cmd_0 {};
         command::i_type cmd_1 {};
 
+        // No need to check the range of imm, always safe
+
         cmd_0.rd = rd;
         cmd_0.set_imm(hi);
         cmd_1.funct3 = command::i_type::Funct3::ADD;
@@ -335,7 +352,7 @@ private:
         command::lui cmd {};
 
         cmd.rd = reg_to_int(storage.rd);
-        cmd.set_imm(imm_to_int(storage.imm));
+        cmd.set_imm(check_bits<20, false>(imm_to_int(storage.imm), "lui"));
 
         this->push_command(cmd.to_integer());
     }
@@ -345,7 +362,7 @@ private:
         command::auipc cmd {};
 
         cmd.rd = reg_to_int(storage.rd);
-        cmd.set_imm(imm_to_int(storage.imm));
+        cmd.set_imm(check_bits<20, false>(imm_to_int(storage.imm), "auipc"));
 
         this->push_command(cmd.to_integer());
     }
@@ -381,7 +398,13 @@ private:
     }
 };
 
-static void connect(EncodingPass::Section &prev, EncodingPass::Section &next) {
+template <typename ..._Args>
+static void encoding_pass(_Args &&...args) {
+    [[maybe_unused]]
+    Encoder _ {std::forward<_Args>(args)... };
+}
+
+static void connect(Encoder::Section &prev, Encoder::Section &next) {
     if (next.storage.empty())
         next.start = prev.start + prev.storage.size();
 }
@@ -396,12 +419,17 @@ void Linker::link() {
     for (auto &[name, location] : this->global_symbol_table)
         result.position_table.emplace(name, location.get_location());
 
-    
-    void(EncodingPass(this->global_symbol_table, result.text, this->get_section(Section::TEXT)));
-    void(EncodingPass(this->global_symbol_table, result.data, this->get_section(Section::DATA)));
-    void(EncodingPass(this->global_symbol_table, result.rodata, this->get_section(Section::RODATA)));
-    void(EncodingPass(this->global_symbol_table, result.unknown, this->get_section(Section::UNKNOWN)));
-    void(EncodingPass(this->global_symbol_table, result.bss, this->get_section(Section::BSS)));
+    auto &table = this->global_symbol_table;
+
+    result.text.start = libc::kLibcEnd;
+
+    encoding_pass(table, result.text,    this->get_section(Section::TEXT));
+    encoding_pass(table, result.data,    this->get_section(Section::DATA));
+    encoding_pass(table, result.rodata,  this->get_section(Section::RODATA));
+    encoding_pass(table, result.unknown, this->get_section(Section::UNKNOWN));
+    encoding_pass(table, result.bss,     this->get_section(Section::BSS));
+
+    runtime_assert(result.text.start == libc::kLibcEnd);
 
     connect(result.text, result.data);
     connect(result.data, result.rodata);

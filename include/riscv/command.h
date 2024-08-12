@@ -60,7 +60,7 @@ enum Funct : command_size_t {
     XOR     = 0b0000000,
     SRL     = 0b0000000,
     OR      = 0b0000000,
-    AND     = 0b0000000,    
+    AND     = 0b0000000,
     SUB     = 0b0100000,
     SRA     = 0b0100000,
 
