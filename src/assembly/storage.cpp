@@ -1,3 +1,5 @@
+#include "assembly/frontend/token.h"
+#include "utility/error.h"
 #include <utility.h>
 #include <assembly/frontend/match.h>
 #include <assembly/assembly.h>
@@ -11,6 +13,10 @@ using frontend::Token;
 using frontend::TokenStream;
 using frontend::match;
 using enum frontend::Token::Type;
+
+static auto count_args(TokenStream rest) -> std::size_t {
+    return std::ranges::count(rest, Token::Type::Comma, &Token::type) + 1;
+}
 
 static auto get_section(TokenStream tokens) -> std::string_view {
     throw_if(tokens.empty(), "Missing section name");
@@ -88,6 +94,15 @@ void Assembler::parse_storage_new(std::string_view token, const Stream &rest) {
         ptr->push_new <Alignment> (std::size_t{1} << num);
     };
     constexpr auto __set_bytes = [](Assembler *ptr, TokenStream rest, IntegerData::Type n) {
+        auto args = count_args(rest);
+        throw_if(args == 0, "Missing arguments");
+
+        args -= 1;
+        while (args --> 0) {
+            auto [imm, _] = match <Immediate, Token::Placeholder> (rest);
+            ptr->push_new <IntegerData> (imm, n);
+        }
+
         auto [imm] = match <Immediate> (rest);
         ptr->push_new <IntegerData> (imm, n);
     };
