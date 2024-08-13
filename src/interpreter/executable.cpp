@@ -121,14 +121,19 @@ static auto parse_i_type(command_size_t cmd) -> _Pair_t {
         match_and_return(AND);
 
         case command::i_type::Funct3::SLL:
-            if (command::get_funct7(cmd) != command::i_type::Funct7::SLL) break;
-            return { interpreter::ArithImm::fn <general::ArithOp::SLL>, arg };
+            if (command::get_funct7(cmd) == command::i_type::Funct7::SLL) {
+                return { interpreter::ArithImm::fn <general::ArithOp::SLL>, arg };
+            }
+            break;
 
         case command::i_type::Funct3::SRL:
-            if (command::get_funct7(cmd) == command::i_type::Funct7::SRL)
+            if (command::get_funct7(cmd) == command::i_type::Funct7::SRL) {
                 return { interpreter::ArithImm::fn <general::ArithOp::SRL>, arg };
-            if (command::get_funct7(cmd) == command::i_type::Funct7::SRA)
+            }
+            if (command::get_funct7(cmd) == command::i_type::Funct7::SRA) {
+                arg.imm &= 0x1F; // Mask the lower 5 bits, to prevent undefined behavior.
                 return { interpreter::ArithImm::fn <general::ArithOp::SRA>, arg };
+            }
             break; // Invalid shift operation.
 
         default: break;
