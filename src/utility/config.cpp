@@ -31,7 +31,11 @@ static void handle_error(std::format_string <_Args...> fmt, _Args &&...args) {
 }
 
 void ArgumentParser::handle(std::string_view str) {
-    panic("Fail to parse command line argument.\n  {}", str);
+    try {
+        panic("Fail to parse command line argument.\n  {}", str);
+    } catch (dark::PanicError) {
+        std::exit(EXIT_FAILURE);
+    }
 }
 
 using _Option_Set_t = std::unordered_set <std::string_view>;
@@ -60,6 +64,9 @@ struct InputFile {
             this->stream = &std::cin;
         } else {
             this->owning = std::make_unique <std::ifstream> (std::string(this->name));
+            if (!this->owning->good()) {
+                handle_error("Fail to open input file: {}", this->name);
+            }
             this->stream = this->owning.get();
         }
     }
@@ -104,6 +111,9 @@ struct OutputFile {
             this->stream = &std::cerr;
         } else {
             this->owning = std::make_unique <std::ofstream> (std::string(this->name));
+            if (!this->owning->good()) {
+                handle_error("Fail to open output file: {}", this->name);
+            }
             this->stream = this->owning.get();
         }
     }
