@@ -19,6 +19,8 @@ public:
     explicit RegisterFile(target_size_t, const Config &);
     /* Return reference to given register. */
     auto &operator[](Register reg) { return this->regs[reg_to_int(reg)]; }
+    /* Return value of given register. */
+    auto operator[](Register reg) const { return this->regs[reg_to_int(reg)]; }
     /* Return old program counter. */
     auto get_pc() const { return this->pc; }
     /* Set new program counter. */

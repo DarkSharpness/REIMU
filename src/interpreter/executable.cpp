@@ -1,3 +1,4 @@
+#include "declarations.h"
 #include <utility.h>
 #include <riscv/command.h>
 #include <interpreter/exception.h>
@@ -131,7 +132,8 @@ static auto parse_i_type(command_size_t cmd) -> _Pair_t {
                 return { interpreter::ArithImm::fn <general::ArithOp::SRL>, arg };
             }
             if (command::get_funct7(cmd) == command::i_type::Funct7::SRA) {
-                arg.imm &= 0x1F; // Mask the lower 5 bits, to prevent undefined behavior.
+                constexpr auto mask = sizeof(target_size_t) * 8 - 1;
+                arg.imm &= mask; // Mask the lower bits, to prevent undefined behavior.
                 return { interpreter::ArithImm::fn <general::ArithOp::SRA>, arg };
             }
             break; // Invalid shift operation.

@@ -273,7 +273,7 @@ struct jalr : __details::crtp <jalr> {
 
     static constexpr command_size_t opcode = 0b1100111;
 
-    explicit jalr() : _op(opcode), rd(0), funct3(0), rs1(0), imm(0) {}
+    explicit constexpr jalr() : _op(opcode), rd(0), funct3(0), rs1(0), imm(0) {}
 
     auto get_imm() const -> command_size_t {
         return __details::sign_extend <12> (imm);
@@ -322,6 +322,10 @@ static constexpr auto get_funct3(command_size_t cmd) {
 
 static constexpr auto get_funct7(command_size_t cmd) {
     return __details::make_std(cmd).funct7;
+}
+
+static constexpr auto get_rd(command_size_t cmd) {
+    return __details::make_std(cmd).rd;
 }
 
 namespace __details {

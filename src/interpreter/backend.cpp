@@ -1,3 +1,6 @@
+#include "declarations.h"
+#include "interpreter/hint.h"
+#include "utility/error.h"
 #include <interpreter/interpreter.h>
 #include <interpreter/memory.h>
 #include <interpreter/device.h>
@@ -8,32 +11,11 @@
 #include <linker/layout.h>
 #include <config/config.h>
 #include <libc/libc.h>
-#include <map>
+#include <cstddef>
 
 namespace dark {
 
-struct LabelMap {
-private:
-    std::map <target_size_t, std::string_view> labels;
-
-public:
-    void add(target_size_t pc, std::string_view label) {
-        labels[pc] = label;
-    }
-
-    auto get(target_size_t pc) const {
-        struct Result {
-            std::string_view label;
-            target_size_t offset;
-        };
-        auto pos = labels.upper_bound(pc);
-        if (pos == labels.begin()) return Result { "", pc };
-        pos--; return Result { pos->second, pc - pos->first };
-    }
-};
-
-static void simulate_normal
-    (RegisterFile &rf, Memory &mem, Device &dev, std::size_t timeout) {
+static void simulate_normal(RegisterFile &rf, Memory &mem, Device &dev, std::size_t timeout) {
     ICache icache { mem };
     try {
         Hint hint {};
@@ -50,7 +32,7 @@ static void simulate_normal
 }
 
 static void simulate_debug
-    (RegisterFile &regfile, Memory &memory, Device &device, std::size_t timeout);
+    (RegisterFile &rf, Memory &mem, Device &dev, std::size_t timeout, MemoryLayout &layout);
 
 void Interpreter::simulate() {
     auto &layout = this->memory_layout.get <MemoryLayout &>();
@@ -66,7 +48,7 @@ void Interpreter::simulate() {
     libc::libc_init(regfile, memory, device);
 
     if (config.has_option("debug")) {
-        simulate_debug(regfile, memory, device, config.get_timeout());
+        simulate_debug(regfile, memory, device, config.get_timeout(), layout);
     } else {
         simulate_normal(regfile, memory, device, config.get_timeout());
     }
@@ -80,8 +62,21 @@ void Interpreter::simulate() {
 }
 
 static void simulate_debug
-    (RegisterFile &, Memory &, Device &, std::size_t) {
-    panic("Debug Mode is not implemented yet");
+    (RegisterFile &rf, Memory &mem, Device &dev, std::size_t timeout, MemoryLayout &layout) {
+    ICache icache { mem };
+
+    try {
+        Hint hint {};
+        while (rf.advance() && timeout --> 0) {
+            auto &exe = icache.ifetch(rf.get_pc(), hint);
+            hint = exe(rf, mem, dev);
+        }
+        panic_if(timeout + 1 == 0, "Time Limit Exceeded");
+    } catch (FailToInterpret &e) {
+        panic("{}", e.what(rf, mem, dev));
+    } catch (std::exception &e) {
+        unreachable(std::format("std::exception caught: {}\n", e.what()));
+    }
 }
 
 } // namespace dark

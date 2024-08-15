@@ -156,11 +156,13 @@ private:
 
     void visit_call(CallFunction &call) {
         auto &imm = call.imm.data;
-        if (!dynamic_cast <StrImmediate *> (imm.get())) return;
+        // if (!dynamic_cast <StrImmediate *> (imm.get())) return;
+        // auto &str = static_cast <StrImmediate &> (*imm);
 
-        auto &str = static_cast <StrImmediate &> (*imm);
         auto current = Evaluator::get_current_position();
-        auto destination = Evaluator::get_symbol_position(str.data.to_sv());
+        auto destination = Evaluator::evaluate(*imm);
+
+        // auto destination = Evaluator::get_symbol_position(str.data.to_sv());
 
         // Maybe we should not optimize libc calls.
         // if (destination <= libc::kLibcEnd) return;
