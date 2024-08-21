@@ -311,7 +311,7 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
         if (suffix == 'x') {
             console::message << std::format("0x{:x}", value) << std::endl;
         } else if (suffix == 'd') {
-            console::message << std::format("{}", value) << std::endl;
+            console::message << std::format("{}", static_cast<target_ssize_t>(value)) << std::endl;
         } else if (suffix == 'c') {
             console::message << std::format("{}", static_cast<char>(value)) << std::endl;
         } else if (suffix == 't') {
