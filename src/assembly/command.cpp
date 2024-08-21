@@ -1,3 +1,4 @@
+#include "riscv/register.h"
 #include <utility.h>
 #include <assembly/assembly.h>
 #include <assembly/storage.h>
@@ -148,7 +149,8 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
     };
     constexpr auto __insert_snez = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match <Reg, Reg> (rest);
-        ptr->push_new <ArithmeticImm> (Aop::SLTU, rd, rs1, Immediate(0));
+        using Register::zero;
+        ptr->push_new <ArithmeticReg> (Aop::SLTU, rd, zero, rs1);
     };
     constexpr auto __insert_sgtz = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match <Reg, Reg> (rest);
