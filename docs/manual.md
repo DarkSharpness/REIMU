@@ -190,6 +190,18 @@ Modes for `i` command:
 - `breakpoint`: Print all breakpoints
 - `symbol`: Print all symbols
 
+#### Examples
+
+```shell
+x 10i $pc   # Print the next 10 instructions
+x 10w $sp   # Print the next 10 words starting from the stack pointer
+bt          # Print the backtrace of the current function call stack
+s 10        # Execute the next 10 instructions
+b main + 8  # Set a breakpoint at the address of main + 8
+c           # Continue execution until the next breakpoint or the end of the program
+x 2i $pc - 8 # Print the previous 2 instructions
+```
+
 ## Q & A
 
 TODO...
