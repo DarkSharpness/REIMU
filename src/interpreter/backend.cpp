@@ -33,6 +33,8 @@ void Interpreter::simulate() {
     libc::libc_init(regfile, memory, device);
 
     if (config.has_option("debug")) {
+        // Avoid inlining those cold functions.
+        [[unlikely]]
         simulate_debug(regfile, memory, device, config.get_timeout(), layout);
     } else {
         simulate_normal(regfile, memory, device, config.get_timeout());
