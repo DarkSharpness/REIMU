@@ -1,3 +1,4 @@
+#include "utility/cast.h"
 #include <linker/linker.h>
 #include <linker/evaluate.h>
 
@@ -95,11 +96,15 @@ private:
                 using enum RelImmediate::Operand;
                 case HI:
                     if (!evaluate(relative->imm)) return false;
-                    data = move_integer(relative->imm, [](auto x) { return x >> 12; });
+                    data = move_integer(relative->imm, [](auto x) {
+                        return split_lo_hi(x).hi;
+                    });
                     return true;
                 case LO:
                     if (!evaluate(relative->imm)) return false;
-                    data = move_integer(relative->imm, [](auto x) { return x & 0xFFF; });
+                    data = move_integer(relative->imm, [](auto x) {
+                        return split_lo_hi(x).lo;
+                    });
                     return true;
                 default:
                     return false;
