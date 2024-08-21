@@ -1,3 +1,4 @@
+#include "declarations.h"
 #include <simulation/implement/icache_decl.h>
 
 namespace dark {
@@ -6,12 +7,12 @@ namespace dark {
 Function_t compile_once;
 
 static auto make_icache_range(Memory &mem) -> target_size_t {
-    auto text = mem.get_text_range();
+    const auto text = mem.get_text_range();
     runtime_assert(text.start == libc::kLibcEnd);
     static_assert(libc::kLibcStart == kTextStart);
     const auto size = text.finish - libc::kLibcStart;
     runtime_assert(size % sizeof(command_size_t) == 0);
-    return text.finish;
+    return size / sizeof(command_size_t);
 }
 
 [[maybe_unused]]
@@ -32,7 +33,7 @@ static auto handle_cache_miss() -> Executable & {
  * - normal text
  */
 inline ICache::ICache(Memory &mem) : length(make_icache_range(mem)) {
-    const auto reserved = this->length / sizeof(Executable);
+    const auto reserved = this->length;
     const auto libcsize = std::size(libc::funcs);
 
     // Initialize the cache
