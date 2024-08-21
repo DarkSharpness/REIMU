@@ -80,7 +80,7 @@ struct InputFile {
     }
 
 private:
-    std::istream *stream;
+    std::istream *stream {};
     std::unique_ptr <std::ifstream> owning;
     std::string_view name;
 };
@@ -132,7 +132,7 @@ struct OutputFile {
     }
 
 private:
-    std::ostream *stream;
+    std::ostream *stream {};
     std::unique_ptr <std::ofstream> owning;
     std::string_view name;
 };
@@ -530,10 +530,13 @@ static auto read_answer(std::string_view name) -> std::string {
 }
 
 void Config_Impl::oj_handle() {
-    // using console::message;
+    OutputFile profile { this->profile.get_name() };
+    profile.init_stream();
+    auto &os = profile.get_stream();
+
     auto error_str = std::move(*this->oj_data.error).str();
     if (!error_str.empty()) {
-        std::cerr << "Fatal Error:\n" << error_str;
+        os << "Fatal Error:\n" << error_str;
         return;
     }
 
@@ -541,11 +544,13 @@ void Config_Impl::oj_handle() {
     auto answer_str = read_answer(this->answer);
 
     if (output_str != answer_str) {
-        std::cerr << "Wrong answer.\n";
-        return;
+        os << "Wrong answer.\n";
+    } else {
+        os << "Accepted\n";
     }
 
-    // auto profile_str = std::move(*this->oj_data.profile).str();
+    auto profile_str = std::move(*this->oj_data.profile).str();
+    os << profile_str << std::endl;
 }
 
 /* The commands below are just forwarded to impl.  */
