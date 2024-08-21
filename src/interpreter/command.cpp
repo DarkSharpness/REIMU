@@ -135,12 +135,13 @@ static auto pretty_l_type(command_size_t cmd) -> std::string {
     #undef match_and_return
 }
 
-static auto pretty_b_type(command_size_t cmd) -> std::string {
+static auto pretty_b_type(command_size_t cmd, DebugManager &manager, target_size_t pc) -> std::string {
     auto b_type = command::b_type::from_integer(cmd);
     auto rs1 = int_to_reg(b_type.rs1);
     auto rs2 = int_to_reg(b_type.rs2);
     auto imm = target_ssize_t(b_type.get_imm());
-    auto suffix = std::format("{}, {}, {}", reg_to_sv(rs1), reg_to_sv(rs2), imm);
+    auto suffix = std::format("{}, {}, {}\t(a.k.a # $pc = {})",
+        reg_to_sv(rs1), reg_to_sv(rs2), imm, manager.pretty_address(pc + imm));
 
     #define match_and_return(a, str) \
         case command::b_type::Funct3::a:  \
@@ -184,7 +185,7 @@ static auto pretty_lui(command_size_t cmd) -> std::string {
     auto lui = command::lui::from_integer(cmd);
     auto rd = int_to_reg(lui.rd);
     auto imm = target_ssize_t(lui.get_imm());
-    return std::format("lui {0:}, {1:}\t(a.k.a ${0:} = {2:})",
+    return std::format("lui {0:}, {1:}\t(a.k.a # ${0:} = {2:})",
         reg_to_sv(rd), imm >> 12, imm);
 }
 
@@ -210,7 +211,7 @@ auto DebugManager::pretty_command(command_size_t cmd, target_size_t pc) -> std::
         case command::l_type::opcode:
             return pretty_l_type(cmd);
         case command::b_type::opcode:
-            return pretty_b_type(cmd);
+            return pretty_b_type(cmd, *this, pc);
         case command::jal::opcode:
             return pretty_jal(cmd, *this, pc);
         case command::jalr::opcode:

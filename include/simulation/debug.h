@@ -20,6 +20,10 @@ public:
         labels[pc] = label;
     }
 
+    auto map() const -> const decltype(labels) & {
+        return labels;
+    }
+
     auto get(target_size_t pc) const {
         struct Result {
             std::string_view label;
@@ -79,6 +83,7 @@ private:
 
     auto has_breakpoint(target_size_t pc) const -> bool;
     auto add_breakpoint(target_size_t pc) -> int;
+    auto del_breakpoint(int index) -> bool;
 
     /* Builtin terminal for the debug console. */
     void terminal(target_size_t pc, command_size_t cmd);

@@ -543,6 +543,9 @@ void Config_Impl::oj_handle() {
     auto output_str = std::move(*this->oj_data.output).str();
     auto answer_str = read_answer(this->answer);
 
+    while (output_str.ends_with('\n')) output_str.pop_back();
+    while (answer_str.ends_with('\n')) answer_str.pop_back();
+
     if (output_str != answer_str) {
         os << "Wrong answer.\n";
         return;

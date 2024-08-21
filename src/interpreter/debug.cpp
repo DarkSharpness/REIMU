@@ -106,6 +106,14 @@ auto DebugManager::has_breakpoint(target_size_t pc) const -> bool {
     return std::ranges::find(this->breakpoints, pc, &BreakPoint::pc) != this->breakpoints.end();
 }
 
+auto DebugManager::del_breakpoint(int which) -> bool {
+    auto iter = std::ranges::find(this->breakpoints, which, &BreakPoint::index);
+    if (iter == this->breakpoints.end())
+        return false;
+    this->breakpoints.erase(iter);
+    return true;
+}
+
 auto DebugManager::add_breakpoint(target_size_t pc) -> int {
     static int counter = 0;
     this->breakpoints.push_back({ pc, counter });
@@ -156,7 +164,7 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
         auto [imm] = frontend::match <Immediate> (tokens);
         auto cnt = ImmEvaluator { this->rf, this->layout } (imm);
         this->option = Step { cnt };
-        console::message << "Stepp " << cnt << " times" << std::endl;
+        console::message << "Step " << cnt << " times" << std::endl;
         return true;
     };
 
@@ -178,6 +186,50 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
                 << std::format("New breakpoint {} at {}", which, pretty_address(pos))
                 << std::endl;
         }
+        return false;
+    };
+
+    const auto __delete_bp = [&]() {
+        auto [imm] = frontend::match <Immediate> (tokens);
+        auto which = ImmEvaluator { this->rf, this->layout } (imm);
+        if (this->del_breakpoint(which)) {
+            console::message
+                << std::format("Breakpoint {} at {} is deleted", which, pretty_address(which))
+                << std::endl;
+        } else {
+            console::message
+                << std::format("Breakpoint {} does not exist", which)
+                << std::endl;
+        }
+
+        return false;
+    };
+
+    const auto __info = [&]() {
+        if (tokens.empty()) {
+            console::message << "Usage: info breakpoint|symbol" << std::endl;
+            return false;
+        }
+
+        auto str = tokens[0].what;
+        if (str == "breakpoint") {
+            console::message << "Breakpoints:" << std::endl;
+            for (auto &bp : this->breakpoints) {
+                console::message
+                    << std::format("  {} at {}", bp.index, pretty_address(bp.pc))
+                    << std::endl;
+            }
+        } else if (str == "symbol") {
+            console::message << "Symbols:" << std::endl;
+            for (auto &[pos, name] : this->map.map()) {
+                console::message
+                    << std::format("  {:<24} at {:#x}", name, pos)
+                    << std::endl;
+            }
+        } else {
+            console::message << "Error: Invalid info command" << std::endl;
+        }
+
         return false;
     };
 
@@ -274,6 +326,17 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
         return false;
     };
 
+    const auto __backtrace = [&]() {
+        console::message << "Backtrace:" << std::endl;
+        for (auto [pc, caller_pc, caller_sp] : this->call_stack) {
+            console::message
+                << std::format("  {} called from {} with sp = {}",
+                    pretty_address(pc), pretty_address(caller_pc), caller_sp)
+                << std::endl;
+        }
+        return false;
+    };
+
     using hash::switch_hash_impl;
     #define match_str(str) \
         case switch_hash_impl(str): \
@@ -286,9 +349,15 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
         match_str("continue")   return __continue();
         match_str("b")          return __breakpoint();
         match_str("breakpoint") return __breakpoint();
+        match_str("d")          return __delete_bp();
+        match_str("delete")     return __delete_bp();
         match_str("x")          return __exhibit();
         match_str("p")          return __print();
         match_str("print")      return __print();
+        match_str("bt")         return __backtrace();
+        match_str("backtrace")  return __backtrace();
+        match_str("i")          return __info();
+        match_str("info")       return __info();
         match_str("q")          return this->exit(), true;
         match_str("quit")       return this->exit(), true;
 
