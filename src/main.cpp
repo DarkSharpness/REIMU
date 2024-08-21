@@ -11,7 +11,6 @@ int main(int argc, char** argv) {
     using dark::console::message;
 
     try {
-        [[maybe_unused]]
         auto start_time = high_resolution_clock::now();
         auto config_ptr = dark::Config::parse(argc, argv);
         const auto& config = *config_ptr;
@@ -21,7 +20,6 @@ int main(int argc, char** argv) {
         interpreter.assemble();
         interpreter.link();
 
-        [[maybe_unused]]
         auto build_time = high_resolution_clock::now();
         auto build_str = std::format(" Build time: {}ms ",
             duration_cast<ms>(build_time - start_time).count());
@@ -29,7 +27,6 @@ int main(int argc, char** argv) {
 
         interpreter.simulate();
 
-        [[maybe_unused]]
         auto interpret_time = high_resolution_clock::now();
         auto interpret_str = std::format(" Interpret time: {}ms ",
             duration_cast<ms>(interpret_time - build_time).count());

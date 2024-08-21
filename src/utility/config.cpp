@@ -536,7 +536,7 @@ void Config_Impl::oj_handle() {
 
     auto error_str = std::move(*this->oj_data.error).str();
     if (!error_str.empty()) {
-        os << "Fatal Error:\n" << error_str;
+        os << "Wrong answer. (Program crashed)\n";
         return;
     }
 
@@ -545,8 +545,9 @@ void Config_Impl::oj_handle() {
 
     if (output_str != answer_str) {
         os << "Wrong answer.\n";
+        return;
     } else {
-        os << "Accepted\n";
+        os << "Accepted.\n";
     }
 
     auto profile_str = std::move(*this->oj_data.profile).str();
