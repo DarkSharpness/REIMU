@@ -203,7 +203,7 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
                     } else if constexpr (sizeof(data) == 1) {
                         data = const_cast<Memory &>(mem).load_i8(addr);
                     } else {
-                        static_assert(sizeof(data) == 0, "Unsupported data size");
+                        unreachable("Unsupported data size");
                     }
 
                     console::message
