@@ -1,5 +1,6 @@
 #include "declarations.h"
 #include "interpreter/hint.h"
+#include "simulation/debug.h"
 #include "utility/error.h"
 #include <interpreter/interpreter.h>
 #include <interpreter/memory.h>
@@ -15,24 +16,8 @@
 
 namespace dark {
 
-static void simulate_normal(RegisterFile &rf, Memory &mem, Device &dev, std::size_t timeout) {
-    ICache icache { mem };
-    try {
-        Hint hint {};
-        while (rf.advance() && timeout --> 0) {
-            auto &exe = icache.ifetch(rf.get_pc(), hint);
-            hint = exe(rf, mem, dev);
-        }
-        panic_if(timeout + 1 == 0, "Time Limit Exceeded");
-    } catch (FailToInterpret &e) {
-        panic("{}", e.what(rf, mem, dev));
-    } catch (std::exception &e) {
-        unreachable(std::format("std::exception caught: {}\n", e.what()));
-    }
-}
-
-static void simulate_debug
-    (RegisterFile &rf, Memory &mem, Device &dev, std::size_t timeout, MemoryLayout &layout);
+static void simulate_normal(RegisterFile &, Memory &, Device &, std::size_t);
+static void simulate_debug(RegisterFile &, Memory &, Device &, std::size_t, MemoryLayout &);
 
 void Interpreter::simulate() {
     auto &layout = this->memory_layout.get <MemoryLayout &>();
@@ -61,13 +46,32 @@ void Interpreter::simulate() {
     device.print_details(enable_detail);
 }
 
+static void simulate_normal
+    (RegisterFile &rf, Memory &mem, Device &dev, std::size_t timeout)  {
+    ICache icache { mem };
+    try {
+        Hint hint {};
+        while (rf.advance() && timeout --> 0) {
+            auto &exe = icache.ifetch(rf.get_pc(), hint);
+            hint = exe(rf, mem, dev);
+        }
+        panic_if(timeout + 1 == 0, "Time Limit Exceeded");
+    } catch (FailToInterpret &e) {
+        panic("{}", e.what(rf, mem, dev));
+    } catch (std::exception &e) {
+        unreachable(std::format("std::exception caught: {}\n", e.what()));
+    }
+}
+
 static void simulate_debug
     (RegisterFile &rf, Memory &mem, Device &dev, std::size_t timeout, MemoryLayout &layout) {
     ICache icache { mem };
+    DebugManager manager { rf, mem, layout };
 
     try {
         Hint hint {};
         while (rf.advance() && timeout --> 0) {
+            manager.test();
             auto &exe = icache.ifetch(rf.get_pc(), hint);
             hint = exe(rf, mem, dev);
         }

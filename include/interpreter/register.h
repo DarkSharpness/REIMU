@@ -34,6 +34,8 @@ public:
     }
     /* Print register details. */
     void print_details(bool) const;
+    /* Psuedo start pc (pretend there's a call at get_start_pc). */
+    static constexpr auto get_start_pc() { return end_pc - 4; }
 };
 
 } // namespace dark

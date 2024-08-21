@@ -1,5 +1,6 @@
 #pragma once
 #include "declarations.h"
+#include "interpreter/memory.h"
 #include "interpreter/register.h"
 #include "libc/libc.h"
 #include "linker/layout.h"
@@ -39,8 +40,20 @@ public:
 };
 
 struct DebugManager {
+public:
+    explicit DebugManager(const RegisterFile &rf, const Memory &mem, const MemoryLayout &layout);
+    void test();
+
+    auto get_rf() const -> const RegisterFile & { return this->rf; }
+    auto pretty_address(target_size_t pc) -> std::string;
+    auto pretty_command(command_size_t cmd, target_size_t pc) -> std::string;
+
+private:
+    static constexpr command_size_t kEcall = 0b1110011;
+
     struct Continue {};
     struct Step { target_size_t count; };
+    struct Exit {};
 
     struct CallInfo {
         target_size_t callee_pc; // Function entry
@@ -53,26 +66,26 @@ struct DebugManager {
         int index;
     };
 
-    std::variant <Continue, Step> option;
+    std::variant <std::monostate, Continue, Step> option;
     std::vector <target_size_t> latest_pc;      // Latest PC
     std::vector <CallInfo>      call_stack;     // Call Stack
-    std::vector <target_size_t> breakpoints;    // Breakpoints
+    std::vector <BreakPoint>    breakpoints;    // Breakpoints
 
     LabelMap map;
-    MemoryLayout &layout;
+
+    const RegisterFile  &rf;
+    const Memory        &mem;
+    const MemoryLayout  &layout;
 
     auto has_breakpoint(target_size_t pc) const -> bool;
     auto add_breakpoint(target_size_t pc) -> int;
 
-    auto pretty_address(target_size_t pc) -> std::string;
-    auto pretty_command(command_size_t cmd) -> std::string;
-
     /* Builtin terminal for the debug console. */
     void terminal(target_size_t pc, command_size_t cmd);
 
-    auto parse_line(std::string_view line) -> bool;
+    void exit();
 
-    void test(const RegisterFile &rf, command_size_t cmd);
+    auto parse_line(std::string_view line) -> bool;
 };
 
 

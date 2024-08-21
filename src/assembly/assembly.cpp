@@ -8,7 +8,7 @@ namespace dark {
 
 /* Whether the character is a valid token character. */
 bool is_label_char(char c) {
-    return std::isalnum(c) || c == '_' || c == '.' || c == '@';
+    return std::isalnum(c) || c == '_' || c == '.' || c == '@' || c == '$';
 }
 
 Assembler::Assembler(std::string_view file_name)

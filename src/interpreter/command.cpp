@@ -7,7 +7,7 @@
 namespace dark {
 
 static auto default_format(command_size_t cmd) -> std::string {
-    return std::format("0x{:#x}", cmd);
+    return std::format("{:#x}", cmd);
 }
 
 static auto pretty_r_type(command_size_t cmd) -> std::string {
@@ -49,6 +49,13 @@ static auto pretty_i_type(command_size_t cmd) -> std::string {
     auto rd = int_to_reg(i_type.rd);
     auto rs1 = int_to_reg(i_type.rs1);
     auto imm = target_ssize_t(i_type.get_imm());
+    if (i_type.funct3 == command::i_type::Funct3::ADD) {
+        if (rs1 == Register::zero)
+            return std::format("li {}, {}", reg_to_sv(rd), imm);
+        if (imm == 0)
+            return std::format("mv {}, {}", reg_to_sv(rd), reg_to_sv(rs1));
+    }
+
     auto suffix = std::format("{}, {}, {}", reg_to_sv(rd), reg_to_sv(rs1), imm);
 
     #define match_and_return(a, str) \
@@ -73,7 +80,7 @@ static auto pretty_i_type(command_size_t cmd) -> std::string {
                 return std::format("srli {}", suffix);
             if (command::get_funct7(cmd) == command::i_type::Funct7::SRA) {
                 constexpr auto mask = sizeof(target_size_t) * 8 - 1;
-                auto imm = target_ssize_t(i_type.get_imm()) & mask;
+                imm &= mask;
                 return std::format("srai {}, {}, {}", reg_to_sv(rd), reg_to_sv(rs1), imm);
             }
             return default_format(cmd);
@@ -89,7 +96,7 @@ static auto pretty_s_type(command_size_t cmd) -> std::string {
     auto rs1 = int_to_reg(s_type.rs1);
     auto rs2 = int_to_reg(s_type.rs2);
     auto imm = target_ssize_t(s_type.get_imm());
-    auto suffix = std::format("{}, {}, {}", reg_to_sv(rs1), reg_to_sv(rs2), imm);
+    auto suffix = std::format("{}, {}({})", reg_to_sv(rs2), imm, reg_to_sv(rs1));
 
     #define match_and_return(a, str) \
         case command::s_type::Funct3::a:  \
@@ -110,7 +117,7 @@ static auto pretty_l_type(command_size_t cmd) -> std::string {
     auto rd = int_to_reg(l_type.rd);
     auto rs1 = int_to_reg(l_type.rs1);
     auto imm = target_ssize_t(l_type.get_imm());
-    auto suffix = std::format("{}, {}, {}", reg_to_sv(rd), reg_to_sv(rs1), imm);
+    auto suffix = std::format("{}, {}({})", reg_to_sv(rd), imm, reg_to_sv(rs1));
 
     #define match_and_return(a, str) \
         case command::l_type::Funct3::a:  \
@@ -151,13 +158,15 @@ static auto pretty_b_type(command_size_t cmd) -> std::string {
     }
 }
 
-static auto pretty_jal(command_size_t cmd) -> std::string {
+static auto pretty_jal(command_size_t cmd, DebugManager &manager, target_size_t pc) -> std::string {
     auto jal = command::jal::from_integer(cmd);
     auto rd = int_to_reg(jal.rd);
     auto imm = target_ssize_t(jal.get_imm());
-    auto suffix = std::format("{}, {}", reg_to_sv(rd), imm);
+    auto suffix = manager.pretty_address(pc + imm);
 
-    return std::format("jal {}", suffix);
+    if (rd == Register::zero)
+        return std::format("j {}\t(a.k.a # $pc = {})", imm, suffix);
+    return std::format("jal {}, {}\t(a.k.a # $pc = {})", reg_to_sv(rd), imm, suffix);
 }
 
 static auto pretty_jalr(command_size_t cmd) -> std::string {
@@ -165,18 +174,18 @@ static auto pretty_jalr(command_size_t cmd) -> std::string {
     auto rd = int_to_reg(jalr.rd);
     auto rs1 = int_to_reg(jalr.rs1);
     auto imm = target_ssize_t(jalr.get_imm());
-    auto suffix = std::format("{}, {}, {}", reg_to_sv(rd), reg_to_sv(rs1), imm);
-
-    return std::format("jalr {}", suffix);
+ 
+    if (rd == Register::zero && rs1 == Register::ra && imm == 0)
+        return "ret";
+    return std::format("jalr {}, {}, {}", reg_to_sv(rd), reg_to_sv(rs1), imm);
 }
 
 static auto pretty_lui(command_size_t cmd) -> std::string {
     auto lui = command::lui::from_integer(cmd);
     auto rd = int_to_reg(lui.rd);
     auto imm = target_ssize_t(lui.get_imm());
-    auto suffix = std::format("{}, {}", reg_to_sv(rd), imm);
-
-    return std::format("lui {}", suffix);
+    return std::format("lui {0:}, {1:}\t(a.k.a ${0:} = {2:})",
+        reg_to_sv(rd), imm >> 12, imm);
 }
 
 static auto pretty_auipc(command_size_t cmd) -> std::string {
@@ -188,8 +197,10 @@ static auto pretty_auipc(command_size_t cmd) -> std::string {
     return std::format("auipc {}", suffix);
 }
 
-auto DebugManager::pretty_command(command_size_t cmd) -> std::string {
+auto DebugManager::pretty_command(command_size_t cmd, target_size_t pc) -> std::string {
     switch (command::get_opcode(cmd)) {
+        case DebugManager::kEcall:     // ecall: special type
+            return "ecall"; // system call
         case command::r_type::opcode:
             return pretty_r_type(cmd);
         case command::i_type::opcode:
@@ -201,7 +212,7 @@ auto DebugManager::pretty_command(command_size_t cmd) -> std::string {
         case command::b_type::opcode:
             return pretty_b_type(cmd);
         case command::jal::opcode:
-            return pretty_jal(cmd);
+            return pretty_jal(cmd, *this, pc);
         case command::jalr::opcode:
             return pretty_jalr(cmd);
         case command::lui::opcode:
