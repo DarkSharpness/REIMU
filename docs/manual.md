@@ -156,6 +156,7 @@ The debug shell supports the following commands:
 | `i mode`      | info        | Display information about the current state of the simulator            |
 | `bt`          | backtrace   | Print the backtrace of the current function call stack                  |
 | `s n`         | step        | Execute the next `n` instructions                                       |
+| `h n`         | history     | Print the last `n` executed instructions                                |
 
 #### Expressions
 
