@@ -70,10 +70,22 @@ static void simulate_debug
     ICache icache { mem };
     DebugManager manager { rf, mem, layout };
 
+    struct Guard {
+        DebugManager *manager;
+        ~Guard() {
+            if (manager) {
+                console::message << "[Debugger] fail after "
+                    << manager->get_step() - 1 << " steps" << std::endl;
+                manager->terminal();
+                console::message << "[Debugger] terminated abnormally" << std::endl;
+            }
+        }
+    } guard { &manager };
+
     try {
         Hint hint {};
         while (rf.advance() && timeout --> 0) {
-            manager.test();
+            manager.attach();
             auto &exe = icache.ifetch(rf.get_pc(), hint);
             hint = exe(rf, mem, dev);
         }
@@ -83,6 +95,8 @@ static void simulate_debug
     } catch (std::exception &e) {
         unreachable(std::format("std::exception caught: {}\n", e.what()));
     }
+
+    guard.manager = nullptr;
 }
 
 } // namespace dark

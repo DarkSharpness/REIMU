@@ -4,6 +4,7 @@
 #include "interpreter/register.h"
 #include "libc/libc.h"
 #include "linker/layout.h"
+#include <cstddef>
 #include <map>
 #include <string_view>
 #include <variant>
@@ -46,17 +47,20 @@ public:
 struct DebugManager {
 public:
     explicit DebugManager(const RegisterFile &rf, const Memory &mem, const MemoryLayout &layout);
-    void test();
+    /* Attach the terminal before the command. */
+    void attach();
+    /* Builtin terminal for the debug console. */
+    void terminal();
 
     auto get_rf() const -> const RegisterFile & { return this->rf; }
     auto pretty_address(target_size_t pc) -> std::string;
     auto pretty_command(command_size_t cmd, target_size_t pc) -> std::string;
-
+    auto get_step() const -> std::size_t { return this->step_count; }
 private:
     static constexpr command_size_t kEcall = 0b1110011;
 
     struct Continue {};
-    struct Step { target_size_t count; };
+    struct Step { std::size_t count; };
     struct Exit {};
 
     struct CallInfo {
@@ -70,8 +74,13 @@ private:
         int index;
     };
 
+    struct History {
+        target_size_t   pc;
+        command_size_t cmd;  
+    };
+
     std::variant <std::monostate, Continue, Step> option;
-    std::vector <target_size_t> latest_pc;      // Latest PC
+    std::vector <History>       latest_pc;      // Latest PC
     std::vector <CallInfo>      call_stack;     // Call Stack
     std::vector <BreakPoint>    breakpoints;    // Breakpoints
 
@@ -81,12 +90,11 @@ private:
     const Memory        &mem;
     const MemoryLayout  &layout;
 
+    std::size_t step_count = 0;
+
     auto has_breakpoint(target_size_t pc) const -> bool;
     auto add_breakpoint(target_size_t pc) -> int;
     auto del_breakpoint(int index) -> bool;
-
-    /* Builtin terminal for the debug console. */
-    void terminal(target_size_t pc, command_size_t cmd);
 
     void exit();
 

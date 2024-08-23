@@ -15,7 +15,6 @@
 #include "utility/cast.h"
 #include "utility/error.h"
 #include "utility/hash.h"
-#include "utility/misc.h"
 #include <cctype>
 #include <cstddef>
 #include <fmtlib.h>
@@ -24,6 +23,7 @@
 #include <ostream>
 #include <string_view>
 #include <variant>
+#include <ranges>
 
 namespace dark {
 
@@ -91,6 +91,7 @@ DebugManager::DebugManager(const RegisterFile &rf, const Memory &mem, const Memo
     : rf(rf), mem(mem), layout(layout) {
     for (auto &[label, pos] : layout.position_table)
         this->map.add(pos, label);
+    this->map.add(rf.get_start_pc(), "_start");
     this->call_stack.push_back({ layout.position_table.at("main"), rf.get_start_pc(), rf[Register::sp] });
 }
 
@@ -121,7 +122,7 @@ auto DebugManager::add_breakpoint(target_size_t pc) -> int {
 }
 
 /* Parse format such as 10i, f, 3w */
-auto extract_unit(frontend::TokenStream &stream) {
+static auto extract_unit(frontend::TokenStream &stream) {
     struct UnitPack {
         std::size_t cnt;
         char unit;
@@ -147,6 +148,13 @@ auto extract_unit(frontend::TokenStream &stream) {
     return UnitPack { cnt, suffix };
 }
 
+static auto extract_int(frontend::TokenStream &stream)
+-> std::optional<std::optional<std::size_t>> {
+    if (stream.empty()) return std::nullopt;
+    auto first = stream.split_at(1)[0];
+    return sv_to_integer<std::size_t>(first.what);
+}
+
 auto DebugManager::parse_line(std::string_view str) -> bool {
     frontend::Lexer lexer(str);
     auto tokens = lexer.get_stream();
@@ -161,8 +169,19 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
     tokens = tokens.subspan(1);
 
     const auto __step = [&]() {
-        auto [imm] = frontend::match <Immediate> (tokens);
-        auto cnt = ImmEvaluator { this->rf, this->layout } (imm);
+        auto value = extract_int(tokens).value_or(1);
+        if (!value.has_value()) {
+            console::message << "Error: Invalid step count" << std::endl;
+            console::message << "Usage: step [count]" << std::endl;
+            return false;
+        }
+        auto cnt = value.value();
+        if (cnt == 0) {
+            console::message << "Error: Step count must be positive" << std::endl;
+            console::message << "Usage: step [count]" << std::endl;
+            return false;
+        }
+
         this->option = Step { cnt };
         console::message << "Step " << cnt << " times" << std::endl;
         return true;
@@ -174,24 +193,35 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
     };
 
     const auto __breakpoint = [&]() {
-        auto [imm] = frontend::match <Immediate> (tokens);
-        auto pos = ImmEvaluator { this->rf, this->layout } (imm);
-        if (has_breakpoint(pos)) {
-            console::message
-                << "Breakpoint already exists at " << pretty_address(pos)
-                << std::endl;
-        } else {
-            auto which = this->add_breakpoint(pos);
-            console::message
-                << std::format("New breakpoint {} at {}", which, pretty_address(pos))
-                << std::endl;
+        try {
+            auto [imm] = frontend::match <Immediate> (tokens);
+            auto pos = ImmEvaluator { this->rf, this->layout } (imm);
+            if (has_breakpoint(pos)) {
+                console::message
+                    << "Breakpoint already exists at " << pretty_address(pos)
+                    << std::endl;
+            } else {
+                auto which = this->add_breakpoint(pos);
+                console::message
+                    << std::format("New breakpoint {} at {}", which, pretty_address(pos))
+                    << std::endl;
+            }
+        } catch (...) {
+            console::message << "Error: Invalid breakpoint format" << std::endl;
+            console::message << "Usage: breakpoint [address]" << std::endl;
         }
         return false;
     };
 
     const auto __delete_bp = [&]() {
-        auto [imm] = frontend::match <Immediate> (tokens);
-        auto which = ImmEvaluator { this->rf, this->layout } (imm);
+        auto value = extract_int(tokens).value_or(std::nullopt);
+        if (!value.has_value()) {
+            console::message << "Error: Invalid breakpoint index" << std::endl;
+            console::message << "Usage: delete [index]" << std::endl;
+            return false;
+        }
+
+        auto which = value.value();
         if (this->del_breakpoint(which)) {
             console::message
                 << std::format("Breakpoint {} at {} is deleted", which, pretty_address(which))
@@ -201,7 +231,6 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
                 << std::format("Breakpoint {} does not exist", which)
                 << std::endl;
         }
-
         return false;
     };
 
@@ -330,10 +359,30 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
         console::message << "Backtrace:" << std::endl;
         for (auto [pc, caller_pc, caller_sp] : this->call_stack) {
             console::message
-                << std::format("  {} called from {} with sp = {}",
+                << std::format("  {} called from {} with sp = {:#x}",
                     pretty_address(pc), pretty_address(caller_pc), caller_sp)
                 << std::endl;
         }
+        return false;
+    };
+
+    const auto __history = [&]() {
+        console::message << "History:" << std::endl;
+        auto value = extract_int(tokens).value_or(std::nullopt);
+        if (!value.has_value()) {
+            console::message << "Error: Invalid history index" << std::endl;
+            console::message << "Usage: history [index]" << std::endl;
+            return false;
+        }
+
+        std::size_t cnt = std::min(value.value(), this->latest_pc.size());
+        console::message << std::format("Last {} instructions:", cnt) << std::endl;
+        for (auto [pc, cmd] : this->latest_pc | std::views::reverse | std::views::take(cnt)) {
+            console::message
+                << std::format("  {} {}", pretty_address(pc), pretty_command(cmd, pc))
+                << std::endl;
+        }
+
         return false;
     };
 
@@ -360,6 +409,8 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
         match_str("info")       return __info();
         match_str("q")          return this->exit(), true;
         match_str("quit")       return this->exit(), true;
+        match_str("h")          return __history();
+        match_str("history")    return __history();
 
         default: break;
     }
@@ -367,12 +418,11 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
     throw InvalidFormat {};
 }
 
-void DebugManager::terminal(target_size_t pc, command_size_t cmd)  {
-    allow_unused(pc, cmd);
+void DebugManager::terminal()  {
     this->option = std::monostate {};
     std::string str;
 
-    console::message << "$ ";
+    console::message << "\n$ ";
     while (std::getline(std::cin, str)) {
         try {
             if (parse_line(str)) {
@@ -383,13 +433,14 @@ void DebugManager::terminal(target_size_t pc, command_size_t cmd)  {
             // Fall through
             console::message << "Invalid command format!" << std::endl;
         }
-        console::message << "$ ";
+        console::message << "\n$ ";
     }
 
     return this->exit();
 }
 
-void DebugManager::test() {
+void DebugManager::attach() {
+    this->step_count += 1;
     const auto pc = rf.get_pc();
     panic_if(pc % alignof(command_size_t) != 0, "Debugger: PC is not aligned");
 
@@ -410,7 +461,6 @@ void DebugManager::test() {
         hit = true;
     }
 
-    this->latest_pc.push_back(pc);
 
     constexpr auto kRet = []() {
         dark::command::jalr ret {};
@@ -423,11 +473,28 @@ void DebugManager::test() {
     const auto cmd = pc < libc::kLibcEnd ? this->kEcall : const_cast<Memory &>(mem).load_cmd(pc);
 
     if (cmd == kRet.to_integer() || cmd == this->kEcall) {
-        panic_if(this->call_stack.empty(), "Debugger: Call stack is empty");
+        if (this->call_stack.empty()) {
+            panic("Debugger: Call stack will be empty after this instruction");
+        }
+
         auto [_, caller_pc, caller_sp] = this->call_stack.back();
+        if (caller_pc + 4 != rf[Register::ra]) {
+            panic(
+                "Debugger: Call stack will be corrupted after this instruction\n"
+                "\tOriginal ra: {:#x}\n"
+                "\tCurrent  ra: {:#x}\n",
+                caller_pc + 4, rf[Register::ra]
+            );
+        } else if (caller_sp != rf[Register::sp]) {
+            panic(
+                "Debugger: Stack pointer will be corrupted after this instruction\n"
+                "\tOriginal sp: {:#x}\n"
+                "\tCurrent  sp: {:#x}\n",
+                caller_sp, rf[Register::sp]
+            );
+        }
+
         this->call_stack.pop_back();
-        panic_if(caller_pc + 4  != rf[Register::ra], "Debugger: Call stack is corrupted");
-        panic_if(caller_sp      != rf[Register::sp], "Debugger: Stack pointer is corrupted");
     } else if ( // call instruction
         command::get_opcode(cmd) == command::jal::opcode
         && command::get_rd(cmd) == reg_to_int(Register::ra)) {
@@ -437,7 +504,9 @@ void DebugManager::test() {
     }
 
     // Do not inline the terminal function
-    if (hit) { [[unlikely]] this->terminal(pc, cmd); }
+    if (hit) { [[unlikely]] this->terminal(); }
+
+    this->latest_pc.push_back({ pc, cmd });
 }
 
 void DebugManager::exit() {
@@ -445,6 +514,5 @@ void DebugManager::exit() {
     this->breakpoints = {};
     this->option = Continue {};
 }
-
 
 } // namespace dark
