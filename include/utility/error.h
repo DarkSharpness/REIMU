@@ -14,6 +14,8 @@ namespace dark {
 
 namespace console {
 
+void flush_stdout();
+
 extern std::ostream error;      // Fatal errors.
 extern std::ostream warning;    // Warnings.
 extern std::ostream message;    // Necessary messages.
@@ -73,6 +75,7 @@ inline static void warning(std::format_string <Args...> fmt = "", Args &&...args
 template <typename ..._Args>
 [[noreturn]]
 inline static void panic(std::format_string <_Args...> fmt = "", _Args &&...args) {
+    console::flush_stdout();
     console::error << std::format(
         "\n{:=^80}\n\n"
         "{}Fatal error{}: {}\n"
@@ -98,6 +101,7 @@ inline static void panic_if(_Tp &&condition, std::format_string <_Args...> fmt =
 inline static void unreachable(std::string message = "",
     std::source_location where = std::source_location::current()) {
     // Failure case, print the message and exit
+    console::flush_stdout();
     std::cerr << std::format(
         "{}"
         "{}"

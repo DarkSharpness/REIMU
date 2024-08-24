@@ -40,6 +40,7 @@ void Interpreter::simulate() {
         simulate_normal(regfile, memory, device, config.get_timeout());
     }
 
+    console::flush_stdout();
     console::profile << '\n';
 
     bool enable_detail = config.has_option("detail");
