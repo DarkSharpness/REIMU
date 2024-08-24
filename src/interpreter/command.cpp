@@ -39,6 +39,15 @@ static auto pretty_r_type(command_size_t cmd) -> std::string {
         match_and_return(SRA,   "sra {}");
         match_and_return(OR,    "or {}");
         match_and_return(AND,   "and {}");
+        match_and_return(MUL,   "mul {}");
+        match_and_return(MULH,  "mulh {}");
+        match_and_return(MULHSU,"mulhsu {}");
+        match_and_return(MULHU, "mulhu {}");
+        match_and_return(DIV,   "div {}");
+        match_and_return(DIVU,  "divu {}");
+        match_and_return(REM,   "rem {}");
+        match_and_return(REMU,  "remu {}");
+
         default: return default_format(cmd);
     }
     #undef match_and_return
