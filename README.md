@@ -8,7 +8,7 @@ This project is named after Hakurei Reimu, the main character of Touhou Project.
 
 ## Quick Start
 
-See [Quick Start](docs/manual.md#quick-start).
+See [Quick Start](docs/manual.md#Quickest-start).
 
 ## User Extension
 

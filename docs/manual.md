@@ -1,8 +1,21 @@
 # REIMU
 
+## Quickest start
+
+> TL;DR: If you are lazy, just use the shell code in script folder.
+
+```shell
+# For WSL 2
+./script/install_wsl.sh
+# For Arch Linux
+./script/install_arch.sh
+```
+
 ## Quick Start
 
-To run the simulator, you need `xmake` and `gcc-12` or higher. Install the simulator using the following commands:
+### Installation
+
+To run the simulator, you need `xmake` and `gcc-12` or higher. If you don't have them installed, refer to [installation](installation.md) for more details. Then, install the simulator using the following commands:
 
 ```shell
 git clone git@github.com:DarkSharpness/REIMU.git
@@ -18,6 +31,8 @@ After installation, run the simulator with:
 ```shell
 reimu
 ```
+
+### Running a Program
 
 The simulator reads command-line arguments and executes the program with the specified configuration.
 
