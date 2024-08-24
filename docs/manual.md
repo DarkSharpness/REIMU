@@ -50,6 +50,14 @@ For detailed information on all available command-line arguments, use the --help
 reimu --help | less
 ```
 
+If you need to debug your program, you can use the `--debug` flag to enable the built-in debug shell:
+
+```shell
+reimu --debug -i test.in -o test.out
+```
+
+For more information on the debug shell, see the [debug mode](#built-in-debug-mode) section.
+
 ## Support
 
 ### Directives
@@ -93,37 +101,37 @@ The simulator supports the RV32I base instruction set and RV32M standard extensi
 
 The following pseudo instructions are supported:
 
-| Pseudo Instruction            | Base Instruction                                                            |
-| ----------------------------- | --------------------------------------------------------------------------- |
-| `mv rd, rs`                   | `addi rd, rs, 0`                                                            |
-| `li rd, immediate`            | `addi rd, x0, immediate`                                                    |
-| `neg rd, rs`                  | `sub rd, x0, rs`                                                            |
-| `not rd, rs`                  | `xori rd, rs, -1`                                                           |
-| `seqz rd, rs`                 | `sltiu rd, rs, 1`                                                           |
-| `snez rd, rs`                 | `sltu rd, x0, rs`                                                           |
-| `sgtz rd, rs`                 | `slt rd, x0, rs`                                                            |
-| `sltz rd, rs`                 | `slt rd, rs, x0`                                                            |
-| `bgez rs, offset`             | `bge rs, x0, offset`                                                        |
-| `blez rs, offset`             | `ble x0, rs, offset`                                                        |
-| `bgtz rs, offset`             | `bgt x0, rs, offset`                                                        |
-| `bltz rs, offset`             | `blt rs, x0, offset`                                                        |
-| `bnez rs, offset`             | `bne rs, x0, offset`                                                        |
-| `beqz rs, offset`             | `beq rs, x0, offset`                                                        |
-| `bgt rs, rt, offset`          | `bgt rt, rs, offset`                                                        |
-| `ble rs, rt, offset`          | `ble rt, rs, offset`                                                        |
-| `bgtu rs, rt, offset`         | `bgtu rt, rs, offset`                                                       |
-| `bleu rs, rt, offset`         | `bleu rt, rs, offset`                                                       |
-| `j offset`                    | `jal x0, offset`                                                            |
-| `jal offset`                  | `jal x1, offset`                                                            |
-| `jr rs`                       | `jalr x0, 0(rs)`                                                            |
-| `jalr rs`                     | `jalr x1, 0(rs)`                                                            |
-| `ret`                         | `jalr x0, 0(x1)`                                                            |
-| `{la, lla} rd, symbol`        | `lui rd, %hi(symbol)`, `addi rd, rd, %lo(symbol)`                          |
-| `nop`                         | `addi x0, x0, 0`                                                            |
-| `l{b, h, w} rd, symbol`       | `lui rd, %hi(symbol)`, `lw rd, %lo(symbol)(rd)`                            |
-| `s{b, h, w} rs, symbol, rt`   | `lui rt, %hi(symbol)`, `sw rs, %lo(symbol)(rt)`                            |
-| `call symbol`                 | `jal x1, symbol`                                                            |
-| `tail symbol`                 | `jal x0, symbol`                                                            |
+| Pseudo Instruction            | Base Instruction                                  | Meaning                                      |
+| ----------------------------- | ------------------------------------------------- | --------------------------------------------- |
+| `mv rd, rs`                   | `addi rd, rs, 0`                                  | Set `rd` to the value of `rs`                 |
+| `li rd, immediate`            | `addi rd, x0, immediate`                          | Load immediate value into `rd`                |
+| `neg rd, rs`                  | `sub rd, x0, rs`                                  | Set `rd` to the negation of `rs`              |
+| `not rd, rs`                  | `xori rd, rs, -1`                                 | Set `rd` to the bitwise NOT of `rs`           |
+| `seqz rd, rs`                 | `sltiu rd, rs, 1`                                 | Set if `rs` = `zero`                         |
+| `snez rd, rs`                 | `sltu rd, x0, rs`                                 | Set if `rs` != `zero`                        |
+| `sgtz rd, rs`                 | `slt rd, x0, rs`                                  | Set if `rs` > `zero`                         |
+| `sltz rd, rs`                 | `slt rd, rs, x0`                                  | Set if `rs` < `zero`                         |
+| `bgez rs, offset`             | `bge rs, x0, offset`                              | Branch if `rs` >= `zero`                     |
+| `blez rs, offset`             | `ble x0, rs, offset`                              | Branch if `rs` <= `zero`                     |
+| `bgtz rs, offset`             | `bgt x0, rs, offset`                              | Branch if `rs` > `zero`                      |
+| `bltz rs, offset`             | `blt rs, x0, offset`                              | Branch if `rs` < `zero`                      |
+| `bnez rs, offset`             | `bne rs, x0, offset`                              | Branch if `rs` != `zero`                     |
+| `beqz rs, offset`             | `beq rs, x0, offset`                              | Branch if `rs` = `zero`                      |
+| `bgt rs, rt, offset`          | `bgt rt, rs, offset`                              | Branch if `rs` > `rt`                        |
+| `ble rs, rt, offset`          | `ble rt, rs, offset`                              | Branch if `rs` <= `rt`                       |
+| `bgtu rs, rt, offset`         | `bgtu rt, rs, offset`                             | Branch if `rs` > `rt` (unsigned)             |
+| `bleu rs, rt, offset`         | `bleu rt, rs, offset`                             | Branch if `rs` <= `rt` (unsigned)            |
+| `j offset`                    | `jal x0, offset`                                  | Jump to `offset`                             |
+| `jal offset`                  | `jal x1, offset`                                  | Jump to `offset` and set `ra` to the next PC |
+| `jr rs`                       | `jalr x0, 0(rs)`                                  | Jump to `rs`                                 |
+| `jalr rs`                     | `jalr x1, 0(rs)`                                  | Jump to `rs` and set `ra` to the next PC     |
+| `ret`                         | `jalr x0, 0(x1)`                                  | Return to the address in `ra`                |
+| `{la, lla} rd, symbol`        | `lui rd, %hi(symbol)`, `addi rd, rd, %lo(symbol)` | Load the address of `symbol` into `rd`       |
+| `nop`                         | `addi x0, x0, 0`                                  | No operation                                 |
+| `l{b, h, w} rd, symbol`       | `lui rd, %hi(symbol)`, `lw rd, %lo(symbol)(rd)`   | Load a byte, half word, or word from `symbol`|
+| `s{b, h, w} rs, symbol, rt`   | `lui rt, %hi(symbol)`, `sw rs, %lo(symbol)(rt)`   | Store a byte, half word, or word to `symbol` |
+| `call symbol`                 | `jal x1, symbol`                                  | Call `symbol`                                |
+| `tail symbol`                 | `jal x0, symbol`                                  | Tail call `symbol`                           |
 
 All symbols, immediate values, and offsets are treated as arithmetic expressions on labels. Currently, only addition and subtraction are supported.
 
