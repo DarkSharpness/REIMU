@@ -14,10 +14,6 @@ using frontend::TokenStream;
 using frontend::OffsetRegister;
 using frontend::match;
 
-static auto count_args(TokenStream rest) -> std::size_t {
-    return std::ranges::count(rest, Token::Type::Comma, &Token::type) + 1;
-}
-
 void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
     using Aop = ArithmeticReg::Opcode;
     using Mop = LoadStore::Opcode;
@@ -57,7 +53,7 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
     constexpr auto __insert_load = [](Assembler *ptr, TokenStream rest, Mop opcode) {
         using PlaceHolder = Token::Placeholder;
         auto [rd, _]  = match <Reg, PlaceHolder> (rest);
-        throw_if(count_args(rest) != 1); // Too many arguments.
+        throw_if(rest.count_args() != 1); // Too many arguments.
         auto offreg = frontend::try_parse_offset_register(rest);
         if (offreg.has_value()) {
             auto &&[off, rs1] = *offreg;
@@ -71,7 +67,7 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
         }
     };
     constexpr auto __insert_store = [](Assembler *ptr, TokenStream rest, Mop opcode) {
-        if (count_args(rest) == 2) {
+        if (rest.count_args() == 2) {
             auto [rs2, off_rs1] = match <Reg, OffReg> (rest);
             auto &&[off, rs1]   = off_rs1;
             ptr->push_new <LoadStore> (opcode, rs2, rs1, off);
@@ -91,7 +87,7 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
         ptr->push_new <Branch> (opcode, rs1, rs2, offset);
     };
     constexpr auto __insert_jump = [](Assembler *ptr, TokenStream rest) {
-        if (count_args(rest) == 1) {
+        if (rest.count_args() == 1) {
             auto [offset] = match <Imm> (rest);
             using Register::ra;
             ptr->push_new <JumpRelative> (ra, offset);
@@ -101,7 +97,7 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
         }
     };
     constexpr auto __insert_jalr = [](Assembler *ptr, TokenStream rest) {
-        if (count_args(rest) == 1) {
+        if (rest.count_args() == 1) {
             auto [rs1] = match <Reg> (rest);
             using Register::ra;
             ptr->push_new <JumpRegister> (ra, rs1, Immediate(0));

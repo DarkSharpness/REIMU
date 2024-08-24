@@ -1,5 +1,6 @@
 #pragma once
 #include <assembly/forward.h>
+#include <cstddef>
 #include <span>
 
 namespace dark::frontend {
@@ -29,6 +30,8 @@ struct TokenStream : std::span <const Token> {
         static_cast <std::span <const Token> &>(*this) = this->subspan(len);
         return TokenStream {ret};
     }
+
+    auto count_args() const -> std::size_t;
 };
 
 } // namespace dark::frontend
