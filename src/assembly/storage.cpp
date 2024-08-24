@@ -18,6 +18,8 @@ using enum frontend::Token::Type;
 static auto get_section(TokenStream tokens) -> std::string_view {
     throw_if(tokens.empty(), "Missing section name");
     auto section_name = tokens[0].what;
+    throw_if(!section_name.starts_with('.') && tokens[0].type == Token::Type::Identifier,
+        "Invalid section name {} (should start with .)", section_name);
     if (section_name.starts_with(".text"))  return "text";
     if (section_name.starts_with(".data"))  return "data";
     if (section_name.starts_with(".sdata")) return "data";
