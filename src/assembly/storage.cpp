@@ -1,5 +1,6 @@
 #include "assembly/frontend/token.h"
 #include "utility/error.h"
+#include <cstddef>
 #include <utility.h>
 #include <assembly/frontend/match.h>
 #include <assembly/assembly.h>
@@ -84,8 +85,17 @@ void Assembler::parse_storage_new(std::string_view token, const Stream &rest) {
     };
     constexpr auto __set_align = [](Assembler *ptr, TokenStream rest) {
         constexpr std::size_t kMaxAlign = 20;
-        auto name = get_single <Identifier> (rest);
-        auto num = sv_to_integer <std::size_t> (name).value_or(kMaxAlign);
+        auto args_cnt = rest.count_args();
+        std::size_t num {};
+        if (args_cnt == 1) {
+            auto name = get_single <Identifier> (rest);
+            num = sv_to_integer <std::size_t> (name).value_or(kMaxAlign);
+        } else if (args_cnt == 2) {
+            throw_if(!match <Identifier, Comma, Identifier> (rest), "Invalid arguments");
+            num = sv_to_integer <std::size_t> (rest[0].what).value_or(kMaxAlign);
+            warning("alignment padding value ignored: {}", rest[2].what);
+        }
+
         throw_if(num >= kMaxAlign, "Invalid alignment value.");
         ptr->push_new <Alignment> (std::size_t{1} << num);
     };
