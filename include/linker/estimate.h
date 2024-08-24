@@ -1,10 +1,11 @@
 #pragma once
+#include "assembly/storage/static.h"
 #include <linker/linker.h>
 #include <assembly/storage.h>
 
 namespace dark::__details {
 
-template <std::derived_from <RealData> _Data>
+template <std::derived_from <StaticData> _Data>
 static constexpr auto align_size(_Data &storage) -> target_size_t {
     if constexpr (std::same_as <_Data, Alignment>) {
         return storage.alignment;
@@ -19,7 +20,7 @@ static constexpr auto align_size(_Data &storage) -> target_size_t {
     }
 }
 
-template <std::derived_from <RealData> _Data>
+template <std::derived_from <StaticData> _Data>
 static constexpr auto real_size(_Data &storage) -> target_size_t {
     if constexpr (std::same_as <_Data, Alignment>) {
         return 0;

@@ -1,3 +1,4 @@
+#include "assembly/storage/static.h"
 #include <utility.h>
 #include <libc/libc.h>
 #include <linker/linker.h>
@@ -56,7 +57,7 @@ private:
     void visitStorage(ZeroBytes &storage)           override { this->update(storage); }
     void visitStorage(ASCIZ &storage)               override { this->update(storage); }
 
-    template <std::derived_from <RealData> _Data>
+    template <std::derived_from <StaticData> _Data>
     void update(_Data &storage) {
         this->align_to(__details::align_size(storage));
         this->position += __details::real_size(storage);

@@ -1,4 +1,6 @@
 #include "assembly/forward.h"
+#include "assembly/storage/command.h"
+#include "assembly/storage/static.h"
 #include "assembly/storage/visitor.h"
 #include <libc/libc.h>
 #include <cctype>
@@ -58,31 +60,30 @@ public:
     }
 
 private:
+    Section &data;
+
     void visit(Storage &storage) {
+        if (dynamic_cast<Command *>(&storage))
+            this->check_command();
+
         StorageVisitor::visit(storage);
         /// TODO: catch the exception, and format the error message
         /// Plan to add detailed information about where crashed
     }
 
-    Section &data;
+    void check_command() {
+        panic_if(this->get_current_position() % alignof(command_size_t) != 0,
+            "Command is not aligned (should align to {})", alignof(command_size_t));
+    }
 
-    void align_to(target_size_t alignment) {
+    void check_alignment(target_size_t alignment) {
         runtime_assert(std::has_single_bit(alignment));
-        auto bitmask = alignment - 1;
-        auto current = this->get_current_position();
-        auto new_pos = (current + bitmask) & ~bitmask;
-        while (current++ < new_pos)
-            data.storage.push_back(std::byte(0));
-        this->set_position(new_pos);
+        panic_if(this->get_current_position() % alignment != 0,
+            "Data is not aligned (should align to {})", alignment);
     }
 
     auto imm_to_int(Immediate &imm) -> target_size_t {
         return this->evaluate(*imm.data);
-    }
-
-    void command_align() {
-        panic_if(this->get_current_position() % alignof(command_size_t) != 0,
-            "Command is not aligned.");
     }
 
     void push_byte(std::uint8_t byte) {
@@ -110,7 +111,6 @@ private:
     }
 
     void visitStorage(ArithmeticReg &storage) {
-        this->command_align();
         command::r_type cmd {};
 
         cmd.rd  = reg_to_int(storage.rd);
@@ -152,7 +152,6 @@ private:
     }
 
     void visitStorage(ArithmeticImm &storage) {
-        this->command_align();
         command::i_type cmd {};
 
         cmd.rd  = reg_to_int(storage.rd);
@@ -184,7 +183,6 @@ private:
     }
 
     void visitStorage(LoadStore &storage) {
-        this->command_align();
         if (storage.is_load())
             return this->visitLoad(storage);
         else
@@ -240,7 +238,6 @@ private:
     }
 
     void visitStorage(Branch &storage) {
-        this->command_align();
         command::b_type cmd {};
 
         const auto target   = imm_to_int(storage.imm);
@@ -270,7 +267,6 @@ private:
     }
 
     void visitStorage(JumpRelative &storage) {
-        this->command_align();
         command::jal cmd {};
 
         const auto target   = imm_to_int(storage.imm);
@@ -283,7 +279,6 @@ private:
     }
 
     void visitStorage(JumpRegister &storage) {
-        this->command_align();
         command::jalr cmd {};
 
         cmd.rd  = reg_to_int(storage.rd);
@@ -295,7 +290,6 @@ private:
     }
 
     void visitStorage(CallFunction &storage) {
-        this->command_align();
         // Into 2 commands: auipc and jalr
         const auto target = imm_to_int(storage.imm);
         const auto distance = target - this->get_current_position();
@@ -325,7 +319,6 @@ private:
     }
 
     void visitStorage(LoadImmediate &storage) {
-        this->command_align();
         const auto imm  = imm_to_int(storage.imm);
         const auto rd   = reg_to_int(storage.rd);
 
@@ -348,7 +341,6 @@ private:
     }
 
     void visitStorage(LoadUpperImmediate &storage) {
-        this->command_align();
         command::lui cmd {};
 
         cmd.rd = reg_to_int(storage.rd);
@@ -358,7 +350,6 @@ private:
     }
 
     void visitStorage(AddUpperImmediatePC &storage) {
-        this->command_align();
         command::auipc cmd {};
 
         cmd.rd = reg_to_int(storage.rd);
@@ -368,12 +359,20 @@ private:
     }
 
     void visitStorage(Alignment &storage) {
-        this->align_to(__details::align_size(storage));
+        auto alignment = __details::align_size(storage);
+        runtime_assert(std::has_single_bit(alignment));
+        auto bitmask = alignment - 1;
+        auto current = this->get_current_position();
+        auto new_pos = (current + bitmask) & ~bitmask;
+        while (current++ < new_pos)
+            data.storage.push_back(std::byte(0));
+        this->set_position(new_pos);
+
         runtime_assert(__details::real_size(storage) == 0);
     }
 
     void visitStorage(IntegerData &storage) {
-        this->align_to(__details::align_size(storage));
+        this->check_alignment(__details::align_size(storage));
         using enum IntegerData::Type;
         switch (auto data = imm_to_int(storage.data); storage.type) {
             case BYTE : this->push_byte(data); break;
@@ -384,13 +383,13 @@ private:
     }
 
     void visitStorage(ZeroBytes &storage) {
-        this->align_to(__details::align_size(storage));
+        this->check_alignment(__details::align_size(storage));
         auto size = __details::real_size(storage);
         while (size --> 0) this->push_byte(0);
     }
 
     void visitStorage(ASCIZ &storage) {
-        this->align_to(__details::align_size(storage));
+        this->check_alignment(__details::align_size(storage));
         auto size = __details::real_size(storage);
         // Including null-terminator
         for (std::size_t i = 0; i < size; ++i)

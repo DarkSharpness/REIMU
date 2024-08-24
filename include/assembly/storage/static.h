@@ -5,16 +5,16 @@
 
 namespace dark {
 
-struct RealData : Storage {};
+struct StaticData : Storage {};
 
-struct Alignment final : RealData {
+struct Alignment final : StaticData {
     std::size_t alignment;
     explicit Alignment(std::size_t alignment);
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
 };
 
-struct IntegerData final : RealData {
+struct IntegerData final : StaticData {
     Immediate data;
     enum class Type {
         BYTE = 0, SHORT = 1, LONG = 2
@@ -24,14 +24,14 @@ struct IntegerData final : RealData {
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
 };
 
-struct ZeroBytes final : RealData {
+struct ZeroBytes final : StaticData {
     std::size_t count;
     explicit ZeroBytes(std::size_t count);
     void debug(std::ostream &os) const override;
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
 };
 
-struct ASCIZ final : RealData {
+struct ASCIZ final : StaticData {
     std::string data;
     explicit ASCIZ(std::string str);
     void debug(std::ostream &os) const override;
