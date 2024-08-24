@@ -2,9 +2,11 @@
 #include "assembly/storage/command.h"
 #include "assembly/storage/static.h"
 #include "assembly/storage/visitor.h"
+#include <fmtlib.h>
 #include <libc/libc.h>
 #include <cctype>
 #include <declarations.h>
+#include <string>
 #include <utility/error.h>
 #include <riscv/command.h>
 #include <assembly/storage.h>
@@ -15,6 +17,10 @@
 #include <string_view>
 
 namespace dark {
+
+struct FailToLink {
+    std::string what;
+};
 
 template <int _Nm, bool _Signed>
 static auto check_bits(target_size_t imm, std::string_view name) -> command_size_t {
@@ -29,11 +35,12 @@ static auto check_bits(target_size_t imm, std::string_view name) -> command_size
     std::string name_str {name};
     for (auto &ch : name_str) ch = std::tolower(ch);
 
-    panic(
-        "Fail to link source assembly\n"
-        "  \"{}\" immediate out of range, should be within [{}, {}]",
-        name_str, static_cast<target_ssize_t> (min), max
-    );
+    throw FailToLink {
+        std::format(
+            "\"{}\" immediate out of range, should be within [{}, {}]",
+            name_str, static_cast<target_ssize_t> (min), max
+        )
+    };
 }
 
 struct Encoder final : Evaluator, StorageVisitor {
@@ -63,23 +70,36 @@ private:
     Section &data;
 
     void visit(Storage &storage) {
-        if (dynamic_cast<Command *>(&storage))
-            this->check_command();
-
-        StorageVisitor::visit(storage);
-        /// TODO: catch the exception, and format the error message
-        /// Plan to add detailed information about where crashed
+        try {
+            if (dynamic_cast<Command *>(&storage))
+                this->check_command();
+            StorageVisitor::visit(storage);
+            /// TODO: catch the exception, and format the error message
+            /// Plan to add detailed information about where crashed
+        } catch (FailToLink &e) {
+            panic("Fail to link source assembly.\n  {}", e.what);
+        } catch (...) {
+            unreachable("Unknown exception caught in Encoder::visit");
+        }
     }
 
     void check_command() {
-        panic_if(this->get_current_position() % alignof(command_size_t) != 0,
-            "Command is not aligned (should align to {})", alignof(command_size_t));
+        if (this->get_current_position() % alignof(command_size_t) == 0)
+            [[likely]] return;
+
+        throw FailToLink {
+            std::format("Command is not aligned (should align to {})", alignof(command_size_t))
+        };
     }
 
     void check_alignment(target_size_t alignment) {
         runtime_assert(std::has_single_bit(alignment));
-        panic_if(this->get_current_position() % alignment != 0,
-            "Data is not aligned (should align to {})", alignment);
+        if (this->get_current_position() % alignment == 0)
+            return;
+
+        throw FailToLink {
+            std::format("Static data is not aligned (should align to {})", alignment)
+        };
     }
 
     auto imm_to_int(Immediate &imm) -> target_size_t {
