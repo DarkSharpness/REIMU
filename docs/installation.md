@@ -8,7 +8,7 @@ We need gcc-12 or later to compile the code. To install gcc, run the following c
 
 ```shell
 # For Ubuntu/WSL, need to set the default gcc version to 12
-sudo apt-get install gcc-12
+sudo apt-get install gcc-12 g++-12
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 60 --slave /usr/bin/g++ g++ /usr/bin/g++-12
 # For Arch Linux
 sudo pacman -S gcc

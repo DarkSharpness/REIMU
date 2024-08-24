@@ -5,7 +5,7 @@
 > TL;DR: If you are lazy, just use the shell code in script folder.
 
 ```shell
-# For WSL 2
+# For WSL 2/Ubuntu
 ./script/install_wsl.sh
 # For Arch Linux
 ./script/install_arch.sh
@@ -15,7 +15,7 @@
 
 ### Installation
 
-To run the simulator, you need `xmake` and `gcc-12` or higher. If you don't have them installed, refer to [installation](installation.md) for more details. Then, install the simulator using the following commands:
+To run the simulator, you need `xmake` and `gcc-12` (including `g++-12`) or higher. If you don't have them installed, refer to [installation](installation.md) for more details. Then, install the simulator using the following commands:
 
 ```shell
 git clone git@github.com:DarkSharpness/REIMU.git
