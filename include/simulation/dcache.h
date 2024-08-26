@@ -1,17 +1,16 @@
 #pragma once
 #include "declarations.h"
+#include "utility/error.h"
 #include <cstddef>
-#include <stdexcept>
 
 namespace kupi {
 
 using Addr_t = dark::target_size_t;
 using Time_t = std::size_t;
 
-static constexpr Addr_t CacheLineSize = 64;
-static constexpr Addr_t CacheMaxSize = 8;     // 每个组中的缓存行数
-static constexpr Addr_t CacheGroupSize = 128; // 缓存组数
-
+static constexpr Addr_t CacheLineSize   = 64;
+static constexpr Addr_t CacheMaxSize    = 4;        // 每个组中的缓存行数
+static constexpr Addr_t CacheGroupSize  = 4;        // 缓存组数
 
 struct CacheLine {
     Addr_t id {};
@@ -32,8 +31,6 @@ struct CacheCounter {
     Time_t count_write_back {};
 };
 
-class Cache;
-
 class CacheGroup {
 public:
     explicit CacheGroup() = default;
@@ -43,7 +40,7 @@ public:
         auto line_id = low / CacheLineSize;
         auto lineLow = low / CacheLineSize * CacheLineSize;
         if (lineLow + CacheLineSize < high)
-            throw std::runtime_error("CacheGroup::load address range too large");
+            dark::unreachable("CacheGroup::load address range too large");
         if (this->check_hit(line_id, false))
             return true;
         this->allocate_one(line_id, counter);
@@ -55,7 +52,7 @@ public:
         auto line_id = low / CacheLineSize;
         auto lineLow = low / CacheLineSize * CacheLineSize;
         if (lineLow + CacheLineSize < high)
-            throw std::runtime_error("CacheGroup::store address range too large");
+            dark::unreachable("CacheGroup::store address range too large");
         if (this->check_hit(line_id, true))
             return true;
         this->allocate_one(line_id, counter);
@@ -106,13 +103,21 @@ public:
         return groups[group_index].store(low, high, counter);
     }
 
+    auto get_load() const -> std::size_t {
+        return counter.count_load_real;
+    }
+
+    auto get_store() const -> std::size_t {
+        return counter.count_write_back;
+    }
+
 private:
     friend class CacheGroup;
 
     CacheGroup groups[CacheGroupSize]; // 组关联缓存中的各个组
     CacheCounter counter;
 
-    Addr_t get_group_index(Addr_t addr) {
+    static constexpr Addr_t get_group_index(Addr_t addr) {
         return (addr / CacheLineSize) % CacheGroupSize;
     }
 };
