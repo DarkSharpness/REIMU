@@ -103,6 +103,8 @@ void Linker::add_file(AssemblyLayout &layout, _Symbol_Table_t &local_table) {
     _Section_Map_t section_map; // Use vector flat map
 
     for (auto &[slice, section] : layout.sections) {
+        /// TODO: Fix the possible issue of labels attached some empty sections
+        if (slice.empty()) continue;
         auto &vec       = this->get_section(section);
         auto &storage   = vec.emplace_back(slice, local_table);
         section_map.add_mapping(slice.data(), &storage);
