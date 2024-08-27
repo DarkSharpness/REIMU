@@ -53,7 +53,7 @@ Configurations:
   -w<name>=<value>,
   --weight-<name>=<value>           Set weight (cycles) for a specific assembly command.
                                     The name can be either an opcode name or a group name.
-                                    - Example: -wadd=1 -wmul=3 -wmemory=100 -wbranch=3
+                                    - Example: -wload=100 -wbranch=3
 
   -t=<time>, --time=<time>          Set maximum instructions for the simulator.
                                     Note that this time is measured by instructions, not cycles.
