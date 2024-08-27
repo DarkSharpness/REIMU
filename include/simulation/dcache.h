@@ -10,7 +10,7 @@ using Time_t = std::size_t;
 
 static constexpr Addr_t CacheLineSize   = 64;
 static constexpr Addr_t CacheMaxSize    = 4;        // 每个组中的缓存行数
-static constexpr Addr_t CacheGroupSize  = 4;        // 缓存组数
+static constexpr Addr_t CacheGroupSize  = 2;        // 缓存组数
 
 struct CacheLine {
     Addr_t id {};
