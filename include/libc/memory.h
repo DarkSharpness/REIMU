@@ -40,7 +40,7 @@ private:
     target_size_t brk;      // current break, aligned to kMinAlignment
 
 private:
-    static auto align(target_size_t ptr) -> target_size_t {
+    static constexpr auto align(target_size_t ptr) -> target_size_t {
         constexpr auto kMask = kMinAlignment - 1;
         return (ptr + kMask) & ~kMask;
     }
@@ -52,7 +52,7 @@ private:
     [[noreturn]]
     static void unknown_malloc_pointer(target_size_t, __details::_Index);
 
-    static auto get_required_size(target_size_t size) -> target_size_t {
+    static constexpr auto get_required_size(target_size_t size) -> target_size_t {
         return align(std::max(size + kHeaderSize, kMinAllocSize + kHeaderSize));
     }
 
