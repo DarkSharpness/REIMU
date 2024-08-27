@@ -49,24 +49,24 @@ static void arith_impl(target_size_t &rd, target_size_t rs1, target_size_t rs2, 
         }
 
     switch (op) {
-        case ADD:   rd = rs1 + rs2; dev.counter.add++; return;
-        case SUB:   rd = rs1 - rs2; dev.counter.sub++; return;
-        case AND:   rd = rs1 & rs2; dev.counter.and_++; return;
-        case OR:    rd = rs1 | rs2; dev.counter.or_++; return;
-        case XOR:   rd = rs1 ^ rs2; dev.counter.xor_++; return;
-        case SLL:   rd = rs1 << rs2; dev.counter.sll++; return;
-        case SRL:   rd = u32(rs1) >> rs2; dev.counter.srl++; return;
-        case SRA:   rd = i32(rs1) >> rs2; dev.counter.sra++; return;
-        case SLT:   rd = i32(rs1) < i32(rs2); dev.counter.slt++; return;
-        case SLTU:  rd = u32(rs1) < u32(rs2); dev.counter.sltu++; return;
-        case MUL:   rd = rs1 * rs2; dev.counter.mul++; return;
-        case MULH:  rd = (i64(rs1) * i64(rs2)) >> 32; dev.counter.mulh++; return;
-        case MULHSU:rd = (i64(rs1) * u64(rs2)) >> 32; dev.counter.mulhsu++; return;
-        case MULHU: rd = (u64(rs1) * u64(rs2)) >> 32; dev.counter.mulhu++; return;
-        case DIV:   rd = check_zero : i32(rs1) / i32(rs2); dev.counter.div++; return;
-        case DIVU:  rd = check_zero : u32(rs1) / u32(rs2); dev.counter.divu++; return;
-        case REM:   rd = check_zero : i32(rs1) % i32(rs2); dev.counter.rem++; return;
-        case REMU:  rd = check_zero : u32(rs1) % u32(rs2); dev.counter.remu++; return;
+        case ADD:   rd = rs1 + rs2; dev.counter.wArith++; return;
+        case SUB:   rd = rs1 - rs2; dev.counter.wArith++; return;
+        case AND:   rd = rs1 & rs2; dev.counter.wBitwise++; return;
+        case OR:    rd = rs1 | rs2; dev.counter.wBitwise++; return;
+        case XOR:   rd = rs1 ^ rs2; dev.counter.wBitwise++; return;
+        case SLL:   rd = rs1 << rs2; dev.counter.wShift++; return;
+        case SRL:   rd = u32(rs1) >> rs2; dev.counter.wShift++; return;
+        case SRA:   rd = i32(rs1) >> rs2; dev.counter.wShift++; return;
+        case SLT:   rd = i32(rs1) < i32(rs2); dev.counter.wCompare++; return;
+        case SLTU:  rd = u32(rs1) < u32(rs2); dev.counter.wCompare++; return;
+        case MUL:   rd = rs1 * rs2; dev.counter.wMultiply++; return;
+        case MULH:  rd = (i64(rs1) * i64(rs2)) >> 32; dev.counter.wMultiply++; return;
+        case MULHSU:rd = (i64(rs1) * u64(rs2)) >> 32; dev.counter.wMultiply++; return;
+        case MULHU: rd = (u64(rs1) * u64(rs2)) >> 32; dev.counter.wMultiply++; return;
+        case DIV:   rd = check_zero : i32(rs1) / i32(rs2); dev.counter.wDivide++; return;
+        case DIVU:  rd = check_zero : u32(rs1) / u32(rs2); dev.counter.wDivide++; return;
+        case REM:   rd = check_zero : i32(rs1) % i32(rs2); dev.counter.wDivide++; return;
+        case REMU:  rd = check_zero : u32(rs1) % u32(rs2); dev.counter.wDivide++; return;
         default:    unreachable();
     }
     #undef check_zero
@@ -100,14 +100,14 @@ namespace LoadStore {
 
         using enum general::MemoryOp;
         switch (op) {
-            case LB:    rd = mem.load_i8(addr); dev.counter.lb++; break;
-            case LH:    rd = mem.load_i16(addr); dev.counter.lh++; break;
-            case LW:    rd = mem.load_i32(addr); dev.counter.lw++; break;
-            case LBU:   rd = mem.load_u8(addr); dev.counter.lbu++; break;
-            case LHU:   rd = mem.load_u16(addr); dev.counter.lhu++; break;
-            case SB:    mem.store_u8(addr, rs2); dev.counter.sb++; break;
-            case SH:    mem.store_u16(addr, rs2); dev.counter.sh++; break;
-            case SW:    mem.store_u32(addr, rs2); dev.counter.sw++; break;
+            case LB:    rd = mem.load_i8(addr); dev.counter.wLoad++; break;
+            case LH:    rd = mem.load_i16(addr); dev.counter.wLoad++; break;
+            case LW:    rd = mem.load_i32(addr); dev.counter.wLoad++; break;
+            case LBU:   rd = mem.load_u8(addr); dev.counter.wLoad++; break;
+            case LHU:   rd = mem.load_u16(addr); dev.counter.wLoad++; break;
+            case SB:    mem.store_u8(addr, rs2); dev.counter.wStore++; break;
+            case SH:    mem.store_u16(addr, rs2); dev.counter.wStore++; break;
+            case SW:    mem.store_u32(addr, rs2); dev.counter.wStore++; break;
             default:    unreachable();
         }
 
@@ -128,12 +128,12 @@ namespace Branch {
 
         bool result {};
         switch (op) {
-            case BEQ:   result = (rs1 == rs2); dev.counter.beq++; break;
-            case BNE:   result = (rs1 != rs2); dev.counter.bne++; break;
-            case BLT:   result = (i32(rs1) <  i32(rs2)); dev.counter.blt++; break;
-            case BGE:   result = (i32(rs1) >= i32(rs2)); dev.counter.bge++; break;
-            case BLTU:  result = (u32(rs1) <  u32(rs2)); dev.counter.bltu++; break;
-            case BGEU:  result = (u32(rs1) >= u32(rs2)); dev.counter.bgeu++; break;
+            case BEQ:   result = (rs1 == rs2); dev.counter.wBranch++; break;
+            case BNE:   result = (rs1 != rs2); dev.counter.wBranch++; break;
+            case BLT:   result = (i32(rs1) <  i32(rs2)); dev.counter.wBranch++; break;
+            case BGE:   result = (i32(rs1) >= i32(rs2)); dev.counter.wBranch++; break;
+            case BLTU:  result = (u32(rs1) <  u32(rs2)); dev.counter.wBranch++; break;
+            case BGEU:  result = (u32(rs1) >= u32(rs2)); dev.counter.wBranch++; break;
             default:    unreachable();
         }
 
@@ -154,7 +154,7 @@ namespace Jump {
 
         rd = rf.get_pc() + 4;
         rf.set_pc(rf.get_pc() + imm);
-        dev.counter.jal++;
+        dev.counter.wJal++;
 
         return exe.next(imm);
     }
@@ -170,7 +170,7 @@ namespace Jalr {
 
         rd = rf.get_pc() + 4;
         rf.set_pc(target);
-        dev.counter.jalr++;
+        dev.counter.wJalr++;
 
         return exe.next(offset);
     }
@@ -181,7 +181,7 @@ namespace Lui {
     static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         rd = imm;
-        dev.counter.lui++;
+        dev.counter.wUpper++;
         return exe.next();
     }
 } // namespace Lui
@@ -191,7 +191,7 @@ namespace Auipc {
     static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
         auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
         rd = rf.get_pc() + imm;
-        dev.counter.auipc++;
+        dev.counter.wUpper++;
         return exe.next();
     }
 } // namespace Auipc

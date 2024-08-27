@@ -1,4 +1,8 @@
+#include "config/counter.h"
 #include "utility/error.h"
+#include <cctype>
+#include <concepts>
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -6,7 +10,6 @@
 #include <utility/cast.h>
 #include <config/config.h>
 #include <config/default.h>
-#include <config/weight.h>
 #include <config/argument.h>
 #include <unordered_set>
 #include <unordered_map>
@@ -40,6 +43,7 @@ void ArgumentParser::handle(std::string_view str) {
 
 using _Option_Set_t = std::unordered_set <std::string_view>;
 using _Weight_Map_t = std::unordered_map <std::string_view, std::size_t>;
+using weight::Counter;
 
 struct InputFile {
     explicit InputFile(std::string_view name) : name(name) {}
@@ -157,10 +161,12 @@ struct Config_Impl {
 
     // The additional configuration table provided by the user.
     _Option_Set_t option_table;
-    // The additional weight table provided by the user.
-    _Weight_Map_t weight_table;
+    // The counter for the weight.
+    Counter counter;
 
     OJInfo oj_data;
+
+    _Weight_Map_t weight_table;
 
     explicit Config_Impl(ArgumentParser &parser);
 
@@ -182,54 +188,69 @@ struct Config::Impl : Config, Config_Impl {
     }
 };
 
-using weight::kWeightRanges;
-using weight::kManual;
-using weight::kWeightCount;
-using weight::parse_manual;
+// using weight::kWeightRanges;
+// using weight::kManual;
+// using weight::kWeightCount;
+// using weight::parse_manual;
 
 // The weight list is generated automatically by the weight ranges.
-static constexpr auto kWeightList = []() {
-    using _Pair_t = std::pair <std::string_view, std::size_t>;
-    std::array <_Pair_t, kWeightCount> table {};
-    std::size_t which {};
-    for (const auto &[name, list, weight] : kWeightRanges) {
-        if (weight != kManual) {
-            for (auto item : list) table[which++] = { item, weight };
-        } else {
-            for (auto item : list) table[which++] = parse_manual(item);
-        }
-    }
-    if (which != kWeightCount) throw;
-    return table;
-} ();
+// static constexpr auto kWeightList = []() {
+//     using _Pair_t = std::pair <std::string_view, std::size_t>;
+//     std::array <_Pair_t, kWeightCount> table {};
+//     std::size_t which {};
+//     for (const auto &[name, list, weight] : kWeightRanges) {
+//         if (weight != kManual) {
+//             for (auto item : list) table[which++] = { item, weight };
+//         } else {
+//             for (auto item : list) table[which++] = parse_manual(item);
+//         }
+//     }
+//     if (which != kWeightCount) throw;
+//     return table;
+// } ();
 
-/**
- * @return Whether a give name is a name of a weight range.
- */
-static auto find_weight_range(std::string_view need)
--> std::optional <std::span <const std::string_view>> {
-    for (const auto &[name, list, _] : kWeightRanges)
-        if (name == need) return list;
-    return std::nullopt;
+// static auto find_weight_range(std::string_view need)
+//     -> std::optional <std::span <const std::string_view>> {
+//     for (const auto &[name, list, _] : kWeightRanges)
+//         if (name == need) return list;
+//     return std::nullopt;
+// }
+
+template<typename _Tp>
+concept CounterType = requires(_Tp &a, std::size_t s) {
+    { a.kDefaultWeight }    -> std::same_as<const std::size_t &>;
+    { a.kName }             -> std::same_as<const std::string_view &>;
+    { a.kMembers[0] }       -> std::same_as<const std::string_view &>;
+    { a.get_weight() }      -> std::same_as<std::size_t>;
+    a.set_weight(s);
+} && sizeof(_Tp) == sizeof(std::size_t);
+
+template<CounterType _Tp>
+static void insert_weight(_Tp &counter, _Weight_Map_t &table) {
+    static constexpr auto array = []() {
+        std::array <char, _Tp::kName.size() + 1> buffer {};
+        for (std::size_t i = 0; i < _Tp::kName.size(); ++i) {
+            char c = _Tp::kName[i];
+            if (c >= 'A' && c <= 'Z')
+                c = c + ('a' - 'A');
+            buffer[i] = c;
+        }
+        return buffer;
+    };
+    std::string_view kName { array().data(), _Tp::kName.size() };
+    if (auto iter = table.find(kName); iter == table.end()) {
+        counter.set_weight(_Tp::kDefaultWeight);
+    } else {
+        counter.set_weight(iter->second);
+        table.erase(iter);
+    }
 }
 
-static void check_invalid_weight(_Weight_Map_t &table) {
-    _Weight_Map_t default_weights {
-        std::begin(kWeightList), std::end(kWeightList)
-    };
-
-    for (const auto &[key, value] : table) {
-        // Name of a specific weight, ok.
-        if (default_weights.count(key) != 0) continue; 
-        // Name of a range weight, and set all the weights in the range.
-        if (auto list = find_weight_range(key)) {
-            for (const auto &name : *list) default_weights[name] = value;
-        } else {
-            handle_error("Unknown weight: {}", key);
-        }
+static void check_invalid_weight(Counter &counter, _Weight_Map_t &table) {
+    visit([&](auto &counter) { insert_weight(counter, table); }, counter);
+    if (!table.empty()) {
+        handle_error("Unknown weight: {}", table.begin()->first);
     }
-
-    for (const auto &pair : default_weights) table.insert(pair);
 }
 
 static void check_duplicate_files(
@@ -349,8 +370,7 @@ Config_Impl::Config_Impl(ArgumentParser &parser) :
     assembly_files(parser.match<KeyValue>({"-f", "--file"})
         .transform(get_files)
         .value_or(config::kInitAssemblyFiles)),
-    option_table(),
-    weight_table()
+    option_table()
 {
     for (auto option : config::kSupportedOptions)
         parser.match<KeyOnly>({option}, [this, option]() {
@@ -367,10 +387,8 @@ Config_Impl::Config_Impl(ArgumentParser &parser) :
         } else {
             handle_error("Unknown command line argument: {}", name);
         }
-        auto [_, sucess] = this->weight_table.try_emplace(what, get_integer(weight, "weight"));
-        if (!sucess) {
-            handle_error("Duplicate weight: {}", what);
-        }
+        auto [_, success] = this->weight_table.try_emplace(what, get_integer(weight, "weight"));
+        if (!success) handle_error("Duplicate weight: {}", what);
     }
 }
 
@@ -396,8 +414,7 @@ void Config_Impl::initialize_with_check() {
         handle_error("Stack size exceeds memory size: "
             "0x{:x} > 0x{:x}", this->stack_size, this->memory_size);
 
-    check_invalid_weight(this->weight_table);
-
+    check_invalid_weight(this->counter, this->weight_table);
     check_duplicate_files(this->assembly_files,
         this->input.get_file_name(),
         // Remark: answer file is only useful in OJ mode for now.
@@ -501,20 +518,20 @@ void Config_Impl::print_in_detail() const {
         message << std::format(kFormat, option, this->has_option(option));
     }
 
-    message << "  Weights:\n";
-    for (const auto &[name, list, weight] : kWeightRanges) {
-        message << "    " << name << ":\n";
-        if (weight != kManual) {
-            for (auto iter : list) {
-                message << std::format(kFormat, iter, this->weight_table.at(iter));
-            }
-        } else {
-            for (auto iter : list) {
-                auto name = parse_manual(iter).first;
-                message << std::format(kFormat, name, this->weight_table.at(name));
-            }
-        }
-    }
+    // message << "  Weights:\n";
+    // for (const auto &[name, list, weight] : kWeightRanges) {
+    //     message << "    " << name << ":\n";
+    //     if (weight != kManual) {
+    //         for (auto iter : list) {
+    //             message << std::format(kFormat, iter, this->weight_table.at(iter));
+    //         }
+    //     } else {
+    //         for (auto iter : list) {
+    //             auto name = parse_manual(iter).first;
+    //             message << std::format(kFormat, name, this->weight_table.at(name));
+    //         }
+    //     }
+    // }
 
     message << std::format("\n{:=^80}\n\n", "");
 }
@@ -614,6 +631,10 @@ auto Config::get_assembly_names() const -> std::span <const std::string_view> {
 
 auto Config::get_weight(std::string_view name) const -> std::size_t {
     return this->get_impl().weight_table.at(name);
+}
+
+auto Config::get_weight() const -> const Counter & {
+    return this->get_impl().counter;
 }
 
 } // namespace dark

@@ -7,6 +7,10 @@
 
 namespace dark {
 
+namespace weight {
+struct Counter;
+} // namespace weight
+
 struct Config {
 public:
     using unique_t = derival_ptr<Config>;
@@ -23,6 +27,8 @@ public:
 
     auto has_option(std::string_view) const -> bool;
     auto get_weight(std::string_view) const -> std::size_t;
+    auto get_weight() const -> const weight::Counter &;
+
 private:
     struct Impl;
     auto get_impl() const -> const Impl &;
