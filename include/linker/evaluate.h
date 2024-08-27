@@ -47,6 +47,8 @@ protected:
             return it->second.get_location();
         if (auto it = this->global_table.find(str); it != this->global_table.end())
             return it->second.get_location();
+        if (str == ".")
+            return this->position;
         panic("Unknown symbol \"{}\"", str);
     }
 
