@@ -87,8 +87,6 @@ static auto checked_scanf_impl(
         }
 
         // c == '%' here
-        ++args;
-
         auto val_ch = char {};
         auto val_u  = target_size_t {};
         auto val_s  = target_ssize_t {};
@@ -115,6 +113,10 @@ static auto checked_scanf_impl(
                 break;
             default:
                 handle_unknown_fmt<index>(fmt[i]);
+        }
+
+        if (in.good()) {
+            ++args;
         }
     }
 
