@@ -211,7 +211,6 @@ static void insert_weight(_Tp &counter, _Weight_Map_t &table) {
         return buffer;
     } ();
     constexpr auto kName = std::string_view { array.data(), _Tp::kName.size() };
-    console::message << kName << std::endl;
     if (auto iter = table.find(kName); iter == table.end()) {
         counter.set_weight(_Tp::kDefaultWeight);
     } else {
@@ -458,7 +457,6 @@ void Config_Impl::initialize_configuration() {
     if (this->has_option("silent"))  __silent();
     if (this->has_option("detail"))  __detail();
     if (this->has_option("all"))     __all();
-    this->print_in_detail();
 }
 
 void Config_Impl::print_in_detail() const {
