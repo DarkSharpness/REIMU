@@ -1,4 +1,7 @@
 // Should only be included once in src/libc/memory.cpp
+#include "declarations.h"
+#include <cmath>
+#include <cstddef>
 #include <libc/libc.h>
 #include <utility.h>
 #include <interpreter/memory.h>
@@ -8,6 +11,7 @@
 namespace dark::libc {
 
 struct MemoryManager {
+private:
     struct Header {
     public:
         auto get_prev_size() const {
@@ -27,14 +31,13 @@ struct MemoryManager {
         std::uint32_t self;
     };
 
-    static constexpr target_size_t kMinAlignment = alignof(std::max_align_t);
-    static constexpr target_size_t kHeaderSize   = sizeof(Header);
-    static constexpr target_size_t kMinAllocSize = sizeof(void *) * 2;
+    static constexpr target_size_t kMinAlignment    = alignof(std::max_align_t);
+    static constexpr target_size_t kHeaderSize      = sizeof(Header);
+    static constexpr target_size_t kMinAllocSize    = sizeof(void *) * 2;
+    static constexpr std::size_t   kMemOverhead     = 32;
 
     target_size_t start;    // start of the heap
     target_size_t brk;      // current break, aligned to kMinAlignment
-
-    consteval MemoryManager() : start(), brk() {}
 
 private:
     static auto align(target_size_t ptr) -> target_size_t {
@@ -66,6 +69,7 @@ private:
     }
 
 public:
+    consteval MemoryManager() : start(), brk() {}
 
     void init(Memory &mem) {
         // We have no restrictions on the start address
@@ -92,7 +96,7 @@ public:
 
     [[nodiscard]]
     auto reallocate(Memory &mem, target_size_t old_ptr, target_size_t new_size)
-    -> target_size_t {
+    -> std::pair <target_size_t, bool> {
         const auto area = parse_malloc_ptr(mem, old_ptr);
         auto old_data = area.data();
         auto old_size = area.size();
@@ -100,12 +104,12 @@ public:
         if (old_size == 0) {
             unknown_malloc_pointer(old_ptr, __details::_Index::realloc);
         } else if (old_size >= required) {
-            return old_ptr;
+            return { old_ptr, false };
         } else {
             auto [new_data, new_ptr] = this->allocate_required(mem, required);
             std::memcpy(new_data, old_data, old_size);
             this->free(mem, old_ptr);
-            return new_ptr;
+            return { new_ptr, true };
         }
     }
 
@@ -123,7 +127,7 @@ public:
             return {};
 
         auto *data_ptr  = area.data() + kHeaderSize;
-        auto  rest_size = area.size() - kHeaderSize;
+        auto rest_size  = area.size() - kHeaderSize;
         auto &header    = this->get_header(data_ptr);
         auto this_size  = header.get_this_size();
 
@@ -136,6 +140,23 @@ public:
         return { data_ptr, this_size };
     }
 
+    static constexpr auto get_malloc_time(const target_size_t size) -> std::size_t {
+        const auto required = get_required_size(size);
+        return kMemOverhead + std::size_t(std::sqrt(required)) * 8;
+    }
+
+    static constexpr auto get_free_time() -> std::size_t {
+        return kMemOverhead;
+    }
+
+    static constexpr auto get_realloc_time(const target_size_t size, bool realloc) -> std::size_t {
+        constexpr std::size_t kReallocTime = 16;
+        if (realloc) {
+            return kReallocTime + get_malloc_time(size) + get_free_time();
+        } else {
+            return kReallocTime;
+        }
+    }
 };
 
 } // namespace dark::libc

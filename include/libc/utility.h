@@ -1,4 +1,6 @@
 #pragma once
+#include "declarations.h"
+#include <cstddef>
 #include <libc/libc.h>
 #include <interpreter/memory.h>
 #include <interpreter/register.h>
@@ -125,6 +127,22 @@ static auto return_to_user(RegisterFile &rf, Memory &, target_size_t retval) -> 
     for (auto reg : caller_saved_poison) rf[reg] = 0xDEADBEEF;
 
     return Hint {}; // No hint
+}
+
+static constexpr std::size_t kLibcOverhead = 32;
+
+static constexpr auto io(target_size_t size) -> std::size_t {
+    return 8 * size;
+}
+static constexpr auto op(target_size_t size) -> std::size_t {
+    return 1 * size;
+}
+
+static constexpr auto find_first_diff
+    (const char *lhs, const char *rhs, std::size_t size) -> std::size_t {
+    for (std::size_t i = 0; i < size; ++i)
+        if (lhs[i] != rhs[i]) return i;
+    return size;
 }
 
 } // namespace dark::libc::__details

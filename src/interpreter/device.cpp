@@ -95,6 +95,7 @@ void Device::print_details(bool details) const {
 
     // Original cycle count.
     auto cycles = counter * kWeight;
+    cycles += counter.libcMem.weight + counter.libcIO.weight + counter.libcOp.weight;
 
     if (impl.bp.has_value()) {
         cycles -= impl.bp_success * kWeight.wBranch;
@@ -118,13 +119,16 @@ void Device::print_details(bool details) const {
 
     profile << std::format(
         "Instruction counts:\n"
-        "# simple = {}\n"
-        "# mul    = {}\n"
-        "# div    = {}\n"
-        "# mem    = {}\n"
-        "# branch = {}\n"
-        "# jump   = {}\n"
-        "# jalr   = {}\n",
+        "# simple   = {}\n"
+        "# mul      = {}\n"
+        "# div      = {}\n"
+        "# mem      = {}\n"
+        "# branch   = {}\n"
+        "# jump     = {}\n"
+        "# jalr     = {}\n"
+        "# libcMem  = {}\n"
+        "# libcIO   = {}\n"
+        "# libcOp   = {}\n",
         counter.wArith + counter.wUpper + counter.wCompare +
         counter.wShift + counter.wBitwise,
         counter.wMultiply,
@@ -132,7 +136,10 @@ void Device::print_details(bool details) const {
         counter.wLoad + counter.wStore,
         counter.wBranch,
         counter.wJal,
-        counter.wJalr
+        counter.wJalr,
+        counter.libcMem.count,
+        counter.libcIO.count,
+        counter.libcOp.count
     );
 
     if (impl.bp.has_value()) {

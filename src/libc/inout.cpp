@@ -1,3 +1,5 @@
+#include "declarations.h"
+#include <cstddef>
 #include <utility.h>
 #include <libc/libc.h>
 #include <libc/utility.h>
@@ -61,7 +63,7 @@ template <_Index index>
 static auto checked_scanf_impl(
     RegisterFile &rf, Memory &mem, std::istream &in,
     std::string_view fmt, Register from
-) -> int {
+) -> std::size_t {
     auto reg = reg_to_int(from);
     const auto extra_arg = [&]() {
         if (reg == reg_to_int(Register::a7) + 1)
@@ -73,6 +75,7 @@ static auto checked_scanf_impl(
     };
 
     static std::string buf {};
+    std::size_t args {};
 
     for (std::size_t i = 0 ; i < fmt.size() ; ++i) {
         char c = fmt[i];
@@ -84,6 +87,7 @@ static auto checked_scanf_impl(
         }
 
         // c == '%' here
+        ++args;
 
         auto val_ch = char {};
         auto val_u  = target_size_t {};
@@ -114,48 +118,61 @@ static auto checked_scanf_impl(
         }
     }
 
-    return 0;
+    return args;
 }
 
 auto puts(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto ptr = rf[Register::a0];
     auto str = checked_get_string<_Index::puts>(mem, ptr);
     dev.out << str << '\n';
+
+    dev.counter.libcIO += kLibcOverhead + io(str.size() + 1);
+
     return return_to_user(rf, mem, 0);
 }
 
 auto putchar(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto c = rf[Register::a0];
     dev.out.put(static_cast<char>(c));
+    dev.counter.libcIO += kLibcOverhead + io(1);
     return return_to_user(rf, mem, 0);
 }
 
 auto printf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto ptr = rf[Register::a0];
     auto fmt = checked_get_string<_Index::printf>(mem, ptr);
-    auto &os = dev.out;
-
+    auto os = std::stringstream {};
     checked_printf_impl <_Index::printf> (rf, mem, os, fmt, Register::a1);
+
+    auto str = std::move(os).str();
+    dev.out << str;
+
+    dev.counter.libcIO += kLibcOverhead + io(str.size()) + op(fmt.size());
+
     return return_to_user(rf, mem, 0);
 }
 
-auto sprintf(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
+auto sprintf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
     auto fmt  = checked_get_string<_Index::sprintf>(mem, ptr1);
 
-    std::stringstream ss;
-    checked_printf_impl <_Index::sprintf> (rf, mem, ss, fmt, Register::a2);
+    auto os = std::stringstream {};
+    checked_printf_impl <_Index::sprintf> (rf, mem, os, fmt, Register::a2);
 
-    auto str  = std::move(ss).str();
+    auto str  = std::move(os).str();
     auto raw  = checked_get_area<_Index::sprintf>(mem, ptr0, str.size() + 1);
-
     std::memcpy(raw, str.data(), str.size() + 1);
+
+    // Format time + IO time
+    dev.counter.libcOp += kLibcOverhead + io(str.size()) + op(fmt.size());
+
     return return_to_user(rf, mem, ptr0);
 }
 
 auto getchar(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto c = dev.in.get();
+    dev.counter.libcIO += kLibcOverhead + io(1);
     return return_to_user(rf, mem, c);
 }
 
@@ -163,30 +180,26 @@ auto scanf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto ptr = rf[Register::a0];
     auto fmt = checked_get_string<_Index::scanf>(mem, ptr);
     auto &is = dev.in;
-
     auto result = checked_scanf_impl <_Index::scanf> (rf, mem, is, fmt, Register::a1);
+
+    dev.counter.libcIO += kLibcOverhead + io(result * 2) + op(fmt.size());
+
     return return_to_user(rf, mem, result);
 }
 
-auto sscanf(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
+auto sscanf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto ptr0 = rf[Register::a0];
     auto ptr1 = rf[Register::a1];
     auto str  = checked_get_string<_Index::sscanf>(mem, ptr0);
     auto fmt  = checked_get_string<_Index::sscanf>(mem, ptr1);
 
-    std::stringstream ss { std::string(str) };
+    auto is = std::stringstream { std::string(str) };
+    auto result = checked_scanf_impl <_Index::sscanf> (rf, mem, is, fmt, Register::a2);
 
-    auto result = checked_scanf_impl <_Index::sscanf> (rf, mem, ss, fmt, Register::a2);
+    // Format time + IO time
+    dev.counter.libcOp += kLibcOverhead + op(str.size()) + op(fmt.size());
+
     return return_to_user(rf, mem, result);
-}
-
-auto memset(Executable &, RegisterFile &rf, Memory &mem, Device &) -> Hint {
-    auto ptr  = rf[Register::a0];
-    auto fill = rf[Register::a1];
-    auto size = rf[Register::a2];
-    auto raw  = checked_get_area<_Index::memset>(mem, ptr, size);
-    std::memset(raw, fill, size);
-    return return_to_user(rf, mem, ptr);
 }
 
 } // namespace dark::libc::__details
