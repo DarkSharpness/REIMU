@@ -1,3 +1,4 @@
+#include "utility/misc.h"
 #include <interpreter/memory.h>
 #include <interpreter/exception.h>
 #include <interpreter/executable.h>
@@ -133,8 +134,7 @@ auto Memory::libc_access(target_size_t addr) -> std::span <char> {
 }
 
 void Memory::print_details(bool detail) const {
-    if (!detail) return;
-    panic("Memory details are not implemented yet.");
+    allow_unused(detail);
 }
 
 template <Error error, std::integral _Int>

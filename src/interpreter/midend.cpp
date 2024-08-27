@@ -26,7 +26,7 @@ static void check_no_overlap(const MemoryLayout &result) {
 static void print_link_result(const Linker::LinkResult &result) {
     using dark::console::message;
     auto print_section = [](const std::string &name, const Linker::LinkResult::Section &section) {
-        message << std::format("Section {} \t at [{:x}, {:x})\n",
+        message << std::format("Section {} \t at [{:#x}, {:#x})\n",
             name, section.start, section.start + section.storage.size());
     };
 

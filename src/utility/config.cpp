@@ -1,5 +1,6 @@
 #include "config/counter.h"
 #include "utility/error.h"
+#include "utility/tagged.h"
 #include <cctype>
 #include <concepts>
 #include <cstddef>
@@ -188,34 +189,6 @@ struct Config::Impl : Config, Config_Impl {
     }
 };
 
-// using weight::kWeightRanges;
-// using weight::kManual;
-// using weight::kWeightCount;
-// using weight::parse_manual;
-
-// The weight list is generated automatically by the weight ranges.
-// static constexpr auto kWeightList = []() {
-//     using _Pair_t = std::pair <std::string_view, std::size_t>;
-//     std::array <_Pair_t, kWeightCount> table {};
-//     std::size_t which {};
-//     for (const auto &[name, list, weight] : kWeightRanges) {
-//         if (weight != kManual) {
-//             for (auto item : list) table[which++] = { item, weight };
-//         } else {
-//             for (auto item : list) table[which++] = parse_manual(item);
-//         }
-//     }
-//     if (which != kWeightCount) throw;
-//     return table;
-// } ();
-
-// static auto find_weight_range(std::string_view need)
-//     -> std::optional <std::span <const std::string_view>> {
-//     for (const auto &[name, list, _] : kWeightRanges)
-//         if (name == need) return list;
-//     return std::nullopt;
-// }
-
 template<typename _Tp>
 concept CounterType = requires(_Tp &a, std::size_t s) {
     { a.kDefaultWeight }    -> std::same_as<const std::size_t &>;
@@ -236,8 +209,9 @@ static void insert_weight(_Tp &counter, _Weight_Map_t &table) {
             buffer[i] = c;
         }
         return buffer;
-    };
-    std::string_view kName { array().data(), _Tp::kName.size() };
+    } ();
+    constexpr auto kName = std::string_view { array.data(), _Tp::kName.size() };
+    console::message << kName << std::endl;
     if (auto iter = table.find(kName); iter == table.end()) {
         counter.set_weight(_Tp::kDefaultWeight);
     } else {
@@ -484,9 +458,11 @@ void Config_Impl::initialize_configuration() {
     if (this->has_option("silent"))  __silent();
     if (this->has_option("detail"))  __detail();
     if (this->has_option("all"))     __all();
+    this->print_in_detail();
 }
 
 void Config_Impl::print_in_detail() const {
+    warning("Deprecated function: Config_Impl::print_in_detail");
     using console::message;
 
     message << std::format("\n{:=^80}\n\n", " Configuration details ");
@@ -510,7 +486,7 @@ void Config_Impl::print_in_detail() const {
     }
 
     // Format string for printing options and weights
-    static constexpr char kFormat[] = "    - {:<10} = {}\n";
+    static constexpr char kFormat[] = "    - {:<12} = {}\n";
 
     message << "  Options:\n";
     for (const auto &key : config::kSupportedOptions) {
@@ -518,20 +494,10 @@ void Config_Impl::print_in_detail() const {
         message << std::format(kFormat, option, this->has_option(option));
     }
 
-    // message << "  Weights:\n";
-    // for (const auto &[name, list, weight] : kWeightRanges) {
-    //     message << "    " << name << ":\n";
-    //     if (weight != kManual) {
-    //         for (auto iter : list) {
-    //             message << std::format(kFormat, iter, this->weight_table.at(iter));
-    //         }
-    //     } else {
-    //         for (auto iter : list) {
-    //             auto name = parse_manual(iter).first;
-    //             message << std::format(kFormat, name, this->weight_table.at(name));
-    //         }
-    //     }
-    // }
+    message << "  Weights:\n";
+    visit([&](auto &counter) {
+        message << std::format(kFormat, counter.kName, counter.get_weight());
+    }, this->counter);
 
     message << std::format("\n{:=^80}\n\n", "");
 }
@@ -629,8 +595,8 @@ auto Config::get_assembly_names() const -> std::span <const std::string_view> {
     return this->get_impl().assembly_files;
 }
 
-auto Config::get_weight(std::string_view name) const -> std::size_t {
-    return this->get_impl().weight_table.at(name);
+auto Config::get_weight(std::string_view) const -> std::size_t {
+    unreachable("Deprecated function: Config::get_weight");
 }
 
 auto Config::get_weight() const -> const Counter & {

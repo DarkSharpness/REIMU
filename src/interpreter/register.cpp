@@ -21,7 +21,7 @@ void RegisterFile::print_details(bool detail) const {
     if (!detail) return;
 
     for (std::size_t i = 0 ; i < this->regs.size() ; ++i)
-        profile << std::format("- {:<4} = 0x{:08x}\n",
+        profile << std::format("- {:<4} = {:#08x}\n",
             reg_to_sv(static_cast<Register>(i)), this->regs[i]);
 }
 
