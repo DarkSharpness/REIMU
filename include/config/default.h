@@ -60,29 +60,30 @@ Configurations:
 
   -m=<mem>, --memory=<mem>          Set memory size (bytes) for the simulator, default 256MB.
                                     We support K/M suffix for kilobytes/megabytes.
-                                    - Example: -m=114K -m=514M -mem=1919 -memory=810
+                                    - Example: -m=114K --memory=810
 
-  -s=<mem>, -stack=<mem>            Set stack size (bytes) for the simulator, default 32KB.
+  -s=<mem>, --stack=<mem>           Set stack size (bytes) for the simulator, default 32KB.
                                     We support K/M suffix for kilobytes/megabytes.
 
-  -i=<file>, -input=<file>          Set input file for the simulator, default <stdin>.
+  -i=<file>, --input=<file>         Set input file for the simulator, default <stdin>.
                                     If <file> = <stdin>, the simulator will read from stdin.
                                     - Example: -i=test.in, -i="<stdin>"
 
-  -o=<file>, -output=<file>         Set output file for the simulator, default <stdout>.
+  -o=<file>, --output=<file>        Set output file for the simulator, default <stdout>.
                                     If <file> = <stdout>, the simulator will write to stdout.
                                     If <file> = <stderr>, the simulator will write to stderr.
                                     - Example: -o=test.out, -o="<stdout>", -o="<stderr>"
 
-  -f=<file>,... -file=<file>,...    Set input assembly files for the simulator.
+  -f=<file>,... --file=<file>,...   Set input assembly files for the simulator.
                                     The simulator will decode and link these files in order.
+                                    - Example: -f=test.s,builtin.s
 
-  -p=<file>, -profile=<file>        Set the profiling output for the simulator, default <stderr>.
+  -p=<file>, --profile=<file>       Set the profiling output for the simulator, default <stderr>.
                                     If <file> = <stdout>, the simulator will write to stdout.
                                     If <file> = <stderr>, the simulator will write to stderr.
                                     - Example: -p=prof.txt, -p="<stdout>"
 
-  -a=<file>, -answer=<file>         Set the answer file for the simulator, default test.ans.
+  -a=<file>, --answer=<file>        Set the answer file for the simulator, default test.ans.
                                     This option can only work with the oj-mode.
 )";
 
