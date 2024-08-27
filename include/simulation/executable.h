@@ -100,14 +100,14 @@ namespace LoadStore {
 
         using enum general::MemoryOp;
         switch (op) {
-            case LB:    rd = mem.load_i8(addr); dev.counter.wLoad++; break;
-            case LH:    rd = mem.load_i16(addr); dev.counter.wLoad++; break;
-            case LW:    rd = mem.load_i32(addr); dev.counter.wLoad++; break;
-            case LBU:   rd = mem.load_u8(addr); dev.counter.wLoad++; break;
-            case LHU:   rd = mem.load_u16(addr); dev.counter.wLoad++; break;
-            case SB:    mem.store_u8(addr, rs2); dev.counter.wStore++; break;
-            case SH:    mem.store_u16(addr, rs2); dev.counter.wStore++; break;
-            case SW:    mem.store_u32(addr, rs2); dev.counter.wStore++; break;
+            case LB:    rd = mem.load_i8(addr); dev.counter.wLoad++; dev.try_load(addr, 1); break;
+            case LH:    rd = mem.load_i16(addr); dev.counter.wLoad++; dev.try_load(addr, 2); break;
+            case LW:    rd = mem.load_i32(addr); dev.counter.wLoad++; dev.try_load(addr, 4); break;
+            case LBU:   rd = mem.load_u8(addr); dev.counter.wLoad++; dev.try_load(addr, 1); break;
+            case LHU:   rd = mem.load_u16(addr); dev.counter.wLoad++; dev.try_load(addr, 2); break;
+            case SB:    mem.store_u8(addr, rs2); dev.counter.wStore++; dev.try_store(addr, 1); break;
+            case SH:    mem.store_u16(addr, rs2); dev.counter.wStore++; dev.try_store(addr, 2); break;
+            case SW:    mem.store_u32(addr, rs2); dev.counter.wStore++; dev.try_store(addr, 4); break;
             default:    unreachable();
         }
 

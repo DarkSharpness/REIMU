@@ -17,12 +17,12 @@ public:
     std::istream &in;
     std::ostream &out;
 
-    // Create a device with config
     static auto create(const Config &config) -> unique_t;
-    // Predict a branch at pc. It will call external branch predictor
     void predict(target_size_t pc, bool result);
-    // Print in details
     void print_details(bool) const;
+
+    void try_load(target_size_t low, target_size_t size);
+    void try_store(target_size_t low, target_size_t size);
 
 private:
     struct Impl;

@@ -1,4 +1,6 @@
 #include "config/counter.h"
+#include "declarations.h"
+#include "simulation/dcache.h"
 #include "utility/tagged.h"
 #include <cstddef>
 #include <interpreter/device.h>
@@ -11,45 +13,8 @@ namespace dark {
 
 using console::profile;
 
-// Some hidden implementation data.
-struct Device_Impl {
-    std::size_t bp_success;
-    std::optional <BranchPredictor> bp;
-    const Config &config;
-};
-
-struct Device::Impl : Device, Device_Impl {
-    explicit Impl(const Config &config)
-        : Device {
-            .counter = {},
-            .in = config.get_input_stream(),
-            .out = config.get_output_stream(),
-        }, Device_Impl {
-            .bp_success = 0,
-            .bp = {},
-            .config = config,
-        }
-    {
-        if (config.has_option("predictor")) bp.emplace();
-    }
-};
-
-auto Device::create(const Config &config) -> unique_t {
-    return unique_t { new Device::Impl {config} };
-}
-
-void Device::predict(target_size_t pc, bool what) {
-    auto &impl  = this->get_impl();
-    if (!impl.bp.has_value()) return;
-    auto &bp    = *impl.bp;
-    auto result = bp.predict(pc);
-    impl.bp_success += (result == what);
-    bp.update(pc, what);
-}
-
 static auto operator *(
-    const weight::Counter &lhs,
-    const weight::Counter &rhs    
+    const weight::Counter &lhs, const weight::Counter &rhs    
 ) -> std::size_t {
     std::size_t sum = 0;
     visit(
@@ -60,12 +25,68 @@ static auto operator *(
     return sum;
 }
 
+// Some hidden implementation data.
+struct Device_Impl {
+    std::size_t bp_success;
+    std::size_t cache_load;
+    std::size_t cache_store;
+    const Config &config;
+    std::optional <BranchPredictor> bp;
+    std::optional <kupi::Cache> cache;
+};
+
+struct Device::Impl : Device, Device_Impl {
+    explicit Impl(const Config &config)
+        : Device {
+            .counter = {},
+            .in = config.get_input_stream(),
+            .out = config.get_output_stream(),
+        }, Device_Impl {
+            .bp_success = 0,
+            .cache_load = 0,
+            .cache_store = 0,
+            .config = config,
+            .bp = {},
+            .cache = {},
+        }
+    {
+        if (config.has_option("predictor")) bp.emplace();
+        if (config.has_option("cache")) cache.emplace();
+    }
+};
+
+auto Device::create(const Config &config) -> unique_t {
+    return unique_t { new Device::Impl {config} };
+}
+
+void Device::predict(target_size_t pc, bool what) {
+    if (auto &impl = this->get_impl(); impl.bp.has_value()) {
+        auto &bp = *impl.bp;
+        auto result = bp.predict(pc);
+        impl.bp_success += (result == what);
+        bp.update(pc, what);
+    }
+}
+
+void Device::try_load(target_size_t addr, target_size_t size) {
+    if (auto &impl = this->get_impl(); impl.cache.has_value()) {
+        auto &cache = *impl.cache;
+        impl.cache_load += cache.load(addr, addr + size);
+    }
+}
+
+void Device::try_store(target_size_t addr, target_size_t size) {
+    if (auto &impl = this->get_impl(); impl.cache.has_value()) {
+        auto &cache = *impl.cache;
+        impl.cache_store += cache.store(addr, addr + size);
+    }
+}
+
 auto Device::get_impl() -> Impl & {
     return *static_cast <Impl *> (this);
 }
 
 void Device::print_details(bool details) const {
-    // if (!details) return;
     allow_unused(details);
     auto &impl = *static_cast <const Impl *> (this);
 
@@ -74,9 +95,22 @@ void Device::print_details(bool details) const {
 
     // Original cycle count.
     auto cycles = counter * kWeight;
+
     if (impl.bp.has_value()) {
         cycles -= impl.bp_success * kWeight.wBranch;
         cycles += impl.bp_success * kWeight.wPredictTaken;
+    }
+
+    if (impl.cache.has_value()) {
+        cycles -= counter.wLoad * kWeight.wLoad;
+        cycles -= counter.wStore * kWeight.wStore;
+        const auto load  = impl.cache->get_load();
+        const auto store = impl.cache->get_store();
+
+        cycles += load * kWeight.wLoad;
+        cycles += store * kWeight.wStore;
+        cycles += impl.cache_load * kWeight.wCacheLoad;
+        cycles += impl.cache_store * kWeight.wCacheStore;
     }
 
     profile << std::format("Total cycles: {}\n", cycles);
@@ -106,6 +140,15 @@ void Device::print_details(bool details) const {
             profile << std::format(
                 "Branch prediction success rate: {:.2f}%\n",
                 100.0 * impl.bp_success / total
+            );
+        }
+    }
+
+    if (impl.cache.has_value()) {
+        if (auto total = counter.wLoad + counter.wStore) {
+            profile << std::format(
+                "Cache hit rate: {:.2f}%\n",
+                100.0 * (impl.cache_load + impl.cache_store) / total
             );
         }
     }
