@@ -138,8 +138,9 @@ void Device::print_details(bool details) const {
     if (impl.bp.has_value()) {
         if (auto total = counter.wBranch) {
             profile << std::format(
-                "Branch prediction success rate: {:.2f}%\n",
-                100.0 * impl.bp_success / total
+                "Branch prediction taken rate: {:.2f}% ({}/{})\n",
+                100.0 * impl.bp_success / total,
+                impl.bp_success, total
             );
         }
     }
@@ -147,8 +148,9 @@ void Device::print_details(bool details) const {
     if (impl.cache.has_value()) {
         if (auto total = counter.wLoad + counter.wStore) {
             profile << std::format(
-                "Cache hit rate: {:.2f}%\n",
-                100.0 * (impl.cache_load + impl.cache_store) / total
+                "Cache hit rate: {:.2f}% ({}/{})\n",
+                100.0 * (impl.cache_load + impl.cache_store) / total,
+                impl.cache_load + impl.cache_store, total
             );
         }
     }
