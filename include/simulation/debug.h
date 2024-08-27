@@ -98,6 +98,7 @@ private:
 
     void exit();
 
+    auto fetch_cmd(target_size_t pc) -> command_size_t;
     auto parse_line(std::string_view line) -> bool;
 };
 

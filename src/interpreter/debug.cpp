@@ -311,7 +311,7 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
             }
 
             for (std::size_t i = 0; i < cnt; ++i) {
-                auto cmd = const_cast<Memory &>(mem).load_cmd(pos + i * 4);
+                auto cmd = this->fetch_cmd(pos + i * 4);
                 console::message
                     << std::format("{}\t {}", pretty_address(pos + i * 4), pretty_command(cmd, pos + i * 4))
                     << std::endl;
@@ -470,7 +470,7 @@ void DebugManager::attach() {
         return ret;
     } ();
 
-    const auto cmd = pc < libc::kLibcEnd ? this->kEcall : const_cast<Memory &>(mem).load_cmd(pc);
+    const auto cmd = this->fetch_cmd(pc);
 
     if (cmd == kRet.to_integer() || cmd == this->kEcall) {
         if (this->call_stack.empty()) {
@@ -513,6 +513,10 @@ void DebugManager::exit() {
     console::message << "Debugger exited" << std::endl;
     this->breakpoints = {};
     this->option = Continue {};
+}
+
+auto DebugManager::fetch_cmd(target_size_t pc) -> command_size_t {
+    return pc < libc::kLibcEnd ? this->kEcall : const_cast<Memory &>(mem).load_cmd(pc);
 }
 
 } // namespace dark
