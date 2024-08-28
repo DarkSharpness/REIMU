@@ -32,6 +32,14 @@ After installation, run the simulator with:
 reimu
 ```
 
+When you want to update the simulator, just run the following commands:
+
+```shell
+git pull
+xmake
+xmake install --admin
+```
+
 ### Running a Program
 
 The simulator reads command-line arguments and executes the program with the specified configuration.
@@ -80,9 +88,23 @@ The following directives are supported:
 | `.word a,b,...`               | Initialize words to `a`, `b`, ... (must be 4-byte aligned)                  |
 | `{.asciz, .string} "string"`  | Null-terminated string                                                      |
 
-Any unknown directives will be ignored, and incorrect arguments will cause an error.
+Any unknown directives will be ignored, and incorrect arguments will lead to an error.
 
-Note that the initial value of `byte, half, word` can be a label, a number, or an expression. See the pseudo instructions section for more information.
+Note that the initial value of `byte, half, word` can be a label, a number, or an expression. See the pseudo instructions section for more information. Example: `.word main, 0x1234, %lo(main) + 4`
+
+### Labels
+
+Sadly, local labels are not supported yet. A valid label character is defined as:
+
+```cpp
+// [a-zA-Z0-9_.@$]
+/* Whether the character is a valid token character. */
+bool is_label_char(char c) {
+    return std::isalnum(c) || c == '_' || c == '.' || c == '@' || c == '$';
+}
+```
+
+Note that `.` alone is a special label that represents the current address.
 
 ### Relocations
 
@@ -104,7 +126,7 @@ The following pseudo instructions are supported:
 | Pseudo Instruction            | Base Instruction                                  | Meaning                                      |
 | ----------------------------- | ------------------------------------------------- | --------------------------------------------- |
 | `mv rd, rs`                   | `addi rd, rs, 0`                                  | Set `rd` to the value of `rs`                 |
-| `li rd, immediate`            | `addi rd, x0, immediate`                          | Load immediate value into `rd`                |
+| `li rd, imm`                  | `lui rd, %hi(imm)`, `addi rd, rd, %lo(imm)`       | Load immediate value into `rd`                |
 | `neg rd, rs`                  | `sub rd, x0, rs`                                  | Set `rd` to the negation of `rs`              |
 | `not rd, rs`                  | `xori rd, rs, -1`                                 | Set `rd` to the bitwise NOT of `rs`           |
 | `seqz rd, rs`                 | `sltiu rd, rs, 1`                                 | Set if `rs` = `zero`                         |
@@ -130,14 +152,29 @@ The following pseudo instructions are supported:
 | `nop`                         | `addi x0, x0, 0`                                  | No operation                                 |
 | `l{b, h, w} rd, symbol`       | `lui rd, %hi(symbol)`, `lw rd, %lo(symbol)(rd)`   | Load a byte, half word, or word from `symbol`|
 | `s{b, h, w} rs, symbol, rt`   | `lui rt, %hi(symbol)`, `sw rs, %lo(symbol)(rt)`   | Store a byte, half word, or word to `symbol` |
-| `call symbol`                 | `jal x1, symbol`                                  | Call `symbol`                                |
-| `tail symbol`                 | `jal x0, symbol`                                  | Tail call `symbol`                           |
+| `call symbol`                 | `jal x1, symbol` or `auipc x1, %pcrel_hi(symbol)`, `jalr x1, %pcrel_lo(symbol)(x1)` | Call function at `symbol` |
+| `tail symbol`                 | `jal x0, symbol` or `auipc x6, %pcrel_hi(symbol)`, `jalr x1, %pcrel_lo(symbol)(x6)` | Tail call at `symbol` |
 
 All symbols, immediate values, and offsets are treated as arithmetic expressions on labels. Currently, only addition and subtraction are supported.
 
 For example, `main + 4 - main + %lo(main)` is valid.
 
-Note that the `offset` or `symbol` in a branch/jump instruction represents the target destination, not the offset itself. For instance, `j main` jumps to `main`, while `j 100` jumps to address `100`.
+Note that the `offset` or `symbol` in a branch/jump instruction represents the target destination, not the offset itself. For instance, `j main` jumps to `main`, while `j 100` jumps to address `100`. If you want to jump with offset, use `. + offset` instead. Example:
+
+```assembly
+j . + 8
+nop # This instruction will be skipped
+...
+```
+
+In addition, we have some optimizations for `li` and `call` commands. If the immediate value for `li` is some literal constant within the range of 12 bits (`[-2048, 2047]`), we will use `addi` instead of `lui` and `addi`. If the immediate value for `li` is times of 4096, we will use `lui` alone to load the value. For `call` command, we will use `jal` directly if the symbol is within the range of 20 bits, which is often the case since the program is mostly not that large.
+
+```assembly
+li x1, 8192 # will be optimized to lui x1, 2
+li x2, 1234 # will be optimized to addi x2, x0, 1234
+li x2, 9999 # cannot be optimized, will be lui x2, 2 and addi x2, x2, 1807
+call main   # might be optimized to jal x1, main
+```
 
 ### Libc Functions
 
@@ -157,6 +194,7 @@ These functions behave as expected, with the exception that `printf` and `sprint
 Notable features:
 
 - `malloc` returns pointers aligned to 16 bytes.
+- `free` performs nothing currently.
 
 ### Built-in Debug Mode
 
@@ -228,4 +266,4 @@ x 2i $pc - 8 # Print the previous 2 instructions
 
 ## Q & A
 
-TODO...
+Use [github discussions](https://github.com/DarkSharpness/REIMU/discussions/) to ask questions. Use [github issues](https://github.com/DarkSharpness/REIMU/issues/) to report bugs.
