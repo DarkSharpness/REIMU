@@ -82,7 +82,7 @@ auto memcpy(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto [dst, src] = checked_get_areas<_Index::memcpy>(mem, ptr0, ptr1, size);
     std::memcpy(dst, src, size);
 
-    dev.counter.libcOp += kLibcOverhead + op(size);
+    dev.counter.libcOp += kLibcOverhead + op(size * 2);
 
     return return_to_user(rf, mem, ptr0);
 }
@@ -94,7 +94,7 @@ auto memmove(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto [dst, src] = checked_get_areas<_Index::memmove>(mem, ptr0, ptr1, size);
     std::memmove(dst, src, size);
 
-    dev.counter.libcOp += kLibcOverhead + op(size);
+    dev.counter.libcOp += kLibcOverhead + op(size * 2);
 
     return return_to_user(rf, mem, ptr0);
 }

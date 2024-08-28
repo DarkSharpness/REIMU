@@ -21,7 +21,7 @@ auto strcpy(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     std::memcpy(raw, str.data(), size);
 
     // strlen + memcpy
-    dev.counter.libcOp += kLibcOverhead + op(size) * 2;
+    dev.counter.libcOp += kLibcOverhead + op(size * 3);
     return return_to_user(rf, mem, ptr0);
 }
 
@@ -44,7 +44,8 @@ auto strcat(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     // Copy the string and the null terminator
     std::memcpy(raw, str1.data(), str1.size() + 1);
 
-    dev.counter.libcOp += kLibcOverhead + op(str0.size()) + op(str1.size()) * 2;
+    // strlen + strcpy
+    dev.counter.libcOp += kLibcOverhead + op(str0.size()) + op(str1.size() * 3);
     return return_to_user(rf, mem, ptr0);
 }
 
@@ -58,7 +59,8 @@ auto strcmp(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     // Find which is different
     auto pos = find_first_diff(str0.data(), str1.data(), std::min(str0.size(), str1.size()));
 
-    dev.counter.libcOp += kLibcOverhead + op(pos * 2);
+    // strlen + memcmp
+    dev.counter.libcOp += kLibcOverhead + op(pos * 4);
 
     auto result = std::strcmp(str0.data(), str1.data());
 
