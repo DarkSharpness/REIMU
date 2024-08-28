@@ -18,6 +18,11 @@ echo $LATEST_RELEASE_URL
 # 下载 binary 到 /tmp
 curl -L -o /tmp/reimu "$LATEST_RELEASE_URL"
 
+if [ $? -ne 0 ]; then
+    echo "下载失败。"
+    exit 1
+fi
+
 # 移动到 /usr/local/bin
 sudo mv /tmp/reimu /usr/local/bin/reimu
 
