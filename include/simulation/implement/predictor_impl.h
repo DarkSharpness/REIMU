@@ -1,5 +1,4 @@
 #include <simulation/implement/predictor_decl.h>
-#include <random>
 
 namespace dark {
 
@@ -9,10 +8,10 @@ static auto div_mod(target_size_t index) {
 }
 
 inline BranchPredictor::BranchPredictor() : table() {
-    // Fill the table with random bits
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    for (auto &entry : this->table) entry = gen();
+    for (auto &entry : this->table) {
+        static_assert(sizeof(entry) == 1);
+        entry = _Data_t(0b10101010);
+    }
 }
 
 inline auto BranchPredictor::predict(target_size_t pc) const -> bool {
