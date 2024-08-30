@@ -61,6 +61,8 @@ auto sv_to_reg_nothrow(std::string_view view) noexcept -> std::optional<Register
         auto num = sv_to_integer <std::size_t> (view.substr(1));
         if (num.has_value() && *num < 32)
             return static_cast <Register> (*num);
+    } else if (view == "fp") {
+        return Register::s0;
     }
 
     return std::nullopt;
