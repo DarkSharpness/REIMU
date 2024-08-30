@@ -1,3 +1,4 @@
+#include "declarations.h"
 #include "utility/misc.h"
 #include <interpreter/memory.h>
 #include <interpreter/exception.h>
@@ -135,6 +136,24 @@ auto Memory::libc_access(target_size_t addr) -> std::span <char> {
 
 void Memory::print_details(bool detail) const {
     allow_unused(detail);
+}
+
+auto Memory::get_heap_start() const -> target_size_t {
+    return
+        static_cast <const HeapArea *> (static_cast <const Impl *> (this))
+            ->get_range().start;
+}
+
+auto Memory::get_stack_start() const -> target_size_t {
+    return
+        static_cast <const StackArea *> (static_cast <const Impl *> (this))
+            ->get_range().start;
+}
+
+auto Memory::get_stack_end() const -> target_size_t {
+    return
+        static_cast <const StackArea *> (static_cast <const Impl *> (this))
+            ->get_range().finish;
 }
 
 template <Error error, std::integral _Int>

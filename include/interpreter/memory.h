@@ -1,4 +1,5 @@
 #pragma once
+#include "declarations.h"
 #include <utility/deleter.h>
 #include <interpreter/forward.h>
 #include <span>
@@ -38,6 +39,11 @@ public:
     auto get_text_range() -> Interval;
 
     void print_details(bool) const;
+
+    auto get_heap_start()   const -> target_size_t;
+    auto get_stack_start()  const -> target_size_t;
+    auto get_stack_end()    const -> target_size_t;
+
 private:
     struct Impl;
     Impl &get_impl();

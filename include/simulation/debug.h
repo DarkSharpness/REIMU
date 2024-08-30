@@ -46,7 +46,7 @@ public:
 
 struct DebugManager {
 public:
-    explicit DebugManager(const RegisterFile &rf, const Memory &mem, const MemoryLayout &layout);
+    explicit DebugManager(RegisterFile &rf, Memory &mem, Device &dev, const MemoryLayout &layout);
     /* Attach the terminal before the command. */
     void attach();
     /* Builtin terminal for the debug console. */
@@ -83,14 +83,18 @@ private:
     std::vector <History>       latest_pc;      // Latest PC
     std::vector <CallInfo>      call_stack;     // Call Stack
     std::vector <BreakPoint>    breakpoints;    // Breakpoints
+    std::vector <std::string>   terminal_cmds;  // Terminal commands
 
     LabelMap map;
 
-    const RegisterFile  &rf;
-    const Memory        &mem;
+    RegisterFile  &rf;
+    Memory        &mem;
+    Device        &dev;
     const MemoryLayout  &layout;
 
     std::size_t step_count = 0;
+    std::pair <target_size_t, target_size_t> stack_range;
+    int breakpoint_counter = 0;
 
     auto has_breakpoint(target_size_t pc) const -> bool;
     auto add_breakpoint(target_size_t pc) -> int;

@@ -10,6 +10,8 @@
 
 namespace dark {
 
+namespace {
+
 struct StaticArea {
 private:
     const Interval text;
@@ -59,8 +61,8 @@ private:
     // Our implementation require that the end of static area
     // should not overlap with the start of heap area
     // So, we need to choose the next page even if already aligned
-    static auto next_page(target_size_t addr) {
-        constexpr auto kPageSize = 1 << 12;
+    static auto next_page(target_size_t addr) -> target_size_t {
+        constexpr target_size_t kPageSize = 1 << 12;
         return (addr & ~(kPageSize - 1)) + kPageSize;
     }
 public:
@@ -114,5 +116,7 @@ public:
     }
     ~StackArea() { delete (this->storage + this->stack.start); }
 };
+
+} // namespace
 
 } // namespace dark

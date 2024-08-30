@@ -69,7 +69,7 @@ static void simulate_normal
 static void simulate_debug
     (RegisterFile &rf, Memory &mem, Device &dev, std::size_t timeout, MemoryLayout &layout) {
     ICache icache { mem };
-    DebugManager manager { rf, mem, layout };
+    DebugManager manager { rf, mem, dev, layout };
 
     struct Guard {
         DebugManager *manager;
