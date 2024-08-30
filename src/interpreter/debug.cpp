@@ -485,6 +485,24 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
         return true;
     };
 
+    const auto __help = [&]() {
+        console::message <<
+R"(Available commands:
+    {s, step} [count]           Step [count] times
+    {c, continue}               Continue
+    {b, breakpoint} [address]   Add a breakpoint at [address]
+    {d, delete} [index]         Delete the breakpoint with [index]
+    {x} [count][type] [address] Exhibit [count] instructions or data at [address] 
+    {p, print} [type] [address] Print the value at [address]
+    {bt, backtrace}             Print the backtrace
+    {i, info} [type]            Print the information of [type]
+    {q, quit}                   Exit the debugger
+    {h, history} [index]        Print the history of instructions
+    {help}                      Print this message
+)" << std::endl;
+        return false;
+    };
+
     using hash::switch_hash_impl;
     #define match_str(str, func, msg) \
         case switch_hash_impl(str): \
@@ -521,6 +539,7 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
         match_str("quit",       __exit, "Usage: quit")
         match_str("h",          __history, "Usage: h [index]")
         match_str("history",    __history, "Usage: history [index]")
+        match_str("help",       __help, "Usage: help")
         default: break;
     }
 
