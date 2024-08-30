@@ -75,8 +75,7 @@ static void simulate_debug
         DebugManager *manager;
         ~Guard() {
             if (manager) {
-                console::message << "[Debugger] fail after "
-                    << manager->get_step() - 1 << " steps" << std::endl;
+                console::message << "[Debugger] fail after " << manager->get_step() - 1 << " steps" << std::endl;
                 manager->terminal();
                 console::message << "[Debugger] terminated abnormally" << std::endl;
             }
@@ -98,6 +97,7 @@ static void simulate_debug
     }
 
     guard.manager = nullptr;
+    console::message << "[Debugger] normal exit after " << manager.get_step() << " steps" << std::endl;
 }
 
 } // namespace dark
