@@ -19,7 +19,6 @@
 #include <cctype>
 #include <cstddef>
 #include <fmtlib.h>
-#include <format>
 #include <iostream>
 #include <optional>
 #include <ostream>
