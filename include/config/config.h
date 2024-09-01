@@ -26,7 +26,6 @@ public:
     auto get_assembly_names() const -> std::span <const std::string_view>;
 
     auto has_option(std::string_view) const -> bool;
-    auto get_weight(std::string_view) const -> std::size_t;
     auto get_weight() const -> const weight::Counter &;
 
 private:

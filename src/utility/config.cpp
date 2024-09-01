@@ -593,10 +593,6 @@ auto Config::get_assembly_names() const -> std::span <const std::string_view> {
     return this->get_impl().assembly_files;
 }
 
-auto Config::get_weight(std::string_view) const -> std::size_t {
-    unreachable("Deprecated function: Config::get_weight");
-}
-
 auto Config::get_weight() const -> const Counter & {
     return this->get_impl().counter;
 }
