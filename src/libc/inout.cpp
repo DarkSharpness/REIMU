@@ -1,5 +1,6 @@
 #include "declarations.h"
 #include <cstddef>
+#include <cmath>
 #include <utility.h>
 #include <libc/libc.h>
 #include <libc/utility.h>
@@ -8,6 +9,7 @@
 #include <interpreter/register.h>
 #include <interpreter/exception.h>
 #include <sstream>
+#include <utility>
 
 namespace dark::libc::__details {
 
@@ -63,7 +65,7 @@ template <_Index index>
 static auto checked_scanf_impl(
     RegisterFile &rf, Memory &mem, std::istream &in,
     std::string_view fmt, Register from
-) -> std::size_t {
+) -> std::pair<std::size_t, std::size_t> {
     auto reg = reg_to_int(from);
     const auto extra_arg = [&]() {
         if (reg == reg_to_int(Register::a7) + 1)
@@ -76,12 +78,14 @@ static auto checked_scanf_impl(
 
     static std::string buf {};
     std::size_t args {};
+    std::size_t io_count {};
 
     for (std::size_t i = 0 ; i < fmt.size() ; ++i) {
         char c = fmt[i];
         if (c != '%') { 
+            ++io_count;
             if (in.get() != c)
-                return reg - reg_to_int(from);
+                return {reg - reg_to_int(from), io_count};
             else
                 continue;
         }
@@ -95,9 +99,15 @@ static auto checked_scanf_impl(
             case 'd':
                 in >> val_s;
                 aligned_access<index, std::int32_t>(mem, extra_arg()) = val_s;
+                if(val_s<0) {
+                    io_count += std::floor(std::log10(-val_s)) + 3;
+                } else {
+                    io_count += std::floor(std::log10(val_s)) + 2;
+                }
                 break;
             case 's': {
                 in >> buf;
+                io_count += buf.size();
                 auto ptr = extra_arg();
                 auto raw = checked_get_area <index> (mem, ptr, buf.size() + 1);
                 std::memcpy(raw, buf.data(), buf.size() + 1);
@@ -105,10 +115,12 @@ static auto checked_scanf_impl(
             }
             case 'c':
                 in.get(val_ch); // don't skip whitespace
+                ++io_count;
                 aligned_access<index, char>(mem, extra_arg()) = val_ch;
                 break;
             case 'u':
                 in >> val_u;
+                io_count += std::floor(std::log10(val_u)) + 2;
                 aligned_access<index, std::uint32_t>(mem, extra_arg()) = val_u;
                 break;
             default:
@@ -120,7 +132,7 @@ static auto checked_scanf_impl(
         }
     }
 
-    return args;
+    return {args, io_count};
 }
 
 auto puts(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
@@ -184,9 +196,9 @@ auto scanf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto &is = dev.in;
     auto result = checked_scanf_impl <_Index::scanf> (rf, mem, is, fmt, Register::a1);
 
-    dev.counter.libcIO += kLibcOverhead + io(result * 2) + op(fmt.size());
+    dev.counter.libcIO += kLibcOverhead + io(result.second) + op(fmt.size());
 
-    return return_to_user(rf, mem, result);
+    return return_to_user(rf, mem, result.first);
 }
 
 auto sscanf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
@@ -199,9 +211,9 @@ auto sscanf(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
     auto result = checked_scanf_impl <_Index::sscanf> (rf, mem, is, fmt, Register::a2);
 
     // Format time + IO time
-    dev.counter.libcOp += kLibcOverhead + op(str.size()) + op(fmt.size());
+    dev.counter.libcOp += kLibcOverhead + op(result.second) + op(fmt.size());
 
-    return return_to_user(rf, mem, result);
+    return return_to_user(rf, mem, result.first);
 }
 
 } // namespace dark::libc::__details
