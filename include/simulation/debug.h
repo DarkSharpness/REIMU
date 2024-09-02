@@ -5,6 +5,7 @@
 #include "interpreter/register.h"
 #include "libc/libc.h"
 #include "linker/layout.h"
+#include "riscv/register.h"
 #include "utility/ustring.h"
 #include <cstddef>
 #include <map>
@@ -62,6 +63,7 @@ public:
 private:
     static constexpr command_size_t kEcall = 0b1110011;
 
+    struct Halt {};
     struct Continue {};
     struct Step { std::size_t count; };
     struct Exit {};
@@ -94,11 +96,27 @@ private:
         unique_string name;
     };
 
-    std::variant <std::monostate, Continue, Step> option;
+    struct WatchInfo {
+        // Memory or Register
+        union {
+            target_size_t addr; // Memory   op.
+            Register      reg;  // Register watch.
+        };
+        char format;
+        enum : bool {
+            Memory,
+            Register_, // Conflict with dark::Register class name...
+        } type;
+        target_size_t init;
+        int index;
+    };
+
+    std::variant <Halt, Continue, Step> option;
     std::vector <History>       latest_pc;      // Latest PC
     std::vector <CallInfo>      call_stack;     // Call Stack
     std::vector <BreakPoint>    breakpoints;    // Breakpoints
     std::vector <DisplayInfo>   display_info;   // Display information
+    std::vector <WatchInfo>     watch_info;     // Watch information
     std::vector <std::string>   terminal_cmds;  // Terminal commands
 
     LabelMap map;
@@ -112,6 +130,7 @@ private:
     const std::pair <target_size_t, target_size_t> stack_range;
     int breakpoint_counter = 0;
     int display_counter = 0;
+    int watch_counter = 0;
 
     auto has_breakpoint(target_size_t pc) const -> bool;
     auto add_breakpoint(target_size_t pc) -> int;
@@ -120,7 +139,17 @@ private:
     auto add_display(DisplayInfo info, std::string_view name) -> int;
     auto del_display(int index) -> bool;
 
+    auto add_watch(WatchInfo info) -> int;
+    auto del_watch(int index) -> bool;
+
+    auto get_watch(const WatchInfo &info) const -> target_size_t;
+
     void exit();
+
+    auto test_breakpoint(target_size_t pc) -> bool;
+    auto test_action() -> bool;
+    auto test_watch() -> bool;
+    auto check_calling_convention(target_size_t pc) -> command_size_t;
 
     auto fetch_cmd(target_size_t pc) -> command_size_t;
     auto parse_line(const std::string_view line) -> bool;

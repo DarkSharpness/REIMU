@@ -17,6 +17,7 @@
 #include "utility/error.h"
 #include "utility/hash.h"
 #include "utility/ustring.h"
+#include <algorithm>
 #include <cctype>
 #include <concepts>
 #include <cstddef>
@@ -30,6 +31,8 @@
 #include <ranges>
 
 namespace dark {
+
+using console::message;
 
 struct ImmEvaluator {
 public:
@@ -135,6 +138,14 @@ static auto extract_char(frontend::TokenStream &stream) -> char {
     return first.what[0];
 }
 
+/* Extract the string in the stream. */
+static auto extract_register(frontend::TokenStream &stream) -> Register {
+    panic_if(stream.empty(), "Fail to parse the register");
+    auto first = stream.split_at(1)[0];
+    panic_if(!first.what.starts_with('$'), "Invalid register");
+    return sv_to_reg(first.what.substr(1));
+}
+
 static auto extract_int(frontend::TokenStream &stream) -> std::optional<std::optional<std::size_t>> {
     if (stream.empty()) return std::nullopt;
     auto first = stream.split_at(1)[0];
@@ -147,6 +158,7 @@ DebugManager::DebugManager(RegisterFile &rf, Memory &mem, Device &dev, const Mem
         this->map.add(pos, label);
     this->map.add(rf.get_start_pc(), "_start");
     this->map.add(mem.get_heap_start(), "_heap_start");
+    this->map.add(stack_range.second, "_stack_top");
     // Note that we allow initial $sp not equal to _stack_start
     this->call_stack.push_back({ layout.position_table.at("main"), rf.get_start_pc(), rf[Register::sp] });
 }
@@ -190,36 +202,96 @@ auto DebugManager::del_display(int which) -> bool {
 auto DebugManager::add_display(DisplayInfo info, std::string_view name) -> int {
     const auto old_counter = this->display_counter;
     this->display_counter++;
+
+    info.index = old_counter;
+    info.name  = unique_string(name);
     this->display_info.push_back(std::move(info));
-    auto &last = this->display_info.back();
-    last.index = old_counter;
-    last.name  = unique_string(name);
+
     return old_counter;
 }
 
-void DebugManager::attach() {
-    this->step_count += 1;
-    const auto pc = rf.get_pc();
-    panic_if(pc % alignof(command_size_t) != 0, "Debugger: PC is not aligned");
+auto DebugManager::del_watch(int which) -> bool {
+    auto iter = std::ranges::find(this->watch_info, which, &WatchInfo::index);
+    if (iter == this->watch_info.end())
+        return false;
+    this->watch_info.erase(iter);
+    return true;
+}
 
-    bool hit = false;
+auto DebugManager::add_watch(WatchInfo info) -> int {
+    const auto old_counter = this->watch_counter;
+    this->watch_counter++;
 
-    if (this->has_breakpoint(pc)) {
-        hit = true;
-        console::message << std::format("Breakpoint hit at {}", pretty_address(pc)) << std::endl;
+    info.index = old_counter;
+    if (info.type == WatchInfo::Memory) {
+        message << std::format("Watch memory at {}", pretty_address(info.addr)) << std::endl;
+    } else if (info.type == WatchInfo::Register_) {
+        if (info.reg == Register::zero) {
+            console::message << "Don't be silly, you never change $zero" << std::endl;
+            return -1;
+        }
+        message << std::format("Watch register ${}", reg_to_sv(info.reg)) << std::endl;
+    } else {
+        panic("Invalid watch type");
     }
+    info.init = this->get_watch(info);
 
+    this->watch_info.push_back(info);
+    return old_counter;
+}
+
+auto DebugManager::get_watch(const WatchInfo &info) const -> target_size_t {
+    if (info.type == WatchInfo::Register_) return this->rf[info.reg];
+    // Must be memory.
+    if (info.format == 'w') { // Most possible
+        return this->mem.load_i32(info.addr);
+    } else if (info.format == 'b') { // Next possible
+        return this->mem.load_i8(info.addr);
+    } else if (info.format == 'h') { // Why do so?
+        return this->mem.load_i16(info.addr);
+    } else {
+        panic("Invalid memory type. Supported types: b, h, w");
+    }
+}
+
+auto DebugManager::test_breakpoint(target_size_t pc) -> bool {
+    if (this->has_breakpoint(pc)) {
+        message << std::format("Breakpoint hit at {}", pretty_address(pc)) << std::endl;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+auto DebugManager::test_watch() -> bool {
+    bool modified = false;
+    for (auto &info : this->watch_info) {
+        auto current = this->get_watch(info);
+        if (current != info.init) {
+            message << std::format ("Watch ${} is modified: {} -> {}", info.index, info.init, current)
+                    << std::endl;
+            info.init = current;
+            modified = true;
+        }
+    }
+    return modified;
+}
+
+auto DebugManager::test_action() -> bool {
     if (std::holds_alternative<Step>(this->option)) {
         auto &step = std::get<Step>(this->option);
         if (--step.count == 0) {
-            this->option = std::monostate {};
-            hit = true;
+            this->option = Halt {};
+            return true;
         }
-    } else if (std::holds_alternative<std::monostate>(this->option)) {
-        hit = true;
+    } else if (std::holds_alternative<Halt>(this->option)) {
+        return true;
     }
+    return false;
+}
 
-    constexpr auto kRet = []() {
+auto DebugManager::check_calling_convention(target_size_t pc) -> command_size_t {
+    static constexpr auto kRet = []() {
         dark::command::jalr ret {};
         ret.rd = reg_to_int(Register::zero);
         ret.rs1 = reg_to_int(Register::ra);
@@ -229,6 +301,7 @@ void DebugManager::attach() {
 
     const auto cmd = this->fetch_cmd(pc);
 
+    // return or ecall (which is also a return)
     if (cmd == kRet.to_integer() || cmd == this->kEcall) {
         if (this->call_stack.empty()) {
             panic("Debugger: Call stack will be empty after this instruction");
@@ -252,13 +325,34 @@ void DebugManager::attach() {
         }
 
         this->call_stack.pop_back();
-    } else if ( // call instruction
-        command::get_opcode(cmd) == command::jal::opcode
-        && command::get_rd(cmd) == reg_to_int(Register::ra)) {
-        auto call = dark::command::jal::from_integer(cmd);
-        auto target_pc = pc + call.get_imm();
-        this->call_stack.push_back({ target_pc, pc, rf[Register::sp] });
+    } else if (command::get_rd(cmd) == reg_to_int(Register::ra)) {
+        const auto opcode = command::get_opcode(cmd);
+        if (opcode == command::jal::opcode) {
+            auto call = dark::command::jal::from_integer(cmd);
+            auto target_pc = pc + call.get_imm();
+            this->call_stack.push_back({ target_pc, pc, rf[Register::sp] });
+        } else if (opcode == command::jalr::opcode) {
+            auto call = dark::command::jalr::from_integer(cmd);
+            auto target_pc = rf[int_to_reg(call.rs1)] + call.imm;
+            this->call_stack.push_back({ target_pc, pc, rf[Register::sp] });
+        }
     }
+
+    return cmd;
+}
+
+void DebugManager::attach() {
+    this->step_count += 1;
+    const auto pc = rf.get_pc();
+    panic_if(pc % alignof(command_size_t) != 0, "Debugger: PC is not aligned");
+
+    bool hit = false;
+
+    hit |= this->test_breakpoint(pc);
+    hit |= this->test_watch();
+    hit |= this->test_action();
+
+    const auto cmd = this->check_calling_convention(pc);
 
     // Do not inline the terminal function
     if (hit) { [[unlikely]] this->terminal(); }
@@ -267,26 +361,26 @@ void DebugManager::attach() {
 }
 
 void DebugManager::exit() {
-    console::message << "Debugger exited" << std::endl;
+    message << "Debugger exited" << std::endl;
     this->breakpoints = {};
+    this->watch_info = {};
     this->option = Continue {};
 }
 
 auto DebugManager::fetch_cmd(target_size_t pc) -> command_size_t {
-    return pc < libc::kLibcEnd ? this->kEcall : const_cast<Memory &>(mem).load_cmd(pc);
+    return pc < libc::kLibcEnd ? this->kEcall : mem.load_cmd(pc);
 }
 
 void DebugManager::terminal()  {
-    this->option = std::monostate {};
+    this->option = Halt {};
     std::string str;
 
-    const auto __show_terminal = [&]() {
+    const auto __show_terminal = [this]() {
         for (auto &info : this->display_info) {
             bool success = false;
             try {
-                console::message
-                << std::format("Display ${} | \"{}\"\n", info.index, info.name.to_sv())
-                << std::endl;
+                message << std::format("Display ${} | \"{}\"\n", info.index, info.name.to_sv())
+                        << std::endl;
                 this->print_info_dispatch(info);
                 success = true;
             } catch (FailToInterpret &e) {
@@ -294,12 +388,11 @@ void DebugManager::terminal()  {
                 catch (...) {}
             } catch (...) {}
             if (!success)
-                console::message
-                    << std::format("Error: Fail to display ${0:}. Try undisplay {0:}.\n", info.index);
-            console::message << std::endl;
+                message << std::format("Error: Fail to display ${0:}. Try undisplay {0:}.\n", info.index);
+            message << std::endl;
         }
-        
-        console::message << "\n$ ";
+
+        message << "\n$ ";
     };
 
     __show_terminal();
@@ -309,11 +402,11 @@ void DebugManager::terminal()  {
         try {
             this->terminal_cmds.push_back(str);
             if (parse_line(str)) {
-                console::message << std::endl;
+                message << std::endl;
                 return;
             }
         } catch (...) {
-            console::message << "Invalid command format!" << std::endl;
+            message << "Invalid command format!" << std::endl;
         }
         __show_terminal();
     }
@@ -322,8 +415,6 @@ void DebugManager::terminal()  {
 }
 
 void DebugManager::print_info_dispatch(const DisplayInfo &info) {
-    using console::message;
-
     static constexpr auto __print_data = [](DebugManager &d, auto data, std::size_t pos, std::size_t cnt) {
         panic_if(pos % alignof(decltype(data)) != 0,
             "Data is not aligned\n  Required alignment: {}", alignof(decltype(data)));
@@ -334,11 +425,11 @@ void DebugManager::print_info_dispatch(const DisplayInfo &info) {
 
             static_assert(std::integral<decltype(data)>);
             if constexpr (sizeof(data) == 4) {
-                data = const_cast<Memory &>(d.mem).load_i32(addr);
+                data = d.mem.load_i32(addr);
             } else if constexpr (sizeof(data) == 2) {
-                data = const_cast<Memory &>(d.mem).load_i16(addr);
+                data = d.mem.load_i16(addr);
             } else if constexpr (sizeof(data) == 1) {
-                data = const_cast<Memory &>(d.mem).load_i8(addr);
+                data = d.mem.load_i8(addr);
             } else {
                 unreachable("Unsupported data size");
             }
@@ -356,9 +447,8 @@ void DebugManager::print_info_dispatch(const DisplayInfo &info) {
 
         for (std::size_t i = 0; i < cnt; ++i) {
             auto cmd = d.fetch_cmd(pos + i * 4);
-            console::message
-                << std::format("{}\t {}", d.pretty_address(pos + i * 4), d.pretty_command(cmd, pos + i * 4))
-                << std::endl;
+            message << std::format("{}\t {}", d.pretty_address(pos + i * 4), d.pretty_command(cmd, pos + i * 4))
+                    << std::endl;
         }
     };
 
@@ -428,8 +518,6 @@ auto DebugManager::parse_line(const std::string_view str) -> bool {
 
     tokens = tokens.subspan(1);
 
-    using console::message;
-
     /* Some helper functions.  */
 
     static constexpr auto __extract_mem = [](frontend::TokenStream &tokens) -> DisplayInfo {
@@ -479,18 +567,15 @@ auto DebugManager::parse_line(const std::string_view str) -> bool {
         auto [imm] = match_immediate(tokens);
         auto pos = ImmEvaluator { this->rf, this->layout } (imm);
         if (this->has_breakpoint(pos)) {
-            console::message
-                << "Breakpoint already exists at " << pretty_address(pos)
-                << std::endl;
+            message << "Breakpoint already exists at " << pretty_address(pos)
+                    << std::endl;
         } else if (pos % alignof(command_size_t) != 0) {
-            console::message
-                << "Error: Breakpoint is not aligned to 4, which is unreachable"
-                << std::endl;
+            message << "Error: Breakpoint is not aligned to 4, which is unreachable"
+                    << std::endl;
         } else {
             auto which = this->add_breakpoint(pos);
-            console::message
-                << std::format("New breakpoint {} at {}", which, pretty_address(pos))
-                << std::endl;
+            message << std::format("New breakpoint {} at {}", which, pretty_address(pos))
+                    << std::endl;
         }
         return false;
     };
@@ -500,13 +585,11 @@ auto DebugManager::parse_line(const std::string_view str) -> bool {
         panic_if(!value.has_value(), "Invalid breakpoint index");
         auto which = value.value();
         if (this->del_breakpoint(which)) {
-            console::message
-                << std::format("Breakpoint {} at {} is deleted", which, pretty_address(which))
-                << std::endl;
+            message << std::format("Breakpoint {} at {} is deleted", which, pretty_address(which))
+                    << std::endl;
         } else {
-            console::message
-                << std::format("Breakpoint {} does not exist", which)
-                << std::endl;
+            message << std::format("Breakpoint {} does not exist", which)
+                    << std::endl;
         }
         return false;
     };
@@ -516,9 +599,8 @@ auto DebugManager::parse_line(const std::string_view str) -> bool {
         if (str == "breakpoint") {
             message << "Breakpoints:" << std::endl;
             for (auto &bp : this->breakpoints) {
-                console::message
-                    << std::format("  {} at {}", bp.index, pretty_address(bp.pc))
-                    << std::endl;
+                message << std::format("  {} at {}", bp.index, pretty_address(bp.pc))
+                        << std::endl;
             }
         } else if (str == "symbol") {
             message << "Symbols:" << std::endl;
@@ -534,12 +616,23 @@ auto DebugManager::parse_line(const std::string_view str) -> bool {
         } else if (str == "display") {
             message << "Displays:" << std::endl;
             for (auto &info : this->display_info) {
-                console::message
-                    << std::format("  {} | {}", info.index, info.name.to_sv())
-                    << std::endl;
+                message << std::format("  {} | {}", info.index, info.name.to_sv())
+                        << std::endl;
+            }
+        } else if (str == "watch") {
+            message << "Watches:" << std::endl;
+            for (auto &info : this->watch_info) {
+                if (info.type == WatchInfo::Memory) {
+                    message << std::format("  {} | Memory at {}", info.index, pretty_address(info.addr));
+                } else if (info.type == WatchInfo::Register_) {
+                    message << std::format("  {} | Register ${}", info.index, reg_to_sv(info.reg));
+                } else {
+                    panic("Invalid watch type");
+                }
+                message << std::endl;
             }
         } else {
-            panic("Invalid info type. Available types: breakpoint, symbol, shell");
+            panic("Invalid info type.\n  Available types: breakpoint, symbol, shell, display, watch");
         }
         return false;
     };
@@ -557,10 +650,9 @@ auto DebugManager::parse_line(const std::string_view str) -> bool {
     const auto __backtrace = [&]() {
         message << "Backtrace:" << std::endl;
         for (auto [pc, caller_pc, caller_sp] : this->call_stack) {
-            console::message
-                << std::format("  {} called from {} with sp = {:#x}",
-                    pretty_address(pc), pretty_address(caller_pc), caller_sp)
-                << std::endl;
+            message << std::format("  {} called from {} with sp = {:#x}",
+                        pretty_address(pc), pretty_address(caller_pc), caller_sp)
+                    << std::endl;
         }
         return false;
     };
@@ -573,9 +665,8 @@ auto DebugManager::parse_line(const std::string_view str) -> bool {
         std::size_t cnt = std::min(value.value(), this->latest_pc.size());
         message << std::format("Last {} instructions:", cnt) << std::endl;
         for (auto [pc, cmd] : this->latest_pc | std::views::reverse | std::views::take(cnt)) {
-            console::message
-                << std::format("  {} {}", pretty_address(pc), pretty_command(cmd, pc))
-                << std::endl;
+            message << std::format("  {} {}", pretty_address(pc), pretty_command(cmd, pc))
+                    << std::endl;
         }
 
         return false;
@@ -606,13 +697,54 @@ auto DebugManager::parse_line(const std::string_view str) -> bool {
         panic_if(!value.has_value(), "Invalid display index");
         auto which = value.value();
         if (this->del_display(which)) {
-            console::message
-                << std::format("Display {} is deleted", which)
-                << std::endl;
+            message << std::format("Display {} is deleted", which)
+                    << std::endl;
         } else {
-            console::message
-                << std::format("Display {} does not exist", which)
-                << std::endl;
+            message << std::format("Display {} does not exist", which)
+                    << std::endl;
+        }
+        return false;
+    };
+
+    const auto __watch = [&]() {
+        // Watch some memory/value
+        const auto type = extract_char(tokens);
+        if (type == 'm') {
+            // Watch memory
+            auto info = __extract_mem(tokens);
+            this->add_watch({
+                .addr   = ImmEvaluator { this->rf, this->layout } (info.imm),
+                .format = info.format,
+                .type   = WatchInfo::Memory,
+                .init   = {},   // Not used
+                .index  = {},   // Not used
+            });
+        } else if (type == 'r') {
+            // Watch Register
+            this->add_watch({
+                .reg    = extract_register(tokens),
+                .format = {},   // Not used
+                .type   = WatchInfo::Register_,
+                .init   = {},   // Not used
+                .index  = {},   // Not used
+            });
+        } else {
+            panic("Error: Invalid watch type. Supported types: m, r");
+        }
+
+        return false;
+    };
+
+    const auto __unwatch = [&]() {
+        auto value = extract_int(tokens).value_or(std::nullopt);
+        panic_if(!value.has_value(), "Invalid watch index");
+        auto which = value.value();
+        if (this->del_watch(which)) {
+            message << std::format("Watch {} is deleted", which)
+                    << std::endl;
+        } else {
+            message << std::format("Watch {} does not exist", which)
+                    << std::endl;
         }
         return false;
     };
@@ -632,6 +764,8 @@ R"(Available commands:
     {h, history} [index]        Print the history of instructions
     {display} [type] [address]  Display the value at [address]
     {undisplay} [index]         Delete the display with [index]
+    {w, watch} [type] [address] Watch the value at [address]
+    {unwatch} [index]           Delete the watch with [index]
     {help}                      Print this message
 )" << std::endl;
         return false;
@@ -675,6 +809,9 @@ R"(Available commands:
         match_str("history",    __history, "Usage: history [index]")
         match_str("display",    __display, "Usage: display [m|v] [type] [address]")
         match_str("undisplay",  __undisplay, "Usage: undisplay [index]")
+        match_str("w",          __watch, "Usage: w [m|r] [type] [address]")
+        match_str("watch",      __watch, "Usage: watch [m|r] [type] [address]")
+        match_str("unwatch",    __unwatch, "Usage: unwatch [index]")
         match_str("help",       __help, "Usage: help")
         default: break;
     }
