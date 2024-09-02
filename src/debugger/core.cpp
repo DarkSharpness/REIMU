@@ -233,25 +233,25 @@ void DebugManager::terminal()  {
     this->option = Halt {};
     std::string str;
 
-    const auto __show_terminal = [this]() {
-        for (auto &info : this->display_info) {
-            bool success = false;
-            try {
-                message << std::format("Display ${} | \"{}\"\n", info.index, info.name.to_sv())
-                        << std::endl;
-                this->print_info_dispatch(info);
-                success = true;
-            } catch (FailToInterpret &e) {
-                try { panic("{}", e.what(rf, mem, dev)); }
-                catch (...) {}
-            } catch (...) {}
-            if (!success)
-                message << std::format("Error: Fail to display ${0:}. Try undisplay {0:}.\n", info.index);
-            message << std::endl;
-        }
-
+    const auto __show_terminal = []() {
         message << "\n$ ";
     };
+
+    for (auto &info : this->display_info) {
+        bool success = false;
+        try {
+            message << std::format("Display ${} | \"{}\"\n", info.index, info.name.to_sv())
+                    << std::endl;
+            this->print_info_dispatch(info);
+            success = true;
+        } catch (FailToInterpret &e) {
+            try { panic("{}", e.what(rf, mem, dev)); }
+            catch (...) {}
+        } catch (...) {}
+        if (!success)
+            message << std::format("Error: Fail to display ${0:}. Try undisplay {0:}.\n", info.index);
+        message << std::endl;
+    }
 
     __show_terminal();
 

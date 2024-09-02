@@ -9,6 +9,7 @@
 #include "utility/cast.h"
 #include "utility/error.h"
 #include "utility/hash.h"
+#include <cstddef>
 #include <fmtlib.h>
 #include <iostream>
 #include <ranges>
@@ -391,9 +392,11 @@ auto DebugManager::parse_line(const std::string_view str) -> bool {
 
         std::size_t cnt = std::min(value.value(), this->latest_pc.size());
         message << std::format("Last {} instructions:", cnt) << std::endl;
+        std::size_t counter = this->latest_pc.size();
         for (auto [pc, cmd] : this->latest_pc | std::views::reverse | std::views::take(cnt)) {
-            message << std::format("  {} {}", pretty_address(pc), pretty_command(cmd, pc))
+            message << std::format("{} | {} {}", counter, pretty_address(pc), pretty_command(cmd, pc))
                     << std::endl;
+            counter--;
         }
 
         return false;
