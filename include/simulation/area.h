@@ -32,8 +32,8 @@ public:
         __copy(this, layout.rodata);
         __copy(this, layout.bss);
     }
-    bool in_text(target_size_t lo, target_size_t hi) const {
-        return this->text.contains(lo, hi);
+    bool in_text(target_size_t pc) const {
+        return this->text.start <= pc && pc < this->text.finish;
     }
     bool in_data(target_size_t lo, target_size_t hi) const {
         return this->data.contains(lo, hi);

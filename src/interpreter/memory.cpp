@@ -184,7 +184,7 @@ auto Memory_Impl::checked_ifetch(target_size_t pc) -> command_size_t {
     if (pc % alignof(command_size_t) != 0)
         handle_misaligned <Error::InsMisAligned, command_size_t> (pc);
 
-    if (!this->in_text(pc, pc + sizeof(command_size_t)))
+    if (!this->in_text(pc))
         handle_outofbound <Error::InsOutOfBound, command_size_t> (pc);
 
     return int_cast <target_size_t> (this->get_static(pc));
@@ -194,6 +194,9 @@ template <std::integral _Int>
 auto Memory_Impl::checked_load(target_size_t addr) -> _Int {
     if (addr % alignof(_Int) != 0)
         handle_misaligned <Error::LoadMisAligned, _Int> (addr);
+
+    if (addr >= target_size_t(-sizeof(_Int)))
+        handle_outofbound <Error::LoadOutOfBound, _Int> (addr);
 
     if (this->in_data(addr, addr + sizeof(_Int)))
         return int_cast <_Int> (this->get_static(addr));
@@ -211,6 +214,9 @@ template <std::unsigned_integral _Int>
 void Memory_Impl::check_store(target_size_t addr, _Int val) {
     if (addr % alignof(_Int) != 0)
         handle_misaligned <Error::StoreMisAligned, _Int> (addr);
+
+    if (addr >= -sizeof(_Int))
+        handle_outofbound <Error::LoadOutOfBound, _Int> (addr);
 
     if (this->in_data(addr, addr + sizeof(_Int)))
         return void(int_cast <_Int> (this->get_static(addr)) = val);
