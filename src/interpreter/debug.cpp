@@ -16,12 +16,16 @@
 #include "utility/cast.h"
 #include "utility/error.h"
 #include "utility/hash.h"
+#include "utility/ustring.h"
 #include <cctype>
+#include <concepts>
 #include <cstddef>
 #include <fmtlib.h>
+#include <format>
 #include <iostream>
 #include <optional>
 #include <ostream>
+#include <string>
 #include <string_view>
 #include <variant>
 #include <ranges>
@@ -87,7 +91,8 @@ private:
     }
 };
 
-auto match_immediate(frontend::TokenStream &stream) {
+/* Match an immediate number. */
+static auto match_immediate(frontend::TokenStream &stream) {
     try {
         return match<Immediate>(stream);
     } catch (FailToParse &) {
@@ -97,13 +102,53 @@ auto match_immediate(frontend::TokenStream &stream) {
     }
 }
 
+/* Parse format such as 10i, f, 3w */
+static auto extract_unit(frontend::TokenStream &stream) {
+    struct UnitPack {
+        std::size_t cnt;
+        char unit;
+    };
+
+    panic_if(stream.empty(), "Fail to parse the type");
+    auto first = stream.split_at(1)[0];
+
+    char suffix = '\0';
+    if (!first.what.empty() && std::isalpha(first.what.back())) {
+        suffix = first.what.back();
+        first.what.remove_suffix(1);
+    }
+
+    std::size_t cnt = 1;
+    if (!first.what.empty()) {
+        auto value = sv_to_integer<std::size_t>(first.what);
+        panic_if(!value.has_value(), "Invalid count");
+        cnt = value.value();
+    }
+
+    return UnitPack { cnt, suffix };
+}
+
+/* Extract the only character in the stream. */
+static auto extract_char(frontend::TokenStream &stream) -> char {
+    panic_if(stream.empty(), "Fail to parse the type");
+    auto first = stream.split_at(1)[0];
+    panic_if(first.what.size() != 1, "Invalid type");
+    return first.what[0];
+}
+
+static auto extract_int(frontend::TokenStream &stream) -> std::optional<std::optional<std::size_t>> {
+    if (stream.empty()) return std::nullopt;
+    auto first = stream.split_at(1)[0];
+    return sv_to_integer<std::size_t>(first.what);
+}
+
 DebugManager::DebugManager(RegisterFile &rf, Memory &mem, Device &dev, const MemoryLayout &layout)
-    : rf(rf), mem(mem), dev(dev), layout(layout) {
+    : rf(rf), mem(mem), dev(dev), layout(layout), stack_range(mem.get_stack_start(), mem.get_stack_end()) {
     for (auto &[label, pos] : layout.position_table)
         this->map.add(pos, label);
     this->map.add(rf.get_start_pc(), "_start");
     this->map.add(mem.get_heap_start(), "_heap_start");
-    this->stack_range = { mem.get_stack_start(), mem.get_stack_end() };
+    // Note that we allow initial $sp not equal to _stack_start
     this->call_stack.push_back({ layout.position_table.at("main"), rf.get_start_pc(), rf[Register::sp] });
 }
 
@@ -135,58 +180,22 @@ auto DebugManager::add_breakpoint(target_size_t pc) -> int {
     return this->breakpoint_counter++;
 }
 
-/* Parse format such as 10i, f, 3w */
-static auto extract_unit(frontend::TokenStream &stream) {
-    struct UnitPack {
-        std::size_t cnt;
-        char unit;
-    };
-
-    panic_if(stream.empty(), "Fail to parse the type");
-    auto first = stream.split_at(1)[0];
-
-    char suffix = '\0';
-    if (!first.what.empty() && std::isalpha(first.what.back())) {
-        suffix = first.what.back();
-        first.what.remove_suffix(1);
-    }
-
-    std::size_t cnt = 1;
-    if (!first.what.empty()) {
-        auto value = sv_to_integer<std::size_t>(first.what);
-        panic_if(!value.has_value(), "Invalid count");
-        cnt = value.value();
-    }
-
-    return UnitPack { cnt, suffix };
+auto DebugManager::del_display(int which) -> bool {
+    auto iter = std::ranges::find(this->display_info, which, &DisplayInfo::index);
+    if (iter == this->display_info.end())
+        return false;
+    this->display_info.erase(iter);
+    return true;
 }
 
-static auto extract_int(frontend::TokenStream &stream)
--> std::optional<std::optional<std::size_t>> {
-    if (stream.empty()) return std::nullopt;
-    auto first = stream.split_at(1)[0];
-    return sv_to_integer<std::size_t>(first.what);
-}
-
-void DebugManager::terminal()  {
-    this->option = std::monostate {};
-    std::string str;
-
-    console::message << "\n$ ";
-    while (std::getline(std::cin, str)) {
-        try {
-            this->terminal_cmds.push_back(str);
-            if (parse_line(str)) {
-                console::message << std::endl;
-                return;
-            }
-        } catch (...) {
-            console::message << "Invalid command format!" << std::endl;
-        }
-        console::message << "\n$ ";
-    }
-
-    return this->exit();
+auto DebugManager::add_display(DisplayInfo info, std::string_view name) -> int {
+    const auto old_counter = this->display_counter;
+    this->display_counter++;
+    this->display_info.push_back(std::move(info));
+    auto &last = this->display_info.back();
+    last.index = old_counter;
+    last.name  = unique_string(name);
+    return old_counter;
 }
 
 void DebugManager::attach() {
@@ -269,7 +278,142 @@ auto DebugManager::fetch_cmd(target_size_t pc) -> command_size_t {
     return pc < libc::kLibcEnd ? this->kEcall : const_cast<Memory &>(mem).load_cmd(pc);
 }
 
-auto DebugManager::parse_line(std::string_view str) -> bool {
+void DebugManager::terminal()  {
+    this->option = std::monostate {};
+    std::string str;
+
+    const auto __show_terminal = [&]() {
+        for (auto &info : this->display_info) {
+            bool success = false;
+            try {
+                console::message
+                << std::format("Display ${} | \"{}\"\n", info.index, info.name.to_sv())
+                << std::endl;
+                this->print_info_dispatch(info);
+                success = true;
+            } catch (FailToInterpret &e) {
+                try { panic("{}", e.what(rf, mem, dev)); }
+                catch (...) {}
+            } catch (...) {}
+            if (!success)
+                console::message
+                    << std::format("Error: Fail to display ${0:}. Try undisplay {0:}.\n", info.index);
+            console::message << std::endl;
+        }
+        
+        console::message << "\n$ ";
+    };
+
+    __show_terminal();
+
+    while (std::getline(std::cin, str)) {
+        // Print those display info
+        try {
+            this->terminal_cmds.push_back(str);
+            if (parse_line(str)) {
+                console::message << std::endl;
+                return;
+            }
+        } catch (...) {
+            console::message << "Invalid command format!" << std::endl;
+        }
+        __show_terminal();
+    }
+
+    return this->exit();
+}
+
+void DebugManager::print_info_dispatch(const DisplayInfo &info) {
+    using console::message;
+
+    static constexpr auto __print_data = [](DebugManager &d, auto data, std::size_t pos, std::size_t cnt) {
+        panic_if(pos % alignof(decltype(data)) != 0,
+            "Data is not aligned\n  Required alignment: {}", alignof(decltype(data)));
+
+        for (std::size_t i = 0; i < cnt; ++i) {
+            target_ssize_t data {};
+            target_ssize_t addr = pos + i * sizeof(data);
+
+            static_assert(std::integral<decltype(data)>);
+            if constexpr (sizeof(data) == 4) {
+                data = const_cast<Memory &>(d.mem).load_i32(addr);
+            } else if constexpr (sizeof(data) == 2) {
+                data = const_cast<Memory &>(d.mem).load_i16(addr);
+            } else if constexpr (sizeof(data) == 1) {
+                data = const_cast<Memory &>(d.mem).load_i8(addr);
+            } else {
+                unreachable("Unsupported data size");
+            }
+
+            message << std::format("{}\t {}", d.pretty_address(addr), data) << std::endl;
+        }
+    };
+
+    static constexpr auto __print_text = [](DebugManager &d, std::size_t pos, std::size_t cnt) {
+        panic_if(pos % alignof(command_size_t) != 0, "Instruction is not aligned");
+
+        static_assert(sizeof(command_size_t) == 4, "We assume the size of command is 4 bytes");
+        panic_if(pos < d.layout.text.begin() || pos + cnt * 4 > d.layout.text.end(), 
+            "Instruction is out of range");
+
+        for (std::size_t i = 0; i < cnt; ++i) {
+            auto cmd = d.fetch_cmd(pos + i * 4);
+            console::message
+                << std::format("{}\t {}", d.pretty_address(pos + i * 4), d.pretty_command(cmd, pos + i * 4))
+                << std::endl;
+        }
+    };
+
+    static constexpr auto __display_mem = [](DebugManager &d, target_size_t value, const DisplayInfo &info) {
+        const auto type = info.format;    // char
+        const auto cnt  = info.count;     // std::size_t
+        if (type == 'i') {
+            return __print_text(d, value, cnt);
+        } else if (type == 'w') {
+            return __print_data(d, std::int32_t {}, value, cnt);
+        } else if (type == 'h') {
+            return __print_data(d, std::int16_t {}, value, cnt);
+        } else if (type == 'b') {
+            return __print_data(d, std::int8_t {}, value, cnt);
+        } else {
+            panic("Invalid memory type. Supported types: i, w, h, b");
+        }
+    };
+
+    static constexpr auto __display_val = [](DebugManager &d, target_size_t value, const DisplayInfo &info) {
+        const auto type = info.format;    // char
+
+        if (type == 'x') {
+            message << std::format("0x{:x}", value) << std::endl;
+        } else if (type == 'd') {
+            message << std::format("{}", static_cast<target_ssize_t>(value)) << std::endl;
+        } else if (type == 'c') {
+            message << std::format("{}", static_cast<char>(value)) << std::endl;
+        } else if (type == 't') {
+            message << std::format("0b{:b}", value) << std::endl;
+        } else if (type == 'i') {
+            message << std::format("{}", d.pretty_command(value, 0)) << std::endl;
+        } else if (type == 'a') {
+            message << std::format("{}", d.pretty_address(value)) << std::endl;
+        } else {
+            panic("Invalid value type. Supported types: x, d, c, t, i, a");
+        }
+    };
+
+    /* Real implementation of the commands here.  */
+
+    const auto value = ImmEvaluator { this->rf, this->layout } (info.imm);
+
+    if (info.type == info.Memory) {
+        __display_mem(*this, value, info);
+    } else if (info.type == info.Value) {
+        __display_val(*this, value, info);
+    } else {
+        unreachable("Invalid display type");
+    }
+}
+
+auto DebugManager::parse_line(const std::string_view str) -> bool {
     frontend::Lexer lexer(str);
     auto tokens = lexer.get_stream();
 
@@ -286,13 +430,45 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
 
     tokens = tokens.subspan(1);
 
+    using console::message;
+
+    /* Some helper functions.  */
+
+    static constexpr auto __extract_mem = [](frontend::TokenStream &tokens) -> DisplayInfo {
+        auto [cnt, suffix] = extract_unit(tokens);
+        auto [imm] = match_immediate(tokens);
+        return DisplayInfo {
+            .imm    = std::move(imm),
+            .count  = cnt,
+            .format = suffix,
+            .type   = DisplayInfo::Memory,
+            .index  = {}, // Not used
+            .name   = {}, // Not used
+        };
+    };
+
+    static constexpr auto __extract_val = [](frontend::TokenStream &tokens) -> DisplayInfo {
+        auto type = extract_char(tokens);
+        auto [imm] = match_immediate(tokens);
+        return DisplayInfo {
+            .imm    = std::move(imm),
+            .count  = {}, // Not used
+            .format = type,
+            .type   = DisplayInfo::Value,
+            .index  = {}, // Not used
+            .name   = {}, // Not used
+        };
+    };
+
+    /* Real implementation of the commands here.  */
+
     const auto __step = [&]() {
         auto value = extract_int(tokens).value_or(1);
         panic_if(!value.has_value(), "Invalid step count");
         auto cnt = value.value();
         panic_if(cnt == 0, "Step count must be positive");
         this->option = Step { cnt };
-        console::message << "Step " << cnt << " times" << std::endl;
+        message << "Step " << cnt << " times" << std::endl;
         return true;
     };
 
@@ -304,7 +480,7 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
     const auto __breakpoint = [&]() {
         auto [imm] = match_immediate(tokens);
         auto pos = ImmEvaluator { this->rf, this->layout } (imm);
-        if (has_breakpoint(pos)) {
+        if (this->has_breakpoint(pos)) {
             console::message
                 << "Breakpoint already exists at " << pretty_address(pos)
                 << std::endl;
@@ -338,122 +514,50 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
     };
 
     const auto __info = [&]() {
-        constexpr auto msg = "Invalid info type. Available types: breakpoint, symbol, shell";
-        panic_if(tokens.empty(), msg);
-        auto str = tokens[0].what;
+        const std::string_view str = tokens.empty() ? "" : tokens[0].what;
         if (str == "breakpoint") {
-            console::message << "Breakpoints:" << std::endl;
+            message << "Breakpoints:" << std::endl;
             for (auto &bp : this->breakpoints) {
                 console::message
                     << std::format("  {} at {}", bp.index, pretty_address(bp.pc))
                     << std::endl;
             }
         } else if (str == "symbol") {
-            console::message << "Symbols:" << std::endl;
+            message << "Symbols:" << std::endl;
             for (auto &[pos, name] : this->map.map()) {
-                console::message << std::format("  {:<24} at {:#x}", name, pos) << std::endl;
+                message << std::format("  {:<24} at {:#x}", name, pos) << std::endl;
             }
         } else if (str == "shell") {
-            console::message << "History shell commands:" << std::endl;
+            message << "History shell commands:" << std::endl;
             std::size_t i = 0;
             for (auto &cmd : this->terminal_cmds) {
-                console::message << std::format("  {} | {}", i++, cmd) << std::endl;
+                message << std::format("  {} | {}", i++, cmd) << std::endl;
+            }
+        } else if (str == "display") {
+            message << "Displays:" << std::endl;
+            for (auto &info : this->display_info) {
+                console::message
+                    << std::format("  {} | {}", info.index, info.name.to_sv())
+                    << std::endl;
             }
         } else {
-            panic(msg);
+            panic("Invalid info type. Available types: breakpoint, symbol, shell");
         }
         return false;
     };
 
     const auto __exhibit = [&]() {
-        auto [cnt, suffix] = extract_unit(tokens);
-        auto [imm] = match_immediate(tokens);
-        auto pos = ImmEvaluator { this->rf, this->layout } (imm);
-        const auto __print_data = [&](auto data) {
-            panic_if(pos % alignof(decltype(data)) != 0,
-                "Data is not aligned\n  Required alignment: {}",
-                alignof(decltype(data)));
-
-            for (std::size_t i = 0; i < cnt; ++i) {
-                target_ssize_t data {};
-                target_ssize_t addr = pos + i * sizeof(data);
-
-                if constexpr (sizeof(data) == 4) {
-                    data = const_cast<Memory &>(mem).load_i32(addr);
-                } else if constexpr (sizeof(data) == 2) {
-                    data = const_cast<Memory &>(mem).load_i16(addr);
-                } else if constexpr (sizeof(data) == 1) {
-                    data = const_cast<Memory &>(mem).load_i8(addr);
-                } else {
-                    unreachable("Unsupported data size");
-                }
-
-                console::message
-                    << std::format("{}\t {}", pretty_address(addr), data)
-                    << std::endl;
-            }
-
-            return false;
-        };
-
-        const auto __print_text = [&]() {
-            panic_if(pos % alignof(command_size_t) != 0, "Instruction is not aligned");
-
-            static_assert(sizeof(command_size_t) == 4, "We assume the size of command is 4 bytes");
-            panic_if(pos < this->layout.text.begin() || pos + cnt * 4 > this->layout.text.end(), 
-                "Instruction is out of range");
-
-            for (std::size_t i = 0; i < cnt; ++i) {
-                auto cmd = this->fetch_cmd(pos + i * 4);
-                console::message
-                    << std::format("{}\t {}", pretty_address(pos + i * 4), pretty_command(cmd, pos + i * 4))
-                    << std::endl;
-            }
-            return false;
-        };
-
-        if (suffix == 'i') {
-            return __print_text();
-        } else if (suffix == 'w') {
-            return __print_data(std::int32_t {});
-        } else if (suffix == 'h') {
-            return __print_data(std::int16_t {});
-        } else if (suffix == 'b') {
-            return __print_data(std::int8_t {});
-        } else {
-            console::message
-                << std::format("Error: Invalid data type. Supported types: i, w, h, b")
-                << std::endl;
-            return false;
-        }
+        this->print_info_dispatch(__extract_mem(tokens));
+        return false;
     };
 
     const auto __print = [&]() {
-        auto [_, suffix] = extract_unit(tokens);
-        auto [imm] = match_immediate(tokens);
-        auto value = ImmEvaluator { this->rf, this->layout } (imm);
-        if (suffix == 'x') {
-            console::message << std::format("0x{:x}", value) << std::endl;
-        } else if (suffix == 'd') {
-            console::message << std::format("{}", static_cast<target_ssize_t>(value)) << std::endl;
-        } else if (suffix == 'c') {
-            console::message << std::format("{}", static_cast<char>(value)) << std::endl;
-        } else if (suffix == 't') {
-            console::message << std::format("0b{:b}", value) << std::endl;
-        } else if (suffix == 'i') {
-            console::message << std::format("{}", pretty_command(value, 0)) << std::endl;
-        } else if (suffix == 'a') {
-            console::message << std::format("{}", pretty_address(value)) << std::endl;
-        } else {
-            console::message
-                << std::format("Error: Invalid data type. Supported types: x, d, c, t, i, a")
-                << std::endl;
-        }
+        this->print_info_dispatch(__extract_val(tokens));
         return false;
     };
 
     const auto __backtrace = [&]() {
-        console::message << "Backtrace:" << std::endl;
+        message << "Backtrace:" << std::endl;
         for (auto [pc, caller_pc, caller_sp] : this->call_stack) {
             console::message
                 << std::format("  {} called from {} with sp = {:#x}",
@@ -464,12 +568,12 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
     };
 
     const auto __history = [&]() {
-        console::message << "History:" << std::endl;
+        message << "History:" << std::endl;
         auto value = extract_int(tokens).value_or(std::nullopt);
         panic_if(!value.has_value(), "Invalid history index");
 
         std::size_t cnt = std::min(value.value(), this->latest_pc.size());
-        console::message << std::format("Last {} instructions:", cnt) << std::endl;
+        message << std::format("Last {} instructions:", cnt) << std::endl;
         for (auto [pc, cmd] : this->latest_pc | std::views::reverse | std::views::take(cnt)) {
             console::message
                 << std::format("  {} {}", pretty_address(pc), pretty_command(cmd, pc))
@@ -484,8 +588,39 @@ auto DebugManager::parse_line(std::string_view str) -> bool {
         return true;
     };
 
+    const auto __display = [&]() {
+        // Display memory/value
+        const auto type = extract_char(tokens);
+        // Name = "display     m|v ......."
+        const auto name = str.substr(8);
+        if (type == 'm') {
+            this->add_display(__extract_mem(tokens), name.substr(name.find('m')));
+        } else if (type == 'v') {
+            this->add_display(__extract_val(tokens), name.substr(name.find('v')));
+        } else {
+            panic("Error: Invalid display type. Supported types: m, v");
+        }
+        return false;
+    };
+
+    const auto __undisplay = [&]() {
+        auto value = extract_int(tokens).value_or(std::nullopt);
+        panic_if(!value.has_value(), "Invalid display index");
+        auto which = value.value();
+        if (this->del_display(which)) {
+            console::message
+                << std::format("Display {} is deleted", which)
+                << std::endl;
+        } else {
+            console::message
+                << std::format("Display {} does not exist", which)
+                << std::endl;
+        }
+        return false;
+    };
+
     const auto __help = [&]() {
-        console::message <<
+        message <<
 R"(Available commands:
     {s, step} [count]           Step [count] times
     {c, continue}               Continue
@@ -497,6 +632,8 @@ R"(Available commands:
     {i, info} [type]            Print the information of [type]
     {q, quit}                   Exit the debugger
     {h, history} [index]        Print the history of instructions
+    {display} [type] [address]  Display the value at [address]
+    {undisplay} [index]         Delete the display with [index]
     {help}                      Print this message
 )" << std::endl;
         return false;
@@ -511,10 +648,10 @@ R"(Available commands:
             } catch (FailToInterpret &e) { \
                 try { panic("{}", e.what(rf, mem, dev)); } \
                 catch (...) {} \
-                console::message << msg << std::endl; \
+                message << msg << std::endl; \
                 return false; \
             } catch (...) { \
-                console::message << msg << std::endl; \
+                message << msg << std::endl; \
                 return false; \
             }
 
@@ -538,6 +675,8 @@ R"(Available commands:
         match_str("quit",       __exit, "Usage: quit")
         match_str("h",          __history, "Usage: h [index]")
         match_str("history",    __history, "Usage: history [index]")
+        match_str("display",    __display, "Usage: display [m|v] [type] [address]")
+        match_str("undisplay",  __undisplay, "Usage: undisplay [index]")
         match_str("help",       __help, "Usage: help")
         default: break;
     }
@@ -545,7 +684,7 @@ R"(Available commands:
     try {
         panic("Unknown command: {}", first.what);
     } catch (...) {
-        console::message << "use 'help' to see the list of available commands" << std::endl;
+        message << "use 'help' to see the list of available commands" << std::endl;
         return false;
     }
 }

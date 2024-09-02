@@ -1,11 +1,14 @@
 #pragma once
+#include "assembly/storage/immediate.h"
 #include "declarations.h"
 #include "interpreter/memory.h"
 #include "interpreter/register.h"
 #include "libc/libc.h"
 #include "linker/layout.h"
+#include "utility/ustring.h"
 #include <cstddef>
 #include <map>
+#include <string>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -79,10 +82,23 @@ private:
         command_size_t cmd;  
     };
 
+    struct DisplayInfo {
+        Immediate   imm;
+        std::size_t count; // Count of the memory.
+        char format;
+        enum : bool {
+            Memory,
+            Value,
+        } type;
+        int index;
+        unique_string name;
+    };
+
     std::variant <std::monostate, Continue, Step> option;
     std::vector <History>       latest_pc;      // Latest PC
     std::vector <CallInfo>      call_stack;     // Call Stack
     std::vector <BreakPoint>    breakpoints;    // Breakpoints
+    std::vector <DisplayInfo>   display_info;   // Display information
     std::vector <std::string>   terminal_cmds;  // Terminal commands
 
     LabelMap map;
@@ -93,17 +109,23 @@ private:
     const MemoryLayout  &layout;
 
     std::size_t step_count = 0;
-    std::pair <target_size_t, target_size_t> stack_range;
+    const std::pair <target_size_t, target_size_t> stack_range;
     int breakpoint_counter = 0;
+    int display_counter = 0;
 
     auto has_breakpoint(target_size_t pc) const -> bool;
     auto add_breakpoint(target_size_t pc) -> int;
     auto del_breakpoint(int index) -> bool;
 
+    auto add_display(DisplayInfo info, std::string_view name) -> int;
+    auto del_display(int index) -> bool;
+
     void exit();
 
     auto fetch_cmd(target_size_t pc) -> command_size_t;
-    auto parse_line(std::string_view line) -> bool;
+    auto parse_line(const std::string_view line) -> bool;
+
+    void print_info_dispatch(const DisplayInfo &info);
 };
 
 
