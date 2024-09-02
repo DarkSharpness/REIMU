@@ -1,6 +1,7 @@
 #include "declarations.h"
 #include <cstddef>
-#include <cmath>
+#include <charconv>
+#include <limits>
 #include <utility.h>
 #include <libc/libc.h>
 #include <libc/utility.h>
@@ -96,15 +97,14 @@ static auto checked_scanf_impl(
         auto val_s  = target_ssize_t {};
 
         switch (fmt[++i]) {
-            case 'd':
+            case 'd': {
                 in >> val_s;
+                char buffer[std::numeric_limits<int>::digits10 + 2];
+                auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), val_s);
+                io_count += ptr - buffer + 1;
                 aligned_access<index, std::int32_t>(mem, extra_arg()) = val_s;
-                if(val_s<0) {
-                    io_count += std::floor(std::log10(-val_s)) + 3;
-                } else {
-                    io_count += std::floor(std::log10(val_s)) + 2;
-                }
                 break;
+            }
             case 's': {
                 in >> buf;
                 io_count += buf.size();
@@ -113,16 +113,20 @@ static auto checked_scanf_impl(
                 std::memcpy(raw, buf.data(), buf.size() + 1);
                 break;
             }
-            case 'c':
+            case 'c': {
                 in.get(val_ch); // don't skip whitespace
                 ++io_count;
                 aligned_access<index, char>(mem, extra_arg()) = val_ch;
                 break;
-            case 'u':
+            }
+            case 'u': {
                 in >> val_u;
-                io_count += std::floor(std::log10(val_u)) + 2;
+                char buffer[std::numeric_limits<int>::digits10 + 2];
+                auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), val_u);
+                io_count += ptr - buffer + 1;
                 aligned_access<index, std::uint32_t>(mem, extra_arg()) = val_u;
                 break;
+            }
             default:
                 handle_unknown_fmt<index>(fmt[i]);
         }
