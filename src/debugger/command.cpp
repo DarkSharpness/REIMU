@@ -234,5 +234,15 @@ auto DebugManager::pretty_command(command_size_t cmd, target_size_t pc) -> std::
     }
 }
 
+auto DebugManager::pretty_address(target_size_t pc) -> std::string {
+    if (pc >= this->stack_range.first) {
+        auto top = this->stack_range.second;
+        auto offset = top - pc;
+        return std::format("{:#x} <_stack_top - {}>", pc, offset);
+    }
+
+    auto [label, offset] = this->map.get(pc);
+    return std::format("{:#x} <{} + {}>", pc, label, offset);
+}
 
 } // namespace dark
