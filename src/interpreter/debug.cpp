@@ -21,7 +21,6 @@
 #include <concepts>
 #include <cstddef>
 #include <fmtlib.h>
-#include <format>
 #include <iostream>
 #include <optional>
 #include <ostream>
@@ -219,7 +218,6 @@ void DebugManager::attach() {
     } else if (std::holds_alternative<std::monostate>(this->option)) {
         hit = true;
     }
-
 
     constexpr auto kRet = []() {
         dark::command::jalr ret {};
