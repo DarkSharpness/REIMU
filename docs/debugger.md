@@ -18,7 +18,7 @@ In debugger mode, we impose even stricter checks on calling conventions. When yo
 # In this function, the stack pointer (sp) is not correctly restored before returning.
 # In non-debug mode, the program might still run without obvious issues, but in debug mode,
 # it will terminate with an error message after the function returns, indicating stack corruption.
-    globl wrong_0
+    .globl wrong_0
 wrong_0:
     addi sp, sp, -16
     ret
@@ -26,7 +26,7 @@ wrong_0:
 # The debugger only recognizes standard return instructions, specifically `ret` (which is `jalr zero, 0(ra)`).
 # Although the logic of the following code is correct, our debugger will flag it and
 # terminate the program with an error message.
-    globl wrong_1
+    .globl wrong_1
 wrong_1:
     mv t0, sp
     jalr t0
