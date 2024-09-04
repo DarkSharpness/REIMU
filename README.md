@@ -10,6 +10,10 @@ This project is named after Hakurei Reimu, the main character of Touhou Project.
 
 See [Quick Start](docs/manual.md#Quickest-start).
 
+## Debugger
+
+See [Debugger](docs/debugger.md).
+
 ## User Extension
 
 See [User Extension](docs/extension.md).
