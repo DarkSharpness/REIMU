@@ -4,6 +4,7 @@
 #include <cctype>
 #include <concepts>
 #include <cstddef>
+#include <cstdlib>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -516,9 +517,9 @@ void Config_Impl::oj_handle() {
     auto &os = profile.get_stream();
 
     auto error_str = std::move(*this->oj_data.error).str();
-    if (!error_str.empty()) {
-        os << "Wrong answer. (Program crashed)\n";
-        return;
+    if (!error_str.empty()) { // Flush error message and exit.
+        os << "Wrong answer. (Program crashed)" << std::endl;
+        std::exit(EXIT_SUCCESS);
     }
 
     auto output_str = std::move(*this->oj_data.output).str();
@@ -527,12 +528,12 @@ void Config_Impl::oj_handle() {
     while (output_str.ends_with('\n')) output_str.pop_back();
     while (answer_str.ends_with('\n')) answer_str.pop_back();
 
-    if (output_str != answer_str) {
-        os << "Wrong answer.\n";
-        return;
-    } else {
-        os << "Accepted.\n";
+    if (output_str != answer_str) { // Flush output and exit.
+        os << "Wrong answer. (Output mismatched)" << std::endl;
+        std::exit(EXIT_SUCCESS);
     }
+
+    os << "Accepted.\n";
 
     auto profile_str = std::move(*this->oj_data.profile).str();
     os << profile_str << std::endl;

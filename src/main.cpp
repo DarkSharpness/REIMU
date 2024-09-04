@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
             duration_cast<ms>(interpret_time - build_time).count());
         message << std::format("\n{:=^80}\n\n", interpret_str);
     } catch (dark::PanicError &e) {
-        // do nothing, just as expected
+        return 1;
     } catch (std::exception& e) {
         dark::unreachable(std::format("std::exception caught: {}\n", e.what()));
     } catch (...) {
