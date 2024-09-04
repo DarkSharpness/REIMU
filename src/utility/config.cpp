@@ -519,7 +519,7 @@ void Config_Impl::oj_handle() {
     auto error_str = std::move(*this->oj_data.error).str();
     if (!error_str.empty()) { // Flush error message and exit.
         os << "Wrong answer. (Program crashed)" << std::endl;
-        std::exit(EXIT_SUCCESS);
+        return;
     }
 
     auto output_str = std::move(*this->oj_data.output).str();
@@ -530,7 +530,7 @@ void Config_Impl::oj_handle() {
 
     if (output_str != answer_str) { // Flush output and exit.
         os << "Wrong answer. (Output mismatched)" << std::endl;
-        std::exit(EXIT_SUCCESS);
+        return;
     }
 
     os << "Accepted.\n";
