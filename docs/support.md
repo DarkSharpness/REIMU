@@ -4,7 +4,7 @@ This document outlines the features supported by the RISC-V simulator.
 
 In summary, our simulator fully supports all user-mode instructions in the RV32I base instruction set and the RV32M standard extension. Additionally, it supports most standard directives, pseudo-instructions, and libc functions. The simulator is capable of running a wide range of simple programs, including those with I/O operations and dynamic memory allocation.
 
-### Directives
+## Directives
 
 The following directives are supported:
 
@@ -28,7 +28,7 @@ Any unknown directives will be ignored, and incorrect arguments will lead to an 
 
 Note that the initial value of `byte, half, word` can be a label, a number, or an expression. See the pseudo instructions section for more information. Example: `.word main, 0x1234, %lo(main) + 4`
 
-### Labels
+## Labels
 
 Sadly, local labels are not supported yet. A valid label character is defined as:
 
@@ -42,7 +42,7 @@ bool is_label_char(char c) {
 
 Note that `.` alone is a special label that represents the current address.
 
-### Relocations
+## Relocations
 
 The simulator supports the following relocations:
 
@@ -51,11 +51,11 @@ The simulator supports the following relocations:
 - `%pcrel_lo(symbol)`: The lower 12 bits of the symbol's address relative to the current position
 - `%pcrel_hi(symbol)`: The higher 20 bits of the symbol's address relative to the current position
 
-### Instructions
+## Instructions
 
 The simulator supports the RV32I base instruction set and RV32M standard extension, with the exception of `fence`, `fence.i`, `ecall`, `ebreak`, and `csr` instructions.
 
-### Pseudo Instructions
+## Pseudo Instructions
 
 The following pseudo instructions are supported:
 
@@ -112,7 +112,7 @@ li x2, 9999 # cannot be optimized, will be lui x2, 2 and addi x2, x2, 1807
 call main   # might be optimized to jal x1, main
 ```
 
-### Libc Functions
+## Libc Functions
 
 The following libc functions are supported:
 
