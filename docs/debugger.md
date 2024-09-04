@@ -1,9 +1,35 @@
 # Debugger
 
-The simulator includes a built-in debug shell to assist in program debugging. To enable debug mode, use the `--debug` flag when running the simulator. It is recommended to also use the `-i` and `-o` flags to specify input and output files, to avoid interference with the debug shell.
+The simulator includes a built-in debug shell to assist in program debugging. To enable debug mode, use the `--debug` flag when running the simulator. It is highly recommended to use the `-i` and `-o` flags to specify input and output files, to avoid interference with the debug shell.
 
 ```shell
 reimu --debug -i test.in -o test.out
+```
+
+## Boundary checks
+
+The simulator already enforces strict boundary checks on memory accesses. Any misaligned or out-of-bound memory access will result in simulation termination rather than causing the simulator to crash, as might happen with segmentation faults in real hardware.
+
+In debugger mode, we impose even stricter checks on calling conventions. When you call a function, you must return to the correct address. Failure to do so will cause the simulator to terminate with an error message. Additionally, you must ensure that the stack pointer is correctly restored to its original value before returning from a function.
+
+```assembly
+    .text
+
+# In this function, the stack pointer (sp) is not correctly restored before returning.
+# In non-debug mode, the program might still run without obvious issues, but in debug mode,
+# it will terminate with an error message after the function returns, indicating stack corruption.
+    globl wrong_0
+wrong_0:
+    addi sp, sp, -16
+    ret
+
+# The debugger only recognizes standard return instructions, specifically `ret` (which is `jalr zero, 0(ra)`).
+# Although the logic of the following code is correct, our debugger will flag it and
+# terminate the program with an error message.
+    globl wrong_1
+wrong_1:
+    mv t0, sp
+    jalr t0
 ```
 
 ## Supported Commands
@@ -105,7 +131,7 @@ watch v $a0        # Watch the value of register a0
 
 **Note:** Memory watchpoints do not automatically update their address. For instance, if you set a watchpoint on `$sp - 4` while `$sp` is `0x100`, it will continue watching `[0xfc, 0x100)` even if `$sp` changes.
 
-## Useful Examples
+## Useful Examples and Tips
 
 ```shell
 x 10i $pc   # Display the next 10 instructions
@@ -117,3 +143,5 @@ w m w .num  # Watch the word at the address of the symbol `num`
 w r w $s11  # Watch the value of register s11
 c           # Continue execution until the next stop point or the end of the program
 ```
+
+To maximize the power of the debug shell, consider marking all functions as global. This allows the debugger to trace symbol information and provide more accurate hints.
