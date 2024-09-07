@@ -1,12 +1,10 @@
-#include <string_view>
-#include <utility.h>
-#include <libc/libc.h>
-#include <libc/utility.h>
-#include <interpreter/device.h>
-#include <interpreter/memory.h>
-#include <interpreter/register.h>
-#include <interpreter/exception.h>
+#include "interpreter/device.h"
+#include "interpreter/memory.h"
+#include "interpreter/register.h"
+#include "libc/libc.h"
+#include "libc/utility.h"
 #include <cstring>
+#include <string_view>
 
 namespace dark::libc::__details {
 

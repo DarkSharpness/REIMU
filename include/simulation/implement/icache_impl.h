@@ -1,5 +1,8 @@
 #include "declarations.h"
-#include <simulation/implement/icache_decl.h>
+#include "interpreter/interval.h"
+#include "libc/libc.h"
+#include "simulation/implement/icache_decl.h"
+#include "utility/error.h"
 
 namespace dark {
 

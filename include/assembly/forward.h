@@ -1,6 +1,5 @@
 #pragma once
-#include <declarations.h>
-#include <riscv/register.h>
+#include "riscv/register.h"
 #include <optional>
 
 namespace dark {
@@ -12,13 +11,14 @@ struct Assembly;
 struct ImmediateBase {
     virtual ~ImmediateBase() = default;
 };
+
 struct Immediate;
 
 struct StorageVisitor;
 struct Storage {
-    virtual ~Storage() noexcept = default;
-    virtual void debug(std::ostream&) const = 0;
-    virtual void accept(StorageVisitor&) = 0;
+    virtual ~Storage() noexcept              = default;
+    virtual void debug(std::ostream &) const = 0;
+    virtual void accept(StorageVisitor &)    = 0;
 };
 
 auto is_label_char(char) -> bool;

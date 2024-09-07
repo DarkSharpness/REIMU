@@ -1,7 +1,7 @@
 #pragma once
-#include <assembly/frontend/token.h>
-#include <assembly/frontend/parser.h>
-#include <assembly/exception.h>
+#include "assembly/frontend/token.h"
+#include "assembly/frontend/parser.h"
+#include "assembly/exception.h"
 #include <algorithm>
 
 namespace dark::frontend {

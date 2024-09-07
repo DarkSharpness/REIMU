@@ -1,7 +1,7 @@
 #pragma once
-#include <assembly/forward.h>
 #include <cstddef>
 #include <span>
+#include <string_view>
 
 namespace dark::frontend {
 

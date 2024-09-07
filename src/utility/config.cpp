@@ -1,62 +1,57 @@
+#include "config/config.h"
+#include "config/argument.h"
 #include "config/counter.h"
+#include "config/default.h"
+#include "utility/cast.h"
 #include "utility/error.h"
 #include "utility/tagged.h"
 #include <cctype>
 #include <concepts>
 #include <cstddef>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
-#include <utility.h>
-#include <utility/cast.h>
-#include <config/config.h>
-#include <config/default.h>
-#include <config/argument.h>
-#include <unordered_set>
 #include <unordered_map>
-#include <fstream>
-#include <memory>
+#include <unordered_set>
 #include <vector>
-#include <iostream>
-#include <sstream>
-#include <filesystem>
 
 namespace dark {
 
 template <typename... _Args>
 [[noreturn]]
-static void handle_error(std::format_string <_Args...> fmt, _Args &&...args) {
+static void handle_error(fmt::format_string<_Args...> fmt, _Args &&...args) {
     try {
-        panic("Fail to parse command line argument.\n  {}",
-            std::format(fmt, std::forward <_Args> (args)...));
-    } catch (dark::PanicError) {
-        std::exit(EXIT_FAILURE);
-    }
+        panic(
+            "Fail to parse command line argument.\n  {}",
+            fmt::format(fmt, std::forward<_Args>(args)...)
+        );
+    } catch (dark::PanicError) { std::exit(EXIT_FAILURE); }
 }
 
 void ArgumentParser::handle(std::string_view str) {
     try {
         panic("Fail to parse command line argument.\n  {}", str);
-    } catch (dark::PanicError) {
-        std::exit(EXIT_FAILURE);
-    }
+    } catch (dark::PanicError) { std::exit(EXIT_FAILURE); }
 }
 
-using _Option_Set_t = std::unordered_set <std::string_view>;
-using _Weight_Map_t = std::unordered_map <std::string_view, std::size_t>;
+using _Option_Set_t = std::unordered_set<std::string_view>;
+using _Weight_Map_t = std::unordered_map<std::string_view, std::size_t>;
 using weight::Counter;
 
 struct InputFile {
     explicit InputFile(std::string_view name) : name(name) {}
 
-    auto get_name() const -> std::string_view {
-        return this->name;
-    }
+    auto get_name() const -> std::string_view { return this->name; }
 
     auto get_file_name() const -> std::optional<std::string_view> {
-        using _Option_t = std::optional <std::string_view>;
-        return this->name == config::kStdin ? _Option_t {} : this->name;
+        using _Option_t = std::optional<std::string_view>;
+        return this->name == config::kStdin ? _Option_t{} : this->name;
     }
 
     auto get_stream() const -> std::istream & {
@@ -69,7 +64,7 @@ struct InputFile {
         if (this->name == config::kStdin) {
             this->stream = &std::cin;
         } else {
-            this->owning = std::make_unique <std::ifstream> (std::string(this->name));
+            this->owning = std::make_unique<std::ifstream>(std::string(this->name));
             if (!this->owning->good()) {
                 handle_error("Fail to open input file: {}", this->name);
             }
@@ -86,22 +81,20 @@ struct InputFile {
     }
 
 private:
-    std::istream *stream {};
-    std::unique_ptr <std::ifstream> owning;
+    std::istream *stream{};
+    std::unique_ptr<std::ifstream> owning;
     std::string_view name;
 };
 
 struct OutputFile {
     explicit OutputFile(std::string_view name) : name(name) {}
 
-    auto get_name() const -> std::string_view {
-        return this->name;
-    }
+    auto get_name() const -> std::string_view { return this->name; }
 
-    auto get_file_name() const -> std::optional <std::string_view> {
-        using _Option_t = std::optional <std::string_view>;
-        return this->name == config::kStdout
-            || this->name == config::kStderr ? _Option_t {} : this->name;
+    auto get_file_name() const -> std::optional<std::string_view> {
+        using _Option_t = std::optional<std::string_view>;
+        return this->name == config::kStdout || this->name == config::kStderr ? _Option_t{}
+                                                                              : this->name;
     }
 
     auto get_stream() const -> std::ostream & {
@@ -116,7 +109,7 @@ struct OutputFile {
         } else if (this->name == config::kStderr) {
             this->stream = &std::cerr;
         } else {
-            this->owning = std::make_unique <std::ofstream> (std::string(this->name));
+            this->owning = std::make_unique<std::ofstream>(std::string(this->name));
             if (!this->owning->good()) {
                 handle_error("Fail to open output file: {}", this->name);
             }
@@ -138,28 +131,28 @@ struct OutputFile {
     }
 
 private:
-    std::ostream *stream {};
-    std::unique_ptr <std::ofstream> owning;
+    std::ostream *stream{};
+    std::unique_ptr<std::ofstream> owning;
     std::string_view name;
 };
 
 struct OJInfo {
-    std::unique_ptr <std::ostringstream> error;
-    std::unique_ptr <std::ostringstream> output;
-    std::unique_ptr <std::ostringstream> profile;
+    std::unique_ptr<std::ostringstream> error;
+    std::unique_ptr<std::ostringstream> output;
+    std::unique_ptr<std::ostringstream> profile;
 };
 
 struct Config_Impl {
-    InputFile  input;   // Program input
-    OutputFile output;  // Program output
-    OutputFile profile; // Profile output
-    const std::string_view answer;  // Answer file
+    InputFile input;               // Program input
+    OutputFile output;             // Program output
+    OutputFile profile;            // Profile output
+    const std::string_view answer; // Answer file
 
-    const std::size_t max_timeout = {};       // Maximum time
-    const std::size_t memory_size = {};       // Memory storage 
-    const std::size_t stack_size  = {};       // Maximum stack
+    const std::size_t max_timeout = {}; // Maximum time
+    const std::size_t memory_size = {}; // Memory storage
+    const std::size_t stack_size  = {}; // Maximum stack
 
-    const std::vector <std::string_view> assembly_files;  // Assembly files
+    const std::vector<std::string_view> assembly_files; // Assembly files
 
     // The additional configuration table provided by the user.
     _Option_Set_t option_table;
@@ -186,23 +179,24 @@ struct Config::Impl : Config, Config_Impl {
     explicit Impl(ArgumentParser &parser) : Config_Impl(parser) {}
     using Config_Impl::has_option;
     ~Impl() {
-        if (this->has_option("oj-mode")) this->oj_handle();
+        if (this->has_option("oj-mode"))
+            this->oj_handle();
     }
 };
 
-template<typename _Tp>
+template <typename _Tp>
 concept CounterType = requires(_Tp &a, std::size_t s) {
-    { a.kDefaultWeight }    -> std::same_as<const std::size_t &>;
-    { a.kName }             -> std::same_as<const std::string_view &>;
-    { a.kMembers[0] }       -> std::same_as<const std::string_view &>;
-    { a.get_weight() }      -> std::same_as<std::size_t>;
+    { a.kDefaultWeight } -> std::same_as<const std::size_t &>;
+    { a.kName } -> std::same_as<const std::string_view &>;
+    { a.kMembers[0] } -> std::same_as<const std::string_view &>;
+    { a.get_weight() } -> std::same_as<std::size_t>;
     a.set_weight(s);
 } && sizeof(_Tp) == sizeof(std::size_t);
 
-template<CounterType _Tp>
+template <CounterType _Tp>
 static void insert_weight(_Tp &counter, _Weight_Map_t &table) {
     static constexpr auto array = []() {
-        std::array <char, _Tp::kName.size() + 1> buffer {};
+        std::array<char, _Tp::kName.size() + 1> buffer{};
         for (std::size_t i = 0; i < _Tp::kName.size(); ++i) {
             char c = _Tp::kName[i];
             if (c >= 'A' && c <= 'Z')
@@ -210,8 +204,8 @@ static void insert_weight(_Tp &counter, _Weight_Map_t &table) {
             buffer[i] = c;
         }
         return buffer;
-    } ();
-    constexpr auto kName = std::string_view { array.data(), _Tp::kName.size() };
+    }();
+    constexpr auto kName = std::string_view{array.data(), _Tp::kName.size()};
     if (auto iter = table.find(kName); iter == table.end()) {
         counter.set_weight(_Tp::kDefaultWeight);
     } else {
@@ -228,13 +222,11 @@ static void check_invalid_weight(Counter &counter, _Weight_Map_t &table) {
 }
 
 static void check_duplicate_files(
-    std::span <const std::string_view> files,
-    std::optional<std::string_view> input_file,
-    std::optional<std::string_view> answer_file,
-    std::optional<std::string_view> output_file,
+    std::span<const std::string_view> files, std::optional<std::string_view> input_file,
+    std::optional<std::string_view> answer_file, std::optional<std::string_view> output_file,
     std::optional<std::string_view> profile_file
 ) {
-    std::unordered_set <std::string_view> existing_files;
+    std::unordered_set<std::string_view> existing_files;
     if (files.empty()) {
         handle_error("No assembly file is provided.");
     }
@@ -247,8 +239,10 @@ static void check_duplicate_files(
 
     auto input_files = std::move(existing_files);
 
-    if (input_file)  input_files.insert(*input_file);
-    if (answer_file) input_files.insert(*answer_file);
+    if (input_file)
+        input_files.insert(*input_file);
+    if (answer_file)
+        input_files.insert(*answer_file);
 
     constexpr auto kOutputOverlapInput =
         "File {} is both used as program input and program output. Potential overwrite!";
@@ -275,13 +269,13 @@ static void check_duplicate_files(
 }
 
 static auto get_integer(const std::string_view str, std::string_view what) -> std::size_t {
-    int base = 10;
+    int base              = 10;
     std::string_view view = str;
     if (str.starts_with("0x")) {
         base = 16;
         view = str.substr(2);
     }
-    if (auto val = sv_to_integer <std::size_t> (view, base)) {
+    if (auto val = sv_to_integer<std::size_t>(view, base)) {
         return *val;
     } else {
         handle_error("{} must be a non-negative integer: {}", what, str);
@@ -302,8 +296,8 @@ static auto get_memory(std::string_view str, std::string_view what) -> std::size
 }
 
 [[maybe_unused]]
-static auto get_files(std::string_view str) -> std::vector <std::string_view> {
-    std::vector <std::string_view> files;
+static auto get_files(std::string_view str) -> std::vector<std::string_view> {
+    std::vector<std::string_view> files;
     std::size_t next = str.find_first_of(',');
     while (next != std::string_view::npos) {
         files.emplace_back(str.substr(0, next));
@@ -317,9 +311,9 @@ static auto get_files(std::string_view str) -> std::vector <std::string_view> {
 static auto make_memory_string(std::size_t size) -> std::string {
     constexpr std::size_t kMin = (std::size_t(1) << 20) / 10;
     if (size < kMin) {
-        return std::format("({:.2f} KB)", double(size) / 1024);
+        return fmt::format("({:.2f} KB)", double(size) / 1024);
     } else {
-        return std::format("({:.2f} MB)", double(size) / (1024 * 1024));
+        return fmt::format("({:.2f} MB)", double(size) / (1024 * 1024));
     }
 }
 
@@ -328,24 +322,23 @@ using enum ArgumentParser::Rule;
  * Core implementation of the configuration parser.
  */
 Config_Impl::Config_Impl(ArgumentParser &parser) :
-    input  (parser.match<KeyValue>({"-i", "--input"})  .value_or(config::kInitStdin)),
-    output (parser.match<KeyValue>({"-o", "--output"}) .value_or(config::kInitStdout)),
+    input(parser.match<KeyValue>({"-i", "--input"}).value_or(config::kInitStdin)),
+    output(parser.match<KeyValue>({"-o", "--output"}).value_or(config::kInitStdout)),
     profile(parser.match<KeyValue>({"-p", "--profile"}).value_or(config::kInitProfile)),
-    answer (parser.match<KeyValue>({"-a", "--answer"}) .value_or(config::kInitAnswer)),
+    answer(parser.match<KeyValue>({"-a", "--answer"}).value_or(config::kInitAnswer)),
     max_timeout(parser.match<KeyValue>({"-t", "--time"})
-        .transform([](std::string_view str) { return get_integer(str, "--time"); })
-        .value_or(config::kInitTimeOut)),
+                    .transform([](std::string_view str) { return get_integer(str, "--time"); })
+                    .value_or(config::kInitTimeOut)),
     memory_size(parser.match<KeyValue>({"-m", "--memory"})
-        .transform([](std::string_view str) { return get_memory(str, "--memory"); })
-        .value_or(config::kInitMemorySize)),
+                    .transform([](std::string_view str) { return get_memory(str, "--memory"); })
+                    .value_or(config::kInitMemorySize)),
     stack_size(parser.match<KeyValue>({"-s", "--stack"})
-        .transform([](std::string_view str) { return get_memory(str, "--stack"); })
-        .value_or(config::kInitStackSize)),
+                   .transform([](std::string_view str) { return get_memory(str, "--stack"); })
+                   .value_or(config::kInitStackSize)),
     assembly_files(parser.match<KeyValue>({"-f", "--file"})
-        .transform(get_files)
-        .value_or(config::kInitAssemblyFiles)),
-    option_table()
-{
+                       .transform(get_files)
+                       .value_or(config::kInitAssemblyFiles)),
+    option_table() {
     for (auto option : config::kSupportedOptions)
         parser.match<KeyOnly>({option}, [this, option]() {
             // substr(2) to remove "--" prefix
@@ -362,7 +355,8 @@ Config_Impl::Config_Impl(ArgumentParser &parser) :
             handle_error("Unknown command line argument: {}", name);
         }
         auto [_, success] = this->weight_table.try_emplace(what, get_integer(weight, "weight"));
-        if (!success) handle_error("Duplicate weight: {}", what);
+        if (!success)
+            handle_error("Duplicate weight: {}", what);
     }
 }
 
@@ -385,16 +379,19 @@ void Config_Impl::initialize() {
 
 void Config_Impl::initialize_with_check() {
     if (this->stack_size > this->memory_size)
-        handle_error("Stack size exceeds memory size: "
-            "0x{:x} > 0x{:x}", this->stack_size, this->memory_size);
+        handle_error(
+            "Stack size exceeds memory size: "
+            "0x{:x} > 0x{:x}",
+            this->stack_size, this->memory_size
+        );
 
     check_invalid_weight(this->counter, this->weight_table);
-    check_duplicate_files(this->assembly_files,
-        this->input.get_file_name(),
+    check_duplicate_files(
+        this->assembly_files, this->input.get_file_name(),
         // Remark: answer file is only useful in OJ mode for now.
-        this->has_option("oj-mode") ? this->answer : std::optional<std::string_view> {},
-        this->output.get_file_name(),
-        this->profile.get_file_name());
+        this->has_option("oj-mode") ? this->answer : std::optional<std::string_view>{},
+        this->output.get_file_name(), this->profile.get_file_name()
+    );
 }
 
 void Config_Impl::initialize_iostream() {
@@ -436,9 +433,9 @@ void Config_Impl::initialize_configuration() {
         __all();
         __silent();
 
-        this->oj_data.error = std::make_unique <std::ostringstream> ();
-        this->oj_data.output = std::make_unique <std::ostringstream> ();
-        this->oj_data.profile = std::make_unique <std::ostringstream> ();
+        this->oj_data.error   = std::make_unique<std::ostringstream>();
+        this->oj_data.output  = std::make_unique<std::ostringstream>();
+        this->oj_data.profile = std::make_unique<std::ostringstream>();
 
         console::error.rdbuf(this->oj_data.error->rdbuf());
         console::profile.rdbuf(this->oj_data.profile->rdbuf());
@@ -454,34 +451,40 @@ void Config_Impl::initialize_configuration() {
     };
 
     // OJ-mode overrides all other options.
-    if (this->has_option("oj-mode")) return __oj_mode();
-    if (this->has_option("silent"))  __silent();
-    if (this->has_option("detail"))  __detail();
-    if (this->has_option("all"))     __all();
+    if (this->has_option("oj-mode"))
+        return __oj_mode();
+    if (this->has_option("silent"))
+        __silent();
+    if (this->has_option("detail"))
+        __detail();
+    if (this->has_option("all"))
+        __all();
 }
 
 void Config_Impl::print_in_detail() const {
     warning("Deprecated function: Config_Impl::print_in_detail");
     using console::message;
 
-    message << std::format("\n{:=^80}\n\n", " Configuration details ");
-    message << std::format("  Input file: {}\n", this->input.get_name());
-    message << std::format("  Output file: {}\n", this->output.get_name());
-    message << std::format("  Assembly files: ");
+    message << fmt::format("\n{:=^80}\n\n", " Configuration details ");
+    message << fmt::format("  Input file: {}\n", this->input.get_name());
+    message << fmt::format("  Output file: {}\n", this->output.get_name());
+    message << fmt::format("  Assembly files: ");
 
-    for (const auto& file : this->assembly_files)
+    for (const auto &file : this->assembly_files)
         message << file << ' ';
 
-    message << std::format("\n"
+    message << fmt::format(
+        "\n"
         "  Memory size: {} bytes {}\n"
         "  Stack  size: {} bytes {}\n",
-        this->memory_size, make_memory_string(this->memory_size),
-        this->stack_size, make_memory_string(this->stack_size));
+        this->memory_size, make_memory_string(this->memory_size), this->stack_size,
+        make_memory_string(this->stack_size)
+    );
 
     if (this->max_timeout == config::kInitTimeOut) {
         message << "  Maximum time: no limit\n";
     } else {
-        message << std::format("  Maximum time: {} cycles\n", this->max_timeout);
+        message << fmt::format("  Maximum time: {} cycles\n", this->max_timeout);
     }
 
     // Format string for printing options and weights
@@ -490,29 +493,32 @@ void Config_Impl::print_in_detail() const {
     message << "  Options:\n";
     for (const auto &key : config::kSupportedOptions) {
         auto option = key.substr(2); // substr(2) to remove "--" prefix
-        message << std::format(kFormat, option, this->has_option(option));
+        message << fmt::format(kFormat, option, this->has_option(option));
     }
 
     message << "  Weights:\n";
-    visit([&](auto &counter) {
-        message << std::format(kFormat, counter.kName, counter.get_weight());
-    }, this->counter);
+    visit(
+        [&](auto &counter) {
+            message << fmt::format(kFormat, counter.kName, counter.get_weight());
+        },
+        this->counter
+    );
 
-    message << std::format("\n{:=^80}\n\n", "");
+    message << fmt::format("\n{:=^80}\n\n", "");
 }
 
 static auto read_answer(std::string_view name) -> std::string {
-    std::string path { name };
+    std::string path{name};
     const auto file_size = std::filesystem::file_size(path);
     std::string retval;
     retval.resize(file_size);
-    std::ifstream file { path, std::ios::binary };
+    std::ifstream file{path, std::ios::binary};
     file.read(retval.data(), file_size);
     return retval;
 }
 
 void Config_Impl::oj_handle() {
-    OutputFile profile { this->profile.get_name() };
+    OutputFile profile{this->profile.get_name()};
     profile.init_stream();
     auto &os = profile.get_stream();
 
@@ -525,8 +531,10 @@ void Config_Impl::oj_handle() {
     auto output_str = std::move(*this->oj_data.output).str();
     auto answer_str = read_answer(this->answer);
 
-    while (output_str.ends_with('\n')) output_str.pop_back();
-    while (answer_str.ends_with('\n')) answer_str.pop_back();
+    while (output_str.ends_with('\n'))
+        output_str.pop_back();
+    while (answer_str.ends_with('\n'))
+        answer_str.pop_back();
 
     if (output_str != answer_str) { // Flush output and exit.
         os << "Wrong answer. (Output mismatched)" << std::endl;
@@ -541,11 +549,11 @@ void Config_Impl::oj_handle() {
 
 /* The commands below are just forwarded to impl.  */
 
-auto Config::parse(int argc, char** argv) -> unique_t {
+auto Config::parse(int argc, char **argv) -> unique_t {
     using console::message;
-    ArgumentParser parser { argc, argv };
+    ArgumentParser parser{argc, argv};
 
-    parser.match<KeyOnly>({"-h", "--help"}, []() { 
+    parser.match<KeyOnly>({"-h", "--help"}, []() {
         message << config::kHelpMessage;
         std::exit(EXIT_SUCCESS);
     });
@@ -555,7 +563,7 @@ auto Config::parse(int argc, char** argv) -> unique_t {
         std::exit(EXIT_SUCCESS);
     });
 
-    auto retval = std::make_unique <Impl> (parser);
+    auto retval = std::make_unique<Impl>(parser);
 
     retval->initialize();
 
@@ -567,14 +575,14 @@ auto Config::has_option(std::string_view name) const -> bool {
 }
 
 auto Config::get_impl() const -> const Impl & {
-    return *static_cast <const Impl*> (this);
+    return *static_cast<const Impl *>(this);
 }
 
-auto Config::get_input_stream() const -> std::istream& {
+auto Config::get_input_stream() const -> std::istream & {
     return this->get_impl().input.get_stream();
 }
 
-auto Config::get_output_stream() const -> std::ostream& {
+auto Config::get_output_stream() const -> std::ostream & {
     return this->get_impl().output.get_stream();
 }
 
@@ -590,7 +598,7 @@ auto Config::get_timeout() const -> std::size_t {
     return this->get_impl().max_timeout;
 }
 
-auto Config::get_assembly_names() const -> std::span <const std::string_view> {
+auto Config::get_assembly_names() const -> std::span<const std::string_view> {
     return this->get_impl().assembly_files;
 }
 

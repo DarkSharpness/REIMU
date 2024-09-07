@@ -1,8 +1,8 @@
 #pragma once
-#include <declarations.h>
-#include <utility/deleter.h>
-#include <span>
+#include "declarations.h"
+#include "utility/deleter.h"
 #include <iosfwd>
+#include <span>
 #include <string_view>
 
 namespace dark {
@@ -23,7 +23,7 @@ public:
     auto get_stack_low() const -> target_size_t;
     auto get_timeout() const -> std::size_t;
 
-    auto get_assembly_names() const -> std::span <const std::string_view>;
+    auto get_assembly_names() const -> std::span<const std::string_view>;
 
     auto has_option(std::string_view) const -> bool;
     auto get_weight() const -> const weight::Counter &;

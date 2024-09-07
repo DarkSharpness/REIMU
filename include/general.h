@@ -7,17 +7,29 @@ namespace dark::general {
 
 enum class ArithOp : std::uint8_t {
     // Normal arithmetic
-    ADD, SUB, AND, OR, XOR, SLL, SRL, SRA, SLT, SLTU,
+    ADD,
+    SUB,
+    AND,
+    OR,
+    XOR,
+    SLL,
+    SRL,
+    SRA,
+    SLT,
+    SLTU,
     // Multiplication and division extension
-    MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM, REMU
+    MUL,
+    MULH,
+    MULHSU,
+    MULHU,
+    DIV,
+    DIVU,
+    REM,
+    REMU
 };
 
-enum class MemoryOp : std::uint8_t {
-    LB, LH, LW, LBU, LHU, SB, SH, SW
-};
+enum class MemoryOp : std::uint8_t { LB, LH, LW, LBU, LHU, SB, SH, SW };
 
-enum class BranchOp : std::uint8_t {
-    BEQ, BNE, BLT, BGE, BLTU, BGEU
-};
+enum class BranchOp : std::uint8_t { BEQ, BNE, BLT, BGE, BLTU, BGEU };
 
-} // namespace dark
+} // namespace dark::general

@@ -1,17 +1,17 @@
-#include "interpreter/exception.h"
-#include "simulation/debug.h"
 #include "declarations.h"
+#include "fmtlib.h"
+#include "interpreter/exception.h"
 #include "interpreter/memory.h"
 #include "interpreter/register.h"
 #include "libc/libc.h"
 #include "linker/layout.h"
 #include "riscv/command.h"
 #include "riscv/register.h"
+#include "simulation/debug.h"
 #include "utility/error.h"
 #include "utility/ustring.h"
 #include <algorithm>
 #include <cctype>
-#include <fmtlib.h>
 #include <iostream>
 #include <ostream>
 #include <string_view>
@@ -21,15 +21,18 @@ namespace dark {
 
 using console::message;
 
-DebugManager::DebugManager(RegisterFile &rf, Memory &mem, Device &dev, const MemoryLayout &layout)
-    : rf(rf), mem(mem), dev(dev), layout(layout), stack_range(mem.get_stack_start(), mem.get_stack_end()) {
+DebugManager::DebugManager(RegisterFile &rf, Memory &mem, Device &dev, const MemoryLayout &layout) :
+    rf(rf), mem(mem), dev(dev), layout(layout),
+    stack_range(mem.get_stack_start(), mem.get_stack_end()) {
     for (auto &[label, pos] : layout.position_table)
         this->map.add(pos, label);
     this->map.add(rf.get_start_pc(), "_start");
     this->map.add(mem.get_heap_start(), "_heap_start");
     this->map.add(stack_range.second, "_stack_top");
     // Note that we allow initial $sp not equal to _stack_start
-    this->call_stack.push_back({ layout.position_table.at("main"), rf.get_start_pc(), rf[Register::sp] });
+    this->call_stack.push_back(
+        {layout.position_table.at("main"), rf.get_start_pc(), rf[Register::sp]}
+    );
 }
 
 auto DebugManager::has_breakpoint(target_size_t pc) const -> bool {
@@ -45,7 +48,7 @@ auto DebugManager::del_breakpoint(int which) -> bool {
 }
 
 auto DebugManager::add_breakpoint(target_size_t pc) -> int {
-    this->breakpoints.push_back({ pc, this->breakpoint_counter });
+    this->breakpoints.push_back({pc, this->breakpoint_counter});
     return this->breakpoint_counter++;
 }
 
@@ -82,13 +85,13 @@ auto DebugManager::add_watch(WatchInfo info) -> int {
 
     info.index = old_counter;
     if (info.type == WatchInfo::Memory) {
-        message << std::format("Watch memory at {}", pretty_address(info.addr)) << std::endl;
+        message << fmt::format("Watch memory at {}", pretty_address(info.addr)) << std::endl;
     } else if (info.type == WatchInfo::Register_) {
         if (info.reg == Register::zero) {
             console::message << "Don't be silly, you never change $zero" << std::endl;
             return -1;
         }
-        message << std::format("Watch register ${}", reg_to_sv(info.reg)) << std::endl;
+        message << fmt::format("Watch register ${}", reg_to_sv(info.reg)) << std::endl;
     } else {
         panic("Invalid watch type");
     }
@@ -99,7 +102,8 @@ auto DebugManager::add_watch(WatchInfo info) -> int {
 }
 
 auto DebugManager::get_watch(const WatchInfo &info) const -> target_size_t {
-    if (info.type == WatchInfo::Register_) return this->rf[info.reg];
+    if (info.type == WatchInfo::Register_)
+        return this->rf[info.reg];
     // Must be memory.
     if (info.format == 'w') { // Most possible
         return this->mem.load_i32(info.addr);
@@ -114,7 +118,7 @@ auto DebugManager::get_watch(const WatchInfo &info) const -> target_size_t {
 
 auto DebugManager::test_breakpoint(target_size_t pc) -> bool {
     if (this->has_breakpoint(pc)) {
-        message << std::format("Breakpoint hit at {}", pretty_address(pc)) << std::endl;
+        message << fmt::format("Breakpoint hit at {}", pretty_address(pc)) << std::endl;
         return true;
     } else {
         return false;
@@ -126,10 +130,12 @@ auto DebugManager::test_watch() -> bool {
     for (auto &info : this->watch_info) {
         auto current = this->get_watch(info);
         if (current != info.init) {
-            message << std::format ("Watch ${} is modified: {} -> {}", info.index, info.init, current)
+            message << fmt::format(
+                           "Watch ${} is modified: {} -> {}", info.index, info.init, current
+                       )
                     << std::endl;
             info.init = current;
-            modified = true;
+            modified  = true;
         }
     }
     return modified;
@@ -139,7 +145,7 @@ auto DebugManager::test_action() -> bool {
     if (std::holds_alternative<Step>(this->option)) {
         auto &step = std::get<Step>(this->option);
         if (--step.count == 0) {
-            this->option = Halt {};
+            this->option = Halt{};
             return true;
         }
     } else if (std::holds_alternative<Halt>(this->option)) {
@@ -150,12 +156,12 @@ auto DebugManager::test_action() -> bool {
 
 auto DebugManager::check_calling_convention(target_size_t pc) -> command_size_t {
     static constexpr auto kRet = []() {
-        dark::command::jalr ret {};
-        ret.rd = reg_to_int(Register::zero);
+        dark::command::jalr ret{};
+        ret.rd  = reg_to_int(Register::zero);
         ret.rs1 = reg_to_int(Register::ra);
         ret.imm = 0;
         return ret;
-    } ();
+    }();
 
     const auto cmd = this->fetch_cmd(pc);
 
@@ -186,13 +192,13 @@ auto DebugManager::check_calling_convention(target_size_t pc) -> command_size_t 
     } else if (command::get_rd(cmd) == reg_to_int(Register::ra)) {
         const auto opcode = command::get_opcode(cmd);
         if (opcode == command::jal::opcode) {
-            auto call = dark::command::jal::from_integer(cmd);
+            auto call      = dark::command::jal::from_integer(cmd);
             auto target_pc = pc + call.get_imm();
-            this->call_stack.push_back({ target_pc, pc, rf[Register::sp] });
+            this->call_stack.push_back({target_pc, pc, rf[Register::sp]});
         } else if (opcode == command::jalr::opcode) {
-            auto call = dark::command::jalr::from_integer(cmd);
+            auto call      = dark::command::jalr::from_integer(cmd);
             auto target_pc = rf[int_to_reg(call.rs1)] + call.imm;
-            this->call_stack.push_back({ target_pc, pc, rf[Register::sp] });
+            this->call_stack.push_back({target_pc, pc, rf[Register::sp]});
         }
     }
 
@@ -213,43 +219,46 @@ void DebugManager::attach() {
     const auto cmd = this->check_calling_convention(pc);
 
     // Do not inline the terminal function
-    if (hit) { [[unlikely]] this->terminal(); }
+    if (hit) {
+        [[unlikely]] this->terminal();
+    }
 
-    this->latest_pc.push_back({ pc, cmd });
+    this->latest_pc.push_back({pc, cmd});
 }
 
 void DebugManager::exit() {
     message << "Debugger exited" << std::endl;
     this->breakpoints = {};
-    this->watch_info = {};
-    this->option = Continue {};
+    this->watch_info  = {};
+    this->option      = Continue{};
 }
 
 auto DebugManager::fetch_cmd(target_size_t pc) -> command_size_t {
     return pc < libc::kLibcEnd ? this->kEcall : mem.load_cmd(pc);
 }
 
-void DebugManager::terminal()  {
-    this->option = Halt {};
+void DebugManager::terminal() {
+    this->option = Halt{};
     std::string str;
 
-    const auto __show_terminal = []() {
-        message << "\n$ ";
-    };
+    const auto __show_terminal = []() { message << "\n$ "; };
 
     for (auto &info : this->display_info) {
         bool success = false;
         try {
-            message << std::format("Display ${} | \"{}\"\n", info.index, info.name.to_sv())
+            message << fmt::format("Display ${} | \"{}\"\n", info.index, info.name.to_sv())
                     << std::endl;
             this->print_info_dispatch(info);
             success = true;
         } catch (FailToInterpret &e) {
-            try { panic("{}", e.what(rf, mem, dev)); }
-            catch (...) {}
+            try {
+                panic("{}", e.what(rf, mem, dev));
+            } catch (...) {}
         } catch (...) {}
         if (!success)
-            message << std::format("Error: Fail to display ${0:}. Try undisplay {0:}.\n", info.index);
+            message << fmt::format(
+                "Error: Fail to display ${0:}. Try undisplay {0:}.\n", info.index
+            );
         message << std::endl;
     }
 
@@ -262,9 +271,7 @@ void DebugManager::terminal()  {
                 message << std::endl;
                 return;
             }
-        } catch (...) {
-            message << "Invalid command format! Try 'help'" << std::endl;
-        }
+        } catch (...) { message << "Invalid command format! Try 'help'" << std::endl; }
         __show_terminal();
     }
 

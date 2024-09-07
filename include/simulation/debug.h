@@ -18,16 +18,12 @@ namespace dark {
 
 struct LabelMap {
 private:
-    std::map <target_size_t, std::string_view> labels;
+    std::map<target_size_t, std::string_view> labels;
 
 public:
-    void add(target_size_t pc, std::string_view label) {
-        labels[pc] = label;
-    }
+    void add(target_size_t pc, std::string_view label) { labels[pc] = label; }
 
-    auto map() const -> const decltype(labels) & {
-        return labels;
-    }
+    auto map() const -> const decltype(labels) & { return labels; }
 
     auto get(target_size_t pc) const {
         struct Result {
@@ -37,13 +33,14 @@ public:
 
         if (pc >= libc::kLibcStart && pc < libc::kLibcEnd) {
             auto which = (pc - libc::kLibcStart) / sizeof(command_size_t);
-            auto name = libc::names[which];
-            return Result { name, 0 };
+            auto name  = libc::names[which];
+            return Result{name, 0};
         } else {
             auto pos = labels.upper_bound(pc);
-            if (pos == labels.begin()) return Result { "", pc };
+            if (pos == labels.begin())
+                return Result{"", pc};
             --pos;
-            return Result { pos->second, pc - pos->first };
+            return Result{pos->second, pc - pos->first};
         }
     }
 };
@@ -60,12 +57,15 @@ public:
     auto pretty_address(target_size_t pc) -> std::string;
     auto pretty_command(command_size_t cmd, target_size_t pc) -> std::string;
     auto get_step() const -> std::size_t { return this->step_count; }
+
 private:
     static constexpr command_size_t kEcall = 0b1110011;
 
     struct Halt {};
     struct Continue {};
-    struct Step { std::size_t count; };
+    struct Step {
+        std::size_t count;
+    };
     struct Exit {};
 
     struct CallInfo {
@@ -80,12 +80,12 @@ private:
     };
 
     struct History {
-        target_size_t   pc;
-        command_size_t cmd;  
+        target_size_t pc;
+        command_size_t cmd;
     };
 
     struct DisplayInfo {
-        Immediate   imm;
+        Immediate imm;
         std::size_t count; // Count of the memory.
         char format;
         enum : bool {
@@ -100,7 +100,7 @@ private:
         // Memory or Register
         union {
             target_size_t addr; // Memory   op.
-            Register      reg;  // Register watch.
+            Register reg;       // Register watch.
         };
         char format;
         enum : bool {
@@ -111,26 +111,26 @@ private:
         int index;
     };
 
-    std::variant <Halt, Continue, Step> option;
-    std::vector <History>       latest_pc;      // Latest PC
-    std::vector <CallInfo>      call_stack;     // Call Stack
-    std::vector <BreakPoint>    breakpoints;    // Breakpoints
-    std::vector <DisplayInfo>   display_info;   // Display information
-    std::vector <WatchInfo>     watch_info;     // Watch information
-    std::vector <std::string>   terminal_cmds;  // Terminal commands
+    std::variant<Halt, Continue, Step> option;
+    std::vector<History> latest_pc;         // Latest PC
+    std::vector<CallInfo> call_stack;       // Call Stack
+    std::vector<BreakPoint> breakpoints;    // Breakpoints
+    std::vector<DisplayInfo> display_info;  // Display information
+    std::vector<WatchInfo> watch_info;      // Watch information
+    std::vector<std::string> terminal_cmds; // Terminal commands
 
     LabelMap map;
 
-    RegisterFile  &rf;
-    Memory        &mem;
-    Device        &dev;
-    const MemoryLayout  &layout;
+    RegisterFile &rf;
+    Memory &mem;
+    Device &dev;
+    const MemoryLayout &layout;
 
     std::size_t step_count = 0;
-    const std::pair <target_size_t, target_size_t> stack_range;
+    const std::pair<target_size_t, target_size_t> stack_range;
     int breakpoint_counter = 0;
-    int display_counter = 0;
-    int watch_counter = 0;
+    int display_counter    = 0;
+    int watch_counter      = 0;
 
     auto has_breakpoint(target_size_t pc) const -> bool;
     auto add_breakpoint(target_size_t pc) -> int;

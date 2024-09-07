@@ -1,0 +1,56 @@
+---
+Language: Cpp
+BasedOnStyle: LLVM
+AccessModifierOffset:	-4
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+AlignConsecutiveBitFields:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: false
+  AlignCaseColons: false
+AlignOperands: AlignAfterOperator
+AlignAfterOpenBracket: BlockIndent
+AllowShortBlocksOnASingleLine: Always
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortLambdasOnASingleLine: All
+BitFieldColonSpacing: Both
+BreakBeforeConceptDeclarations: Always
+BreakConstructorInitializers: AfterColon
+BreakStringLiterals: true
+BreakTemplateDeclarations: Yes
+ColumnLimit: 100
+DerivePointerAlignment: false
+EmptyLineAfterAccessModifier: Leave
+FixNamespaceComments: true
+IncludeBlocks: Preserve
+IncludeCategories:
+  - Regex:           '^"(llvm|llvm-c|clang|clang-c)/'
+    Priority:        2
+    SortPriority:    0
+    CaseSensitive:   false
+  - Regex:           '^(<|"(gtest|gmock|isl|json)/)'
+    Priority:        3
+    SortPriority:    0
+    CaseSensitive:   false
+  - Regex:           '.*'
+    Priority:        1
+    SortPriority:    0
+    CaseSensitive:   false
+IndentWidth: 4
+MaxEmptyLinesToKeep: 2
+NamespaceIndentation: None
+PointerAlignment: Right
+QualifierAlignment: Custom
+QualifierOrder: [inline, static, constexpr, const, type, volatile]
+SortIncludes: CaseInsensitive
+SpacesBeforeTrailingComments: 1
+UseTab: Never
+---

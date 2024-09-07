@@ -1,8 +1,8 @@
 #pragma once
+#include "config/counter.h"
+#include "declarations.h"
+#include "utility/deleter.h"
 #include <cstddef>
-#include <declarations.h>
-#include <utility/deleter.h>
-#include <config/counter.h>
 #include <iosfwd>
 
 namespace dark {
@@ -14,7 +14,7 @@ public:
     struct Pair {
         std::size_t count;
         std::size_t weight;
-        void operator += (std::size_t w) {
+        void operator+=(std::size_t w) {
             count++;
             weight += w;
         }
@@ -22,9 +22,9 @@ public:
 
     struct Counter : weight::Counter {
         std::size_t iparse;
-        Pair libcMem;   // malloc, free, calloc, realloc
-        Pair libcIO;    // printf, scanf ...
-        Pair libcOp;    // other libc functions
+        Pair libcMem; // malloc, free, calloc, realloc
+        Pair libcIO;  // printf, scanf ...
+        Pair libcOp;  // other libc functions
     } counter;
 
     std::istream &in;

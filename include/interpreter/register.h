@@ -1,13 +1,13 @@
 #pragma once
-#include <declarations.h>
-#include <riscv/register.h>
+#include "declarations.h"
+#include "riscv/register.h"
 #include <array>
 
 namespace dark {
 
 struct RegisterFile {
 private:
-    std::array <target_size_t, 32> regs;
+    std::array<target_size_t, 32> regs;
 
     target_size_t pc;
     target_size_t new_pc;
@@ -27,8 +27,8 @@ public:
     void set_pc(target_size_t pc) { this->new_pc = pc; }
     /* Complete after one instruction. */
     bool advance() {
-        this->pc = this->new_pc;
-        this->new_pc = this->pc + sizeof(command_size_t);
+        this->pc                = this->new_pc;
+        this->new_pc            = this->pc + sizeof(command_size_t);
         (*this)[Register::zero] = 0;
         return this->pc != this->end_pc;
     }

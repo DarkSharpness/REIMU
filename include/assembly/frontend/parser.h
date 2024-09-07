@@ -1,6 +1,6 @@
 #pragma once
-#include <assembly/frontend/token.h>
-#include <assembly/storage/immediate.h>
+#include "assembly/frontend/token.h"
+#include "assembly/storage/immediate.h"
 #include <unordered_map>
 
 namespace dark::frontend {

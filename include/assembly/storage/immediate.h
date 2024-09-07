@@ -1,5 +1,6 @@
 #pragma once
-#include <assembly/forward.h>
+#include "assembly/forward.h"
+#include "declarations.h"
 #include <memory>
 
 namespace dark {

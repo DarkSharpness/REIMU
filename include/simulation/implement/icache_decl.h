@@ -1,8 +1,5 @@
-#include <interpreter/executable.h>
-#include <interpreter/interval.h>
-#include <interpreter/memory.h>
-#include <libc/libc.h>
-#include <utility.h>
+#include "interpreter/executable.h"
+#include "interpreter/memory.h"
 #include <memory>
 
 namespace dark {

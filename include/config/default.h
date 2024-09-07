@@ -1,19 +1,21 @@
 #pragma once
-#include <declarations.h>
+#include "declarations.h"
 #include <string_view>
 
 namespace dark::config {
 
-static constexpr std::size_t kInitMemorySize    = 256 * 1024 * 1024;
-static constexpr std::size_t kInitStackSize     = 32 * 1024;
-static constexpr std::size_t kInitTimeOut       = static_cast<std::size_t>(-1);
-static constexpr std::string_view kStdin        = "<stdin>";
-static constexpr std::string_view kStdout       = "<stdout>";
-static constexpr std::string_view kStderr       = "<stderr>";
-static constexpr std::string_view kInitStdin    = "<stdin>";
-static constexpr std::string_view kInitStdout   = "<stdout>";
-static constexpr std::string_view kInitProfile  = "<stderr>";
-static constexpr std::string_view kInitAnswer   = "test.ans";
+static constexpr std::size_t kInitMemorySize   = 256 * 1024 * 1024;
+static constexpr std::size_t kInitStackSize    = 32 * 1024;
+static constexpr std::size_t kInitTimeOut      = static_cast<std::size_t>(-1);
+static constexpr std::string_view kStdin       = "<stdin>";
+static constexpr std::string_view kStdout      = "<stdout>";
+static constexpr std::string_view kStderr      = "<stderr>";
+static constexpr std::string_view kInitStdin   = "<stdin>";
+static constexpr std::string_view kInitStdout  = "<stdout>";
+static constexpr std::string_view kInitProfile = "<stderr>";
+static constexpr std::string_view kInitAnswer  = "test.ans";
+
+// clang-format off
 
 static constexpr std::string_view kSupportedOptions[] = {
     "--silent",
@@ -86,6 +88,8 @@ Configurations:
   -a=<file>, --answer=<file>        Set the answer file for the simulator, default test.ans.
                                     This option can only work with the oj-mode.
 )";
+
+// clang-format on
 
 static constexpr std::string_view kVersionMessage = "reimu 1.0.0\n";
 

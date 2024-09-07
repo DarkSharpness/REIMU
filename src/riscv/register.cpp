@@ -1,14 +1,15 @@
-#include <utility.h>
-#include <riscv/register.h>
+#include "riscv/register.h"
+#include "utility/cast.h"
+#include "utility/hash.h"
+#include <optional>
 
 namespace dark {
 
-static constexpr std::string_view kRegisterMap[] = {
-    "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2", "s0", "s1",
-    "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3",
-    "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4",
-    "t5", "t6"
-};
+static constexpr std::string_view kRegisterMap[] = {"zero", "ra", "sp", "gp", "tp", "t0",  "t1",
+                                                    "t2",   "s0", "s1", "a0", "a1", "a2",  "a3",
+                                                    "a4",   "a5", "a6", "a7", "s2", "s3",  "s4",
+                                                    "s5",   "s6", "s7", "s8", "s9", "s10", "s11",
+                                                    "t3",   "t4", "t5", "t6"};
 
 std::string_view reg_to_sv(Register reg) {
     return kRegisterMap[reg_to_int(reg)];
@@ -16,8 +17,12 @@ std::string_view reg_to_sv(Register reg) {
 
 auto sv_to_reg_nothrow(std::string_view view) noexcept -> std::optional<Register> {
     using hash::switch_hash_impl;
-    #define match_or_break(expr) case switch_hash_impl(#expr):\
-        if (view == #expr) { return Register::expr; } break
+#define match_or_break(expr)                                                                       \
+    case switch_hash_impl(#expr):                                                                  \
+        if (view == #expr) {                                                                       \
+            return Register::expr;                                                                 \
+        }                                                                                          \
+        break
 
     switch (switch_hash_impl(view)) {
         match_or_break(zero);
@@ -52,15 +57,15 @@ auto sv_to_reg_nothrow(std::string_view view) noexcept -> std::optional<Register
         match_or_break(t4);
         match_or_break(t5);
         match_or_break(t6);
-        default: break;
+    default: break;
     }
 
-    #undef match_or_break
+#undef match_or_break
 
     if (view.starts_with("x")) {
-        auto num = sv_to_integer <std::size_t> (view.substr(1));
+        auto num = sv_to_integer<std::size_t>(view.substr(1));
         if (num.has_value() && *num < 32)
-            return static_cast <Register> (*num);
+            return static_cast<Register>(*num);
     } else if (view == "fp") {
         return Register::s0;
     }

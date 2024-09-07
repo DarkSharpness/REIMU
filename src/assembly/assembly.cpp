@@ -1,7 +1,7 @@
-#include <utility.h>
-#include <assembly/assembly.h>
-#include <assembly/frontend/lexer.h>
-#include <assembly/frontend/match.h>
+#include "assembly/assembly.h"
+#include "assembly/frontend/lexer.h"
+#include "assembly/frontend/match.h"
+#include "utility/error.h"
 #include <fstream>
 
 namespace dark {
@@ -11,13 +11,13 @@ bool is_label_char(char c) {
     return std::isalnum(c) || c == '_' || c == '.' || c == '@' || c == '$';
 }
 
-Assembler::Assembler(std::string_view file_name)
-: current_section(Section::UNKNOWN), file_name(file_name), line_number(0) {
-    std::ifstream file { this->file_name };
+Assembler::Assembler(std::string_view file_name) :
+    current_section(Section::UNKNOWN), file_name(file_name), line_number(0) {
+    std::ifstream file{this->file_name};
     panic_if(!file.is_open(), "Failed to open {}", file_name);
 
     this->line_number = 0;
-    std::string line;   // Current line
+    std::string line; // Current line
 
     while (std::getline(file, line)) {
         ++this->line_number;
@@ -27,7 +27,7 @@ Assembler::Assembler(std::string_view file_name)
             file.close();
             this->handle_at(this->line_number, std::move(e.inner));
         } catch (std::exception &e) {
-            unreachable(std::format("Unexpected error: {}\n", e.what()));
+            unreachable(fmt::format("Unexpected error: {}\n", e.what()));
         }
     }
 }
@@ -40,18 +40,22 @@ using frontend::match;
 /**
  * @brief Parse a line of the assembly.
  * @param line Line of the assembly.
-*/
+ */
 void Assembler::parse_line(std::string_view line) {
-    Lexer lexer { line };
+    Lexer lexer{line};
     const auto tokens = lexer.get_stream();
 
-    if (tokens.empty()) return; // Empty line
+    if (tokens.empty())
+        return; // Empty line
 
-    throw_if(tokens[0].type != Token::Type::Identifier,
-        "Expected a label or command or storage, got \"{}\"", tokens[0].what);
+    throw_if(
+        tokens[0].type != Token::Type::Identifier,
+        "Expected a label or command or storage, got \"{}\"", tokens[0].what
+    );
 
     // Label + colon case.
-    if (match <Identifier, Colon>(tokens)) return this->add_label(tokens[0].what);
+    if (match<Identifier, Colon>(tokens))
+        return this->add_label(tokens[0].what);
 
     const auto rest = tokens.subspan(1);
 

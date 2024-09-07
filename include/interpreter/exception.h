@@ -1,8 +1,8 @@
 #pragma once
+#include "declarations.h"
+#include "interpreter/forward.h"
+#include "libc/forward.h"
 #include <string>
-#include <declarations.h>
-#include <libc/forward.h>
-#include <interpreter/forward.h>
 
 namespace dark {
 
@@ -36,14 +36,14 @@ struct FailToInterpret {
             target_size_t address;
         };
         union {
-            command_size_t  command;
-            target_size_t   alignment;
-            target_size_t   size;
+            command_size_t command;
+            target_size_t alignment;
+            target_size_t size;
         };
     };
 
-    ErrorDetail detail {};
-    std::string message {};
+    ErrorDetail detail{};
+    std::string message{};
 
     auto what(RegisterFile &, Memory &, Device &) const -> std::string;
 };

@@ -5,15 +5,15 @@
 
 #include <format>
 
+namespace fmt {
+
+using std::format;
+using std::format_string;
+
+} // namespace fmt
+
 #else
 
 #include <fmt/format.h>
-
-namespace std {
-
-using fmt::format;
-using fmt::format_string;
-
-} // namespace std
 
 #endif

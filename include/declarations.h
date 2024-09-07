@@ -8,10 +8,7 @@ struct Linker;
 struct Assembler;
 struct Interpreter;
 
-enum class Section : std::uint8_t {
-    UNKNOWN, TEXT, DATA, RODATA, BSS,
-    MAXCOUNT = 5
-};
+enum class Section : std::uint8_t { UNKNOWN, TEXT, DATA, RODATA, BSS, MAXCOUNT = 5 };
 
 using command_size_t = std::uint32_t;
 using target_size_t  = std::uint32_t;

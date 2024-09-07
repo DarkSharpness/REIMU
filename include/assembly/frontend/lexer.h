@@ -1,7 +1,5 @@
 #pragma once
-#include <assembly/forward.h>
-#include <assembly/frontend/token.h>
-#include <riscv/register.h>
+#include "assembly/frontend/token.h"
 #include <vector>
 
 namespace dark::frontend {

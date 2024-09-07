@@ -8,15 +8,15 @@ namespace kupi {
 using Addr_t = dark::target_size_t;
 using Time_t = std::size_t;
 
-static constexpr Addr_t CacheLineSize   = 64;
-static constexpr Addr_t CacheMaxSize    = 4;        // 每个组中的缓存行数
-static constexpr Addr_t CacheGroupSize  = 2;        // 缓存组数
+static constexpr Addr_t CacheLineSize  = 64;
+static constexpr Addr_t CacheMaxSize   = 4; // 每个组中的缓存行数
+static constexpr Addr_t CacheGroupSize = 2; // 缓存组数
 
 struct CacheLine {
-    Addr_t id {};
-    bool valid {};
-    bool dirty {};
-    Time_t timestamp {};
+    Addr_t id{};
+    bool valid{};
+    bool dirty{};
+    Time_t timestamp{};
 
     void update(Addr_t new_id, Time_t cur_timestamp) {
         this->id        = new_id;
@@ -27,8 +27,8 @@ struct CacheLine {
 };
 
 struct CacheCounter {
-    Time_t count_load_real {};
-    Time_t count_write_back {};
+    Time_t count_load_real{};
+    Time_t count_write_back{};
 };
 
 class CacheGroup {
@@ -72,13 +72,13 @@ private:
                 min_line = &line;
         }
 
-        counter.count_load_real  += 1;
+        counter.count_load_real += 1;
         counter.count_write_back += min_line->dirty;
         min_line->update(id, cur_timestamp);
     }
 
     bool check_hit(Addr_t id, bool is_write) {
-        for (auto &line: cache) {
+        for (auto &line : cache) {
             if (line.valid && line.id == id) {
                 line.timestamp = cur_timestamp;
                 line.dirty |= is_write;
@@ -103,13 +103,9 @@ public:
         return groups[group_index].store(low, high, counter);
     }
 
-    auto get_load() const -> std::size_t {
-        return counter.count_load_real;
-    }
+    auto get_load() const -> std::size_t { return counter.count_load_real; }
 
-    auto get_store() const -> std::size_t {
-        return counter.count_write_back;
-    }
+    auto get_store() const -> std::size_t { return counter.count_write_back; }
 
 private:
     friend class CacheGroup;

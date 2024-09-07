@@ -1,25 +1,24 @@
+#include "interpreter/memory.h"
 #include "declarations.h"
-#include <utility.h>
-#include <libc/libc.h>
-#include <libc/memory.h>
-#include <libc/utility.h>
-#include <interpreter/device.h>
-#include <interpreter/memory.h>
-#include <interpreter/register.h>
+#include "interpreter/device.h"
+#include "interpreter/register.h"
+#include "libc/libc.h"
+#include "libc/memory.h"
+#include "libc/utility.h"
 
 namespace dark::libc {
 
-static MemoryManager malloc_manager {};
+static MemoryManager malloc_manager{};
 
 void libc_init(RegisterFile &, Memory &mem, Device &) {
     malloc_manager.init(mem);
 }
 
 void MemoryManager::unknown_malloc_pointer(target_size_t ptr, __details::_Index index) {
-    throw FailToInterpret {
+    throw FailToInterpret{
         .error      = Error::LibcError,
         .libc_which = static_cast<libc_index_t>(index),
-        .message    = std::format("Not a malloc pointer: 0x{:#x}", ptr),
+        .message    = fmt::format("Not a malloc pointer: 0x{:#x}", ptr),
     };
 }
 
@@ -28,7 +27,7 @@ void MemoryManager::unknown_malloc_pointer(target_size_t ptr, __details::_Index 
 namespace dark::libc::__details {
 
 auto malloc(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
-    auto size = rf[Register::a0];
+    auto size        = rf[Register::a0];
     auto [_, retval] = malloc_manager.allocate(mem, size);
 
     dev.counter.libcMem += malloc_manager.get_malloc_time(size);
@@ -37,7 +36,7 @@ auto malloc(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
 }
 
 auto calloc(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
-    auto size = rf[Register::a0] * rf[Register::a1];
+    auto size          = rf[Register::a0] * rf[Register::a1];
     auto [ptr, retval] = malloc_manager.allocate(mem, size);
     std::memset(ptr, 0, size);
 
@@ -47,8 +46,8 @@ auto calloc(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
 }
 
 auto realloc(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
-    auto old_data = rf[Register::a0];
-    auto new_size = rf[Register::a1];
+    auto old_data          = rf[Register::a0];
+    auto new_size          = rf[Register::a1];
     auto [retval, realloc] = malloc_manager.reallocate(mem, old_data, new_size);
 
     dev.counter.libcMem += malloc_manager.get_realloc_time(new_size, realloc);
@@ -63,9 +62,9 @@ auto free(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
 }
 
 auto memcmp(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
-    auto ptr0 = rf[Register::a0];
-    auto ptr1 = rf[Register::a1];
-    auto size = rf[Register::a2];
+    auto ptr0       = rf[Register::a0];
+    auto ptr1       = rf[Register::a1];
+    auto size       = rf[Register::a2];
     auto [lhs, rhs] = checked_get_areas<_Index::memcmp>(mem, ptr0, ptr1, size);
 
     auto pos = find_first_diff(lhs, rhs, size);
@@ -76,9 +75,9 @@ auto memcmp(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
 }
 
 auto memcpy(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
-    auto ptr0 = rf[Register::a0];
-    auto ptr1 = rf[Register::a1];
-    auto size = rf[Register::a2];
+    auto ptr0       = rf[Register::a0];
+    auto ptr1       = rf[Register::a1];
+    auto size       = rf[Register::a2];
     auto [dst, src] = checked_get_areas<_Index::memcpy>(mem, ptr0, ptr1, size);
     std::memcpy(dst, src, size);
 
@@ -88,9 +87,9 @@ auto memcpy(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
 }
 
 auto memmove(Executable &, RegisterFile &rf, Memory &mem, Device &dev) -> Hint {
-    auto ptr0 = rf[Register::a0];
-    auto ptr1 = rf[Register::a1];
-    auto size = rf[Register::a2];
+    auto ptr0       = rf[Register::a0];
+    auto ptr1       = rf[Register::a1];
+    auto size       = rf[Register::a2];
     auto [dst, src] = checked_get_areas<_Index::memmove>(mem, ptr0, ptr1, size);
     std::memmove(dst, src, size);
 
