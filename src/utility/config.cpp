@@ -392,7 +392,7 @@ void Config_Impl::initialize_with_check() {
     check_duplicate_files(this->assembly_files,
         this->input.get_file_name(),
         // Remark: answer file is only useful in OJ mode for now.
-        this->has_option("oj-mode") ? std::optional<std::string_view> {} : this->answer,
+        this->has_option("oj-mode") ? this->answer : std::optional<std::string_view> {},
         this->output.get_file_name(),
         this->profile.get_file_name());
 }
