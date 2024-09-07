@@ -74,6 +74,35 @@ See [support](support.md) for more information.
 
 See [debugger](debugger.md) for more information.
 
+## Weight calculation
+
+We have some weight counter to help you know the performance of your program. See [counter.h](../include/config/counter.h) for details.
+
+Here's a list of the weight counter:
+
+```cpp
+// register_class(<group name>, <weight>, <instruction names...>)
+
+register_class(Arith    , 1 , "add", "sub");
+register_class(Upper    , 1 , "lui", "auipc");
+register_class(Compare  , 1 , "slt", "sltu");
+register_class(Shift    , 1 , "sll", "srl", "sra");
+register_class(Bitwise  , 1 , "and", "or", "xor");
+register_class(Branch   , 10, "beq", "bne", "blt", "bge", "bltu", "bgeu");
+register_class(Load     , 64, "lb", "lh", "lw", "lbu", "lhu");
+register_class(Store    , 64, "sb", "sh", "sw");
+register_class(Multiply , 4 , "mul", "mulh", "mulhsu", "mulhu");
+register_class(Divide   , 20, "div", "divu", "rem", "remu");
+register_class(Jal      , 1 , "jal");
+register_class(Jalr     , 2 , "jalr");
+
+// External devices
+
+register_class(PredictTaken, 2, "");
+register_class(CacheLoad   , 4, "");
+register_class(CacheStore  , 4, "");
+```
+
 ## Q & A
 
 Use [github discussions](https://github.com/DarkSharpness/REIMU/discussions/) to ask questions. Use [github issues](https://github.com/DarkSharpness/REIMU/issues/) to report bugs.
