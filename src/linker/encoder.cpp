@@ -157,7 +157,7 @@ private:
             match_and_set(REM);
             match_and_set(REMU);
 
-        default: unreachable();
+            default: unreachable();
         }
 #undef match_and_set
 
@@ -188,7 +188,7 @@ private:
             match_and_set(OR, 12, true, "ori");
             match_and_set(AND, 12, true, "andi");
 
-        default: unreachable();
+            default: unreachable();
         }
 #undef match_and_set
 
@@ -220,7 +220,7 @@ private:
             match_and_set(LW);
             match_and_set(LBU);
             match_and_set(LHU);
-        default: unreachable();
+            default: unreachable();
         }
 #undef match_and_set
 
@@ -243,7 +243,7 @@ private:
             match_and_set(SB);
             match_and_set(SH);
             match_and_set(SW);
-        default: unreachable();
+            default: unreachable();
         }
 #undef match_and_set
 
@@ -272,7 +272,7 @@ private:
             match_and_set(BGE);
             match_and_set(BLTU);
             match_and_set(BGEU);
-        default: unreachable();
+            default: unreachable();
         }
 #undef match_and_set
 
@@ -387,10 +387,10 @@ private:
         this->check_alignment(__details::align_size(storage));
         using enum IntegerData::Type;
         switch (auto data = imm_to_int(storage.data); storage.type) {
-        case BYTE:  this->push_byte(data); break;
-        case SHORT: this->push_half(data); break;
-        case LONG:  this->push_word(data); break;
-        default:    unreachable();
+            case BYTE:  this->push_byte(data); break;
+            case SHORT: this->push_half(data); break;
+            case LONG:  this->push_word(data); break;
+            default:    unreachable();
         }
     }
 

@@ -34,14 +34,14 @@ static void checked_printf_impl(
         }
         // c == '%' here
         switch (fmt[++i]) {
-        case 'd': out << std::dec << static_cast<std::int32_t>(extra_arg()); break;
-        case 's': out << checked_get_string<_Index::printf>(mem, extra_arg()); break;
-        case 'c': out.put(static_cast<char>(extra_arg())); break;
-        case 'x': out << std::hex << extra_arg(); break;
-        case 'p': out << "0x" << std::hex << extra_arg(); break;
-        case 'u': out << std::dec << static_cast<std::uint32_t>(extra_arg()); break;
-        case '%': out.put('%'); break;
-        default:  handle_unknown_fmt<index>(fmt[i]);
+            case 'd': out << std::dec << static_cast<std::int32_t>(extra_arg()); break;
+            case 's': out << checked_get_string<_Index::printf>(mem, extra_arg()); break;
+            case 'c': out.put(static_cast<char>(extra_arg())); break;
+            case 'x': out << std::hex << extra_arg(); break;
+            case 'p': out << "0x" << std::hex << extra_arg(); break;
+            case 'u': out << std::dec << static_cast<std::uint32_t>(extra_arg()); break;
+            case '%': out.put('%'); break;
+            default:  handle_unknown_fmt<index>(fmt[i]);
         }
     }
 }
@@ -80,37 +80,37 @@ static auto checked_scanf_impl(
         auto val_s  = target_ssize_t{};
 
         switch (fmt[++i]) {
-        case 'd': {
-            in >> val_s;
-            char buffer[std::numeric_limits<int>::digits10 + 2];
-            auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), val_s);
-            io_count += ptr - buffer + 1;
-            aligned_access<index, std::int32_t>(mem, extra_arg()) = val_s;
-            break;
-        }
-        case 's': {
-            in >> buf;
-            io_count += buf.size();
-            auto ptr = extra_arg();
-            auto raw = checked_get_area<index>(mem, ptr, buf.size() + 1);
-            std::memcpy(raw, buf.data(), buf.size() + 1);
-            break;
-        }
-        case 'c': {
-            in.get(val_ch); // don't skip whitespace
-            ++io_count;
-            aligned_access<index, char>(mem, extra_arg()) = val_ch;
-            break;
-        }
-        case 'u': {
-            in >> val_u;
-            char buffer[std::numeric_limits<int>::digits10 + 2];
-            auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), val_u);
-            io_count += ptr - buffer + 1;
-            aligned_access<index, std::uint32_t>(mem, extra_arg()) = val_u;
-            break;
-        }
-        default: handle_unknown_fmt<index>(fmt[i]);
+            case 'd': {
+                in >> val_s;
+                char buffer[std::numeric_limits<int>::digits10 + 2];
+                auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), val_s);
+                io_count += ptr - buffer + 1;
+                aligned_access<index, std::int32_t>(mem, extra_arg()) = val_s;
+                break;
+            }
+            case 's': {
+                in >> buf;
+                io_count += buf.size();
+                auto ptr = extra_arg();
+                auto raw = checked_get_area<index>(mem, ptr, buf.size() + 1);
+                std::memcpy(raw, buf.data(), buf.size() + 1);
+                break;
+            }
+            case 'c': {
+                in.get(val_ch); // don't skip whitespace
+                ++io_count;
+                aligned_access<index, char>(mem, extra_arg()) = val_ch;
+                break;
+            }
+            case 'u': {
+                in >> val_u;
+                char buffer[std::numeric_limits<int>::digits10 + 2];
+                auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), val_u);
+                io_count += ptr - buffer + 1;
+                aligned_access<index, std::uint32_t>(mem, extra_arg()) = val_u;
+                break;
+            }
+            default: handle_unknown_fmt<index>(fmt[i]);
         }
 
         if (in.good()) {

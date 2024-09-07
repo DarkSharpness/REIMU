@@ -29,8 +29,8 @@ void Assembler::handle_at(std::size_t which_line, std::string msg) const {
         if (!std::getline(file, line))
             break;
         if (i == which_line)
-            line_fmt_string += 
-                fmt::format("{}{: >4}  |  {}{}\n", console::color_code<RED>, i, line, console::color_code<RESET>);
+            line_fmt_string += fmt::
+                format("{}{: >4}  |  {}{}\n", console::color_code<RED>, i, line, console::color_code<RESET>);
         else
             line_fmt_string += fmt::format("{: >4}  |  {}\n", i, line);
     }
@@ -61,11 +61,11 @@ void Assembler::debug(std::ostream &os) const {
         os << "    .section .";
         auto [slice, section] = data;
         switch (section) {
-        case Section::TEXT:   os << "text\n"; break;
-        case Section::DATA:   os << "data\n"; break;
-        case Section::BSS:    os << "bss\n"; break;
-        case Section::RODATA: os << "rodata\n"; break;
-        default:              os << "unknown\n";
+            case Section::TEXT:   os << "text\n"; break;
+            case Section::DATA:   os << "data\n"; break;
+            case Section::BSS:    os << "bss\n"; break;
+            case Section::RODATA: os << "rodata\n"; break;
+            default:              os << "unknown\n";
         }
         for (auto &storage : slice) {
             std::size_t which = &storage - ptr;

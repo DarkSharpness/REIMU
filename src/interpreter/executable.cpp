@@ -91,7 +91,7 @@ static auto parse_r_type(command_size_t cmd) -> _Pair_t {
         match_and_return(REM);
         match_and_return(REMU);
 
-    default: break;
+        default: break;
     }
 #undef match_and_return
 
@@ -116,24 +116,24 @@ static auto parse_i_type(command_size_t cmd) -> _Pair_t {
         match_and_return(OR);
         match_and_return(AND);
 
-    case command::i_type::Funct3::SLL:
-        if (command::get_funct7(cmd) == command::i_type::Funct7::SLL) {
-            return {interpreter::ArithImm::fn<general::ArithOp::SLL>, arg};
-        }
-        break;
+        case command::i_type::Funct3::SLL:
+            if (command::get_funct7(cmd) == command::i_type::Funct7::SLL) {
+                return {interpreter::ArithImm::fn<general::ArithOp::SLL>, arg};
+            }
+            break;
 
-    case command::i_type::Funct3::SRL:
-        if (command::get_funct7(cmd) == command::i_type::Funct7::SRL) {
-            return {interpreter::ArithImm::fn<general::ArithOp::SRL>, arg};
-        }
-        if (command::get_funct7(cmd) == command::i_type::Funct7::SRA) {
-            constexpr auto mask = sizeof(target_size_t) * 8 - 1;
-            arg.imm &= mask; // Mask the lower bits, to prevent undefined behavior.
-            return {interpreter::ArithImm::fn<general::ArithOp::SRA>, arg};
-        }
-        break; // Invalid shift operation.
+        case command::i_type::Funct3::SRL:
+            if (command::get_funct7(cmd) == command::i_type::Funct7::SRL) {
+                return {interpreter::ArithImm::fn<general::ArithOp::SRL>, arg};
+            }
+            if (command::get_funct7(cmd) == command::i_type::Funct7::SRA) {
+                constexpr auto mask = sizeof(target_size_t) * 8 - 1;
+                arg.imm &= mask; // Mask the lower bits, to prevent undefined behavior.
+                return {interpreter::ArithImm::fn<general::ArithOp::SRA>, arg};
+            }
+            break; // Invalid shift operation.
 
-    default: break;
+        default: break;
     }
 
 #undef match_and_return
@@ -156,7 +156,7 @@ static auto parse_s_type(command_size_t cmd) -> _Pair_t {
         match_and_return(SB);
         match_and_return(SH);
         match_and_return(SW);
-    default: break;
+        default: break;
     }
 
 #undef match_and_return
@@ -180,7 +180,7 @@ static auto parse_l_type(command_size_t cmd) -> _Pair_t {
         match_and_return(LW);
         match_and_return(LBU);
         match_and_return(LHU);
-    default: break;
+        default: break;
     }
 
 #undef match_and_return
@@ -204,7 +204,7 @@ static auto parse_b_type(command_size_t cmd) -> _Pair_t {
         match_and_return(BGE);
         match_and_return(BLTU);
         match_and_return(BGEU);
-    default: break;
+        default: break;
     }
 
 #undef match_and_return
@@ -246,17 +246,16 @@ static auto parse_jalr(command_size_t cmd) -> _Pair_t {
 
 auto parse_cmd(command_size_t cmd) -> _Pair_t {
     switch (command::get_opcode(cmd)) {
-    case command::r_type::opcode: return parse_r_type(cmd);
-    case command::i_type::opcode: return parse_i_type(cmd);
-    case command::s_type::opcode: return parse_s_type(cmd);
-    case command::l_type::opcode: return parse_l_type(cmd);
-    case command::b_type::opcode: return parse_b_type(cmd);
-    case command::auipc::opcode:  return parse_auipc(cmd);
-    case command::lui::opcode:    return parse_lui(cmd);
-    case command::jal::opcode:    return parse_jal(cmd);
-    case command::jalr::opcode:   return parse_jalr(cmd);
-
-    default:                      break;
+        case command::r_type::opcode: return parse_r_type(cmd);
+        case command::i_type::opcode: return parse_i_type(cmd);
+        case command::s_type::opcode: return parse_s_type(cmd);
+        case command::l_type::opcode: return parse_l_type(cmd);
+        case command::b_type::opcode: return parse_b_type(cmd);
+        case command::auipc::opcode:  return parse_auipc(cmd);
+        case command::lui::opcode:    return parse_lui(cmd);
+        case command::jal::opcode:    return parse_jal(cmd);
+        case command::jalr::opcode:   return parse_jalr(cmd);
+        default:                      break;
     }
 
     handle_unknown_instruction(cmd);

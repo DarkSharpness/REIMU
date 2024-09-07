@@ -44,6 +44,7 @@ IncludeCategories:
     Priority:        1
     SortPriority:    0
     CaseSensitive:   false
+IndentCaseLabels: true
 IndentWidth: 4
 MaxEmptyLinesToKeep: 2
 NamespaceIndentation: None

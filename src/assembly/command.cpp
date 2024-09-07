@@ -177,7 +177,7 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
             try_match(Cmp_type::GTZ, Bop::BLT, zero, rs1);
             try_match(Cmp_type::LEZ, Bop::BGE, zero, rs1);
             try_match(Cmp_type::GEZ, Bop::BGE, rs1, zero);
-        default: unreachable();
+            default: unreachable();
         }
 #undef try_match
     };
@@ -307,7 +307,7 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
 
         match_or_break("nop", __insert_nop);
 
-    default: break;
+        default: break;
     }
     throw FailToParse{fmt::format("Unknown command: \"{}\"", token)};
 }

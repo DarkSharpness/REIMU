@@ -54,10 +54,10 @@ static auto parse_asciz(std::string_view str) -> std::string {
 
     constexpr auto __throw_invalid = [] [[noreturn]] (_Error_t num) {
         switch (num) {
-        case INVALID: throw FailToParse{"Invalid ascii string"};
-        case ESCAPE:  throw FailToParse{"Invalid escape character"};
-        case NOEND:   throw FailToParse{"Missing end of string"};
-        default:      unreachable();
+            case INVALID: throw FailToParse{"Invalid ascii string"};
+            case ESCAPE:  throw FailToParse{"Invalid escape character"};
+            case NOEND:   throw FailToParse{"Missing end of string"};
+            default:      unreachable();
         }
     };
 
@@ -68,19 +68,19 @@ static auto parse_asciz(std::string_view str) -> std::string {
     std::string ret;
     for (std::size_t i = 1; i < str.size(); ++i) {
         switch (str[i]) {
-        case '\\':
-            switch (str[++i]) { // Even safe when out of bound ('\0' case)
-            case 'n':  ret.push_back('\n'); break;
-            case 't':  ret.push_back('\t'); break;
-            case 'r':  ret.push_back('\r'); break;
-            case '0':  ret.push_back('\0'); break;
-            case '\\': ret.push_back('\\'); break;
-            case '\"': ret.push_back('\"'); break;
-            default:   __throw_invalid(ESCAPE);
-            }
-            break;
-        case '\"': throw_if(i + 1 != str.size(), "Unexpected character after '\"'"); return ret;
-        default:   ret.push_back(str[i]);
+            case '\\':
+                switch (str[++i]) { // Even safe when out of bound ('\0' case)
+                    case 'n':  ret.push_back('\n'); break;
+                    case 't':  ret.push_back('\t'); break;
+                    case 'r':  ret.push_back('\r'); break;
+                    case '0':  ret.push_back('\0'); break;
+                    case '\\': ret.push_back('\\'); break;
+                    case '\"': ret.push_back('\"'); break;
+                    default:   __throw_invalid(ESCAPE);
+                }
+                break;
+            case '\"': throw_if(i + 1 != str.size(), "Unexpected character after '\"'"); return ret;
+            default:   ret.push_back(str[i]);
         }
     }
     __throw_invalid(NOEND);
@@ -191,9 +191,9 @@ void Assembler::parse_storage_new(std::string_view token, const Stream &rest) {
         match_or_break("asciz", __set_asciz);
         match_or_break("zero", __set_zeros);
         match_or_break("globl", __set_globl);
-        // match_or_break("set",       __set_label);
+            // match_or_break("set",       __set_label);
 
-    default: break;
+        default: break;
     }
 #undef match_or_break
     return __warn_once(token);

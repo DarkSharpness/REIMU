@@ -53,9 +53,9 @@ protected:
         for (auto &[sub, op] : tree.data) {
             auto value = evaluate(*sub.data);
             switch (last_op) {
-            case ADD: result += value; break;
-            case SUB: result -= value; break;
-            default:  unreachable();
+                case ADD: result += value; break;
+                case SUB: result -= value; break;
+                default:  unreachable();
             }
             last_op = op;
         }
@@ -74,11 +74,11 @@ protected:
         if (auto *relative = dynamic_cast<const RelImmediate *>(&imm))
             switch (auto value = evaluate(*relative->imm.data); relative->operand) {
                 using enum RelImmediate::Operand;
-            case HI:       return split_lo_hi(value).hi;
-            case LO:       return split_lo_hi(value).lo;
-            case PCREL_HI: return split_lo_hi(value - this->position).hi;
-            case PCREL_LO: return split_lo_hi(value - this->position).lo;
-            default:       unreachable();
+                case HI:       return split_lo_hi(value).hi;
+                case LO:       return split_lo_hi(value).lo;
+                case PCREL_HI: return split_lo_hi(value - this->position).hi;
+                case PCREL_LO: return split_lo_hi(value - this->position).lo;
+                default:       unreachable();
             }
 
         return this->evaluate_tree(dynamic_cast<const TreeImmediate &>(imm));

@@ -94,10 +94,10 @@ void Alignment::debug(std::ostream &os) const {
 void IntegerData::debug(std::ostream &os) const {
     os << "    .";
     switch (type) {
-    case Type::BYTE:  os << "byte "; break;
-    case Type::SHORT: os << "half "; break;
-    case Type::LONG:  os << "word "; break;
-    default:          unreachable();
+        case Type::BYTE:  os << "byte "; break;
+        case Type::SHORT: os << "half "; break;
+        case Type::LONG:  os << "word "; break;
+        default:          unreachable();
     }
     os << data.to_string();
 }
@@ -110,13 +110,13 @@ void ASCIZ::debug(std::ostream &os) const {
     os << "    .asciz \"";
     for (char c : data) {
         switch (c) {
-        case '\n': os << "\\n"; break;
-        case '\t': os << "\\t"; break;
-        case '\r': os << "\\r"; break;
-        case '\0': os << "\\0"; break;
-        case '\\': os << "\\\\"; break;
-        case '\"': os << "\\\""; break;
-        default:   os << c;
+            case '\n': os << "\\n"; break;
+            case '\t': os << "\\t"; break;
+            case '\r': os << "\\r"; break;
+            case '\0': os << "\\0"; break;
+            case '\\': os << "\\\\"; break;
+            case '\"': os << "\\\""; break;
+            default:   os << c;
         }
     }
     os << "\"";
@@ -135,11 +135,11 @@ static auto imm_to_string(ImmediateBase *imm) -> std::string {
         std::string_view op;
         switch (ptr->operand) {
             using enum RelImmediate::Operand;
-        case HI:       op = "hi"; break;
-        case LO:       op = "lo"; break;
-        case PCREL_HI: op = "pcrel_hi"; break;
-        case PCREL_LO: op = "pcrel_lo"; break;
-        default:       unreachable();
+            case HI:       op = "hi"; break;
+            case LO:       op = "lo"; break;
+            case PCREL_HI: op = "pcrel_hi"; break;
+            case PCREL_LO: op = "pcrel_lo"; break;
+            default:       unreachable();
         }
         std::string str = ptr->imm.to_string();
         if (str.starts_with('(') && str.ends_with(')'))

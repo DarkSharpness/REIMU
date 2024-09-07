@@ -56,9 +56,9 @@ private:
         for (auto &[sub, op] : tree.data) {
             auto value = evaluate(*sub.data);
             switch (last_op) {
-            case ADD: result += value; break;
-            case SUB: result -= value; break;
-            default:  unreachable();
+                case ADD: result += value; break;
+                case SUB: result -= value; break;
+                default:  unreachable();
             }
             last_op = op;
         }

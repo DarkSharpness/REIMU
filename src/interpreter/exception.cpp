@@ -26,28 +26,26 @@ auto FailToInterpret::what(RegisterFile &rf, Memory &, Device &) const -> std::s
 
     switch (this->error) {
         using enum Error;
-    case LoadMisAligned:  return __misaligned("Load");
-    case StoreMisAligned: return __misaligned("Store");
-    case InsMisAligned:   return __misaligned("Ins-fetch");
-    case LibcMisAligned:  return __misaligned(__libc_name());
+        case LoadMisAligned:  return __misaligned("Load");
+        case StoreMisAligned: return __misaligned("Store");
+        case InsMisAligned:   return __misaligned("Ins-fetch");
+        case LibcMisAligned:  return __misaligned(__libc_name());
 
-    case LoadOutOfBound:  return __outofbound("Load");
-    case StoreOutOfBound: return __outofbound("Store");
-    case InsOutOfBound:   return __outofbound("Ins-fetch");
-    case LibcOutOfBound:  return __outofbound(__libc_name());
+        case LoadOutOfBound:  return __outofbound("Load");
+        case StoreOutOfBound: return __outofbound("Store");
+        case InsOutOfBound:   return __outofbound("Ins-fetch");
+        case LibcOutOfBound:  return __outofbound(__libc_name());
 
-    case InsUnknown:
-        return fmt::format(
-            "Unknown instruction at 0x{:x}: 0x{:x}", rf.get_pc(), this->detail.command
-        );
+        case InsUnknown:
+            return fmt::format(
+                "Unknown instruction at 0x{:x}: 0x{:x}", rf.get_pc(), this->detail.command
+            );
 
-    case DivideByZero:   return fmt::format("Divide by zero at 0x{:x}", rf.get_pc());
+        case DivideByZero:   return fmt::format("Divide by zero at 0x{:x}", rf.get_pc());
+        case LibcError:      return fmt::format("{}: {}", __libc_name(), this->message);
+        case NotImplemented: return "Not implemented";
 
-    case LibcError:      return fmt::format("{}: {}", __libc_name(), this->message);
-
-    case NotImplemented: return "Not implemented";
-
-    default:             unreachable();
+        default:             unreachable();
     }
 }
 

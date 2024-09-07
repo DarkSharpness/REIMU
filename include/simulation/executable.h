@@ -47,79 +47,79 @@ static void arith_impl(target_size_t &rd, target_size_t rs1, target_size_t rs2, 
     }
 
     switch (op) {
-    case ADD:
-        rd = rs1 + rs2;
-        dev.counter.wArith++;
-        return;
-    case SUB:
-        rd = rs1 - rs2;
-        dev.counter.wArith++;
-        return;
-    case AND:
-        rd = rs1 & rs2;
-        dev.counter.wBitwise++;
-        return;
-    case OR:
-        rd = rs1 | rs2;
-        dev.counter.wBitwise++;
-        return;
-    case XOR:
-        rd = rs1 ^ rs2;
-        dev.counter.wBitwise++;
-        return;
-    case SLL:
-        rd = rs1 << rs2;
-        dev.counter.wShift++;
-        return;
-    case SRL:
-        rd = u32(rs1) >> rs2;
-        dev.counter.wShift++;
-        return;
-    case SRA:
-        rd = i32(rs1) >> rs2;
-        dev.counter.wShift++;
-        return;
-    case SLT:
-        rd = i32(rs1) < i32(rs2);
-        dev.counter.wCompare++;
-        return;
-    case SLTU:
-        rd = u32(rs1) < u32(rs2);
-        dev.counter.wCompare++;
-        return;
-    case MUL:
-        rd = rs1 * rs2;
-        dev.counter.wMultiply++;
-        return;
-    case MULH:
-        rd = (i64(rs1) * i64(rs2)) >> 32;
-        dev.counter.wMultiply++;
-        return;
-    case MULHSU:
-        rd = (i64(rs1) * u64(rs2)) >> 32;
-        dev.counter.wMultiply++;
-        return;
-    case MULHU:
-        rd = (u64(rs1) * u64(rs2)) >> 32;
-        dev.counter.wMultiply++;
-        return;
-    case DIV:
-        rd = check_zero : i32(rs1) / i32(rs2);
-        dev.counter.wDivide++;
-        return;
-    case DIVU:
-        rd = check_zero : u32(rs1) / u32(rs2);
-        dev.counter.wDivide++;
-        return;
-    case REM:
-        rd = check_zero : i32(rs1) % i32(rs2);
-        dev.counter.wDivide++;
-        return;
-    case REMU:
-        rd = check_zero : u32(rs1) % u32(rs2);
-        dev.counter.wDivide++;
-        return;
-    default: unreachable();
+        case ADD:
+            rd = rs1 + rs2;
+            dev.counter.wArith++;
+            return;
+        case SUB:
+            rd = rs1 - rs2;
+            dev.counter.wArith++;
+            return;
+        case AND:
+            rd = rs1 & rs2;
+            dev.counter.wBitwise++;
+            return;
+        case OR:
+            rd = rs1 | rs2;
+            dev.counter.wBitwise++;
+            return;
+        case XOR:
+            rd = rs1 ^ rs2;
+            dev.counter.wBitwise++;
+            return;
+        case SLL:
+            rd = rs1 << rs2;
+            dev.counter.wShift++;
+            return;
+        case SRL:
+            rd = u32(rs1) >> rs2;
+            dev.counter.wShift++;
+            return;
+        case SRA:
+            rd = i32(rs1) >> rs2;
+            dev.counter.wShift++;
+            return;
+        case SLT:
+            rd = i32(rs1) < i32(rs2);
+            dev.counter.wCompare++;
+            return;
+        case SLTU:
+            rd = u32(rs1) < u32(rs2);
+            dev.counter.wCompare++;
+            return;
+        case MUL:
+            rd = rs1 * rs2;
+            dev.counter.wMultiply++;
+            return;
+        case MULH:
+            rd = (i64(rs1) * i64(rs2)) >> 32;
+            dev.counter.wMultiply++;
+            return;
+        case MULHSU:
+            rd = (i64(rs1) * u64(rs2)) >> 32;
+            dev.counter.wMultiply++;
+            return;
+        case MULHU:
+            rd = (u64(rs1) * u64(rs2)) >> 32;
+            dev.counter.wMultiply++;
+            return;
+        case DIV:
+            rd = check_zero : i32(rs1) / i32(rs2);
+            dev.counter.wDivide++;
+            return;
+        case DIVU:
+            rd = check_zero : u32(rs1) / u32(rs2);
+            dev.counter.wDivide++;
+            return;
+        case REM:
+            rd = check_zero : i32(rs1) % i32(rs2);
+            dev.counter.wDivide++;
+            return;
+        case REMU:
+            rd = check_zero : u32(rs1) % u32(rs2);
+            dev.counter.wDivide++;
+            return;
+        default: unreachable();
     }
 #undef check_zero
 }
@@ -152,47 +152,47 @@ static auto fn(Executable &exe, RegisterFile &rf, Memory &mem, Device &dev) {
 
     using enum general::MemoryOp;
     switch (op) {
-    case LB:
-        rd = mem.load_i8(addr);
-        dev.counter.wLoad++;
-        dev.try_load(addr, 1);
-        break;
-    case LH:
-        rd = mem.load_i16(addr);
-        dev.counter.wLoad++;
-        dev.try_load(addr, 2);
-        break;
-    case LW:
-        rd = mem.load_i32(addr);
-        dev.counter.wLoad++;
-        dev.try_load(addr, 4);
-        break;
-    case LBU:
-        rd = mem.load_u8(addr);
-        dev.counter.wLoad++;
-        dev.try_load(addr, 1);
-        break;
-    case LHU:
-        rd = mem.load_u16(addr);
-        dev.counter.wLoad++;
-        dev.try_load(addr, 2);
-        break;
-    case SB:
-        mem.store_u8(addr, rs2);
-        dev.counter.wStore++;
-        dev.try_store(addr, 1);
-        break;
-    case SH:
-        mem.store_u16(addr, rs2);
-        dev.counter.wStore++;
-        dev.try_store(addr, 2);
-        break;
-    case SW:
-        mem.store_u32(addr, rs2);
-        dev.counter.wStore++;
-        dev.try_store(addr, 4);
-        break;
-    default: unreachable();
+        case LB:
+            rd = mem.load_i8(addr);
+            dev.counter.wLoad++;
+            dev.try_load(addr, 1);
+            break;
+        case LH:
+            rd = mem.load_i16(addr);
+            dev.counter.wLoad++;
+            dev.try_load(addr, 2);
+            break;
+        case LW:
+            rd = mem.load_i32(addr);
+            dev.counter.wLoad++;
+            dev.try_load(addr, 4);
+            break;
+        case LBU:
+            rd = mem.load_u8(addr);
+            dev.counter.wLoad++;
+            dev.try_load(addr, 1);
+            break;
+        case LHU:
+            rd = mem.load_u16(addr);
+            dev.counter.wLoad++;
+            dev.try_load(addr, 2);
+            break;
+        case SB:
+            mem.store_u8(addr, rs2);
+            dev.counter.wStore++;
+            dev.try_store(addr, 1);
+            break;
+        case SH:
+            mem.store_u16(addr, rs2);
+            dev.counter.wStore++;
+            dev.try_store(addr, 2);
+            break;
+        case SW:
+            mem.store_u32(addr, rs2);
+            dev.counter.wStore++;
+            dev.try_store(addr, 4);
+            break;
+        default: unreachable();
     }
 
     return exe.next();
@@ -212,31 +212,31 @@ static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
 
     bool result{};
     switch (op) {
-    case BEQ:
-        result = (rs1 == rs2);
-        dev.counter.wBranch++;
-        break;
-    case BNE:
-        result = (rs1 != rs2);
-        dev.counter.wBranch++;
-        break;
-    case BLT:
-        result = (i32(rs1) < i32(rs2));
-        dev.counter.wBranch++;
-        break;
-    case BGE:
-        result = (i32(rs1) >= i32(rs2));
-        dev.counter.wBranch++;
-        break;
-    case BLTU:
-        result = (u32(rs1) < u32(rs2));
-        dev.counter.wBranch++;
-        break;
-    case BGEU:
-        result = (u32(rs1) >= u32(rs2));
-        dev.counter.wBranch++;
-        break;
-    default: unreachable();
+        case BEQ:
+            result = (rs1 == rs2);
+            dev.counter.wBranch++;
+            break;
+        case BNE:
+            result = (rs1 != rs2);
+            dev.counter.wBranch++;
+            break;
+        case BLT:
+            result = (i32(rs1) < i32(rs2));
+            dev.counter.wBranch++;
+            break;
+        case BGE:
+            result = (i32(rs1) >= i32(rs2));
+            dev.counter.wBranch++;
+            break;
+        case BLTU:
+            result = (u32(rs1) < u32(rs2));
+            dev.counter.wBranch++;
+            break;
+        case BGEU:
+            result = (u32(rs1) >= u32(rs2));
+            dev.counter.wBranch++;
+            break;
+        default: unreachable();
     }
 
     dev.predict(rf.get_pc(), result);

@@ -69,17 +69,17 @@ static auto get_first_token(std::string_view &line) -> std::optional<Token> {
     if (line.empty())
         return std::nullopt;
     switch (line[0]) {
-    case '#':  return __handle_comment(line);
-    case '+':
-    case '-':  return __handle_operator(line);
-    case '(':
-    case ')':  return __handle_parentesis(line);
-    case '%':  return __handle_relocation(line);
-    case '\'': return __handle_character(line);
-    case '"':  return __handle_string(line);
-    case ',':  return __handle_comma(line);
-    case ':':  return __handle_colon(line);
-    default:   return __handle_identifier(line);
+        case '#':  return __handle_comment(line);
+        case '+':
+        case '-':  return __handle_operator(line);
+        case '(':
+        case ')':  return __handle_parentesis(line);
+        case '%':  return __handle_relocation(line);
+        case '\'': return __handle_character(line);
+        case '"':  return __handle_string(line);
+        case ',':  return __handle_comma(line);
+        case ':':  return __handle_colon(line);
+        default:   return __handle_identifier(line);
     }
 }
 

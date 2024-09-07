@@ -73,9 +73,9 @@ private:
             } else { // All evaluations are successful.
                 auto value = get_integer(sub);
                 switch (last_op) {
-                case ADD: result += value; break;
-                case SUB: result -= value; break;
-                default:  unreachable();
+                    case ADD: result += value; break;
+                    case SUB: result -= value; break;
+                    default:  unreachable();
                 }
             }
             last_op = op;
@@ -98,17 +98,17 @@ private:
         if (auto *relative = dynamic_cast<RelImmediate *>(&imm)) {
             switch (relative->operand) {
                 using enum RelImmediate::Operand;
-            case HI:
-                if (!evaluate(relative->imm))
-                    return false;
-                data = move_integer(relative->imm, [](auto x) { return split_lo_hi(x).hi; });
-                return true;
-            case LO:
-                if (!evaluate(relative->imm))
-                    return false;
-                data = move_integer(relative->imm, [](auto x) { return split_lo_hi(x).lo; });
-                return true;
-            default: return false;
+                case HI:
+                    if (!evaluate(relative->imm))
+                        return false;
+                    data = move_integer(relative->imm, [](auto x) { return split_lo_hi(x).hi; });
+                    return true;
+                case LO:
+                    if (!evaluate(relative->imm))
+                        return false;
+                    data = move_integer(relative->imm, [](auto x) { return split_lo_hi(x).lo; });
+                    return true;
+                default: return false;
             }
         }
 

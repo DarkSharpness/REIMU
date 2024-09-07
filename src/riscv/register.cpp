@@ -57,7 +57,7 @@ auto sv_to_reg_nothrow(std::string_view view) noexcept -> std::optional<Register
         match_or_break(t4);
         match_or_break(t5);
         match_or_break(t6);
-    default: break;
+        default: break;
     }
 
 #undef match_or_break

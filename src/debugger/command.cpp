@@ -45,7 +45,7 @@ static auto pretty_r_type(command_size_t cmd) -> std::string {
         match_and_return(REM, "rem {}");
         match_and_return(REMU, "remu {}");
 
-    default: return default_format(cmd);
+        default: return default_format(cmd);
     }
 #undef match_and_return
 }
@@ -75,22 +75,22 @@ static auto pretty_i_type(command_size_t cmd) -> std::string {
         match_and_return(OR, "ori {}");
         match_and_return(AND, "andi {}");
 
-    case command::i_type::Funct3::SLL:
-        if (command::get_funct7(cmd) == command::i_type::Funct7::SLL)
-            return fmt::format("slli {}", suffix);
-        return default_format(cmd);
+        case command::i_type::Funct3::SLL:
+            if (command::get_funct7(cmd) == command::i_type::Funct7::SLL)
+                return fmt::format("slli {}", suffix);
+            return default_format(cmd);
 
-    case command::i_type::Funct3::SRL:
-        if (command::get_funct7(cmd) == command::i_type::Funct7::SRL)
-            return fmt::format("srli {}", suffix);
-        if (command::get_funct7(cmd) == command::i_type::Funct7::SRA) {
-            constexpr auto mask = sizeof(target_size_t) * 8 - 1;
-            imm &= mask;
-            return fmt::format("srai {}, {}, {}", reg_to_sv(rd), reg_to_sv(rs1), imm);
-        }
-        return default_format(cmd);
+        case command::i_type::Funct3::SRL:
+            if (command::get_funct7(cmd) == command::i_type::Funct7::SRL)
+                return fmt::format("srli {}", suffix);
+            if (command::get_funct7(cmd) == command::i_type::Funct7::SRA) {
+                constexpr auto mask = sizeof(target_size_t) * 8 - 1;
+                imm &= mask;
+                return fmt::format("srai {}, {}, {}", reg_to_sv(rd), reg_to_sv(rs1), imm);
+            }
+            return default_format(cmd);
 
-    default: return default_format(cmd);
+        default: return default_format(cmd);
     }
 #undef match_and_return
 }
@@ -109,7 +109,7 @@ static auto pretty_s_type(command_size_t cmd) -> std::string {
         match_and_return(SW, "sw {}");
         match_and_return(SH, "sh {}");
         match_and_return(SB, "sb {}");
-    default: return default_format(cmd);
+        default: return default_format(cmd);
     }
 #undef match_and_return
 }
@@ -130,7 +130,7 @@ static auto pretty_l_type(command_size_t cmd) -> std::string {
         match_and_return(LW, "lw {}");
         match_and_return(LBU, "lbu {}");
         match_and_return(LHU, "lhu {}");
-    default: return default_format(cmd);
+        default: return default_format(cmd);
     }
 #undef match_and_return
 }
@@ -156,7 +156,7 @@ static auto pretty_b_type(command_size_t cmd, DebugManager &manager, target_size
         match_and_return(BGE, "bge {}");
         match_and_return(BLTU, "bltu {}");
         match_and_return(BGEU, "bgeu {}");
-    default: return default_format(cmd);
+        default: return default_format(cmd);
     }
 }
 
@@ -200,18 +200,18 @@ static auto pretty_auipc(command_size_t cmd) -> std::string {
 
 auto DebugManager::pretty_command(command_size_t cmd, target_size_t pc) -> std::string {
     switch (command::get_opcode(cmd)) {
-    case DebugManager::kEcall: // ecall: special type
-        return "ecall";        // system call
-    case command::r_type::opcode: return pretty_r_type(cmd);
-    case command::i_type::opcode: return pretty_i_type(cmd);
-    case command::s_type::opcode: return pretty_s_type(cmd);
-    case command::l_type::opcode: return pretty_l_type(cmd);
-    case command::b_type::opcode: return pretty_b_type(cmd, *this, pc);
-    case command::jal::opcode:    return pretty_jal(cmd, *this, pc);
-    case command::jalr::opcode:   return pretty_jalr(cmd);
-    case command::lui::opcode:    return pretty_lui(cmd);
-    case command::auipc::opcode:  return pretty_auipc(cmd);
-    default:                      return default_format(cmd);
+        case DebugManager::kEcall: // ecall: special type
+            return "ecall";        // system call
+        case command::r_type::opcode: return pretty_r_type(cmd);
+        case command::i_type::opcode: return pretty_i_type(cmd);
+        case command::s_type::opcode: return pretty_s_type(cmd);
+        case command::l_type::opcode: return pretty_l_type(cmd);
+        case command::b_type::opcode: return pretty_b_type(cmd, *this, pc);
+        case command::jal::opcode:    return pretty_jal(cmd, *this, pc);
+        case command::jalr::opcode:   return pretty_jalr(cmd);
+        case command::lui::opcode:    return pretty_lui(cmd);
+        case command::auipc::opcode:  return pretty_auipc(cmd);
+        default:                      return default_format(cmd);
     }
 }
 

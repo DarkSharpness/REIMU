@@ -64,13 +64,13 @@ static auto parse_character(std::string_view view) -> Owner_t {
         return std::make_unique<IntImmediate>(view[1]);
     } else if (view.size() == 4 && view[1] == '\\') {
         switch (view[2]) {
-        case 'n':  return std::make_unique<IntImmediate>('\n');
-        case 't':  return std::make_unique<IntImmediate>('\t');
-        case 'r':  return std::make_unique<IntImmediate>('\r');
-        case '0':  return std::make_unique<IntImmediate>('\0');
-        case '\\': return std::make_unique<IntImmediate>('\\');
-        case '\'': return std::make_unique<IntImmediate>('\'');
-        default:   throw FailToParse("Invalid character");
+            case 'n':  return std::make_unique<IntImmediate>('\n');
+            case 't':  return std::make_unique<IntImmediate>('\t');
+            case 'r':  return std::make_unique<IntImmediate>('\r');
+            case '0':  return std::make_unique<IntImmediate>('\0');
+            case '\\': return std::make_unique<IntImmediate>('\\');
+            case '\'': return std::make_unique<IntImmediate>('\'');
+            default:   throw FailToParse("Invalid character");
         }
     }
     throw FailToParse("Invalid character");
@@ -146,42 +146,42 @@ auto ImmediateParser::find_single_op(TokenStream &tokens) const -> Owner_t {
     using enum Token::Type;
     auto token = tokens[0];
     switch (token.type) {
-    case Identifier: tokens = tokens.subspan(1); return parse_identifier(token.what);
+        case Identifier: tokens = tokens.subspan(1); return parse_identifier(token.what);
 
-    case Operator:
-        throw_if(token.what != "-", "Invalid immediate");
-        tokens = tokens.subspan(1);
-        throw_if(tokens.empty(), "Invalid immediate");
-        throw_if(tokens[0].type != Identifier, "Invalid immediate");
-        token  = tokens[0];
-        tokens = tokens.subspan(1);
-        return parse_negative(token.what);
+        case Operator:
+            throw_if(token.what != "-", "Invalid immediate");
+            tokens = tokens.subspan(1);
+            throw_if(tokens.empty(), "Invalid immediate");
+            throw_if(tokens[0].type != Identifier, "Invalid immediate");
+            token  = tokens[0];
+            tokens = tokens.subspan(1);
+            return parse_negative(token.what);
 
-    case Character:   tokens = tokens.subspan(1); return parse_character(token.what);
+        case Character:   tokens = tokens.subspan(1); return parse_character(token.what);
 
-    case Parenthesis: return parse(find_right_parenthesis(tokens));
+        case Parenthesis: return parse(find_right_parenthesis(tokens));
 
-    case Relocation:  {
-        tokens = tokens.subspan(1);
+        case Relocation:  {
+            tokens = tokens.subspan(1);
 
-        auto inner = Immediate{parse(find_right_parenthesis(tokens))};
-        auto view  = token.what.substr(1); // skip the '%'
+            auto inner = Immediate{parse(find_right_parenthesis(tokens))};
+            auto view  = token.what.substr(1); // skip the '%'
 
-        using enum RelImmediate::Operand;
-        if (view.starts_with("hi")) {
-            return std::make_unique<RelImmediate>(std::move(inner), HI);
-        } else if (view.starts_with("lo")) {
-            return std::make_unique<RelImmediate>(std::move(inner), LO);
-        } else if (view.starts_with("pcrel_hi")) {
-            return std::make_unique<RelImmediate>(std::move(inner), PCREL_HI);
-        } else if (view.starts_with("pcrel_lo")) {
-            return std::make_unique<RelImmediate>(std::move(inner), PCREL_LO);
-        } else {
-            throw FailToParse("Invalid relocation format");
+            using enum RelImmediate::Operand;
+            if (view.starts_with("hi")) {
+                return std::make_unique<RelImmediate>(std::move(inner), HI);
+            } else if (view.starts_with("lo")) {
+                return std::make_unique<RelImmediate>(std::move(inner), LO);
+            } else if (view.starts_with("pcrel_hi")) {
+                return std::make_unique<RelImmediate>(std::move(inner), PCREL_HI);
+            } else if (view.starts_with("pcrel_lo")) {
+                return std::make_unique<RelImmediate>(std::move(inner), PCREL_LO);
+            } else {
+                throw FailToParse("Invalid relocation format");
+            }
         }
-    }
 
-    default: throw FailToParse("Invalid immediate");
+        default: throw FailToParse("Invalid immediate");
     }
 }
 
