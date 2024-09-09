@@ -90,21 +90,21 @@ void DebugManager::print_info_dispatch(const DisplayInfo &info) {
         );
 
         for (std::size_t i = 0; i < cnt; ++i) {
-            target_ssize_t data{};
+            target_ssize_t loaded {};
             target_ssize_t addr = pos + i * sizeof(data);
 
             static_assert(std::integral<decltype(data)>);
             if constexpr (sizeof(data) == 4) {
-                data = d.mem.load_i32(addr);
+                loaded = d.mem.load_i32(addr);
             } else if constexpr (sizeof(data) == 2) {
-                data = d.mem.load_i16(addr);
+                loaded = d.mem.load_i16(addr);
             } else if constexpr (sizeof(data) == 1) {
-                data = d.mem.load_i8(addr);
+                loaded = d.mem.load_i8(addr);
             } else {
                 unreachable("Unsupported data size");
             }
 
-            message << fmt::format("{}\t {}", d.pretty_address(addr), data) << std::endl;
+            message << fmt::format("{}\t {}", d.pretty_address(addr), loaded) << std::endl;
         }
     };
 
