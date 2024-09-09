@@ -5,6 +5,7 @@
 #include "utility/misc.h"
 #include <cstddef>
 #include <memory>
+#include <type_traits>
 
 namespace dark {
 
@@ -14,8 +15,12 @@ using i32 = std::int32_t;
 using u8  = std::uint8_t;
 using u16 = std::uint16_t;
 using u32 = std::uint32_t;
+using f32 = float;
 
-template <std::integral _Int>
+template <typename _Tp>
+concept scalar = std::is_arithmetic<_Tp>::value;
+
+template <scalar _Int>
 static auto int_cast(std::byte *ptr) -> _Int & {
     return *reinterpret_cast<_Int *>(ptr);
 }
@@ -32,10 +37,10 @@ struct Memory_Impl : StaticArea, HeapArea, StackArea {
 
     auto checked_ifetch(target_size_t) -> command_size_t;
 
-    template <std::integral _Int>
+    template <scalar _Int>
     auto checked_load(target_size_t) -> _Int;
 
-    template <std::unsigned_integral _Int>
+    template <scalar _Int>
     void check_store(target_size_t, _Int);
 
     auto get_segment(target_size_t) -> std::span<char>;
@@ -74,6 +79,10 @@ auto Memory::load_u32(target_size_t addr) -> u32 {
     return this->get_impl().checked_load<u32>(addr);
 }
 
+auto Memory::load_f32(target_size_t addr) -> f32 {
+    return this->get_impl().checked_load<f32>(addr);
+}
+
 auto Memory::load_cmd(target_size_t addr) -> command_size_t {
     return this->get_impl().checked_ifetch(addr);
 }
@@ -87,6 +96,10 @@ void Memory::store_u16(target_size_t addr, u16 value) {
 }
 
 void Memory::store_u32(target_size_t addr, u32 value) {
+    this->get_impl().check_store(addr, value);
+}
+
+void Memory::store_f32(target_size_t addr, f32 value) {
     this->get_impl().check_store(addr, value);
 }
 
@@ -145,13 +158,13 @@ auto Memory::get_stack_end() const -> target_size_t {
     return static_cast<const StackArea *>(static_cast<const Impl *>(this))->get_range().finish;
 }
 
-template <Error error, std::integral _Int>
+template <Error error, scalar _Int>
 [[noreturn]]
 static void handle_misaligned(target_size_t addr) {
     throw FailToInterpret{.error = error, .detail = {.address = addr, .size = sizeof(_Int)}};
 }
 
-template <Error error, std::integral _Int>
+template <Error error, scalar _Int>
 [[noreturn]]
 static void handle_outofbound(target_size_t addr) {
     throw FailToInterpret{.error = error, .detail = {.address = addr, .size = sizeof(_Int)}};
@@ -167,7 +180,7 @@ auto Memory_Impl::checked_ifetch(target_size_t pc) -> command_size_t {
     return int_cast<target_size_t>(this->get_static(pc));
 }
 
-template <std::integral _Int>
+template <scalar _Int>
 auto Memory_Impl::checked_load(target_size_t addr) -> _Int {
     if (addr % alignof(_Int) != 0)
         handle_misaligned<Error::LoadMisAligned, _Int>(addr);
@@ -187,7 +200,7 @@ auto Memory_Impl::checked_load(target_size_t addr) -> _Int {
     handle_outofbound<Error::LoadOutOfBound, _Int>(addr);
 }
 
-template <std::unsigned_integral _Int>
+template <scalar _Int>
 void Memory_Impl::check_store(target_size_t addr, _Int val) {
     if (addr % alignof(_Int) != 0)
         handle_misaligned<Error::StoreMisAligned, _Int>(addr);

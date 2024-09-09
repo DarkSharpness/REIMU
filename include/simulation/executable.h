@@ -6,6 +6,7 @@
 #include "interpreter/memory.h"
 #include "interpreter/register.h"
 #include "utility/error.h"
+#include <cmath>
 
 namespace dark {
 
@@ -282,7 +283,8 @@ namespace Lui {
 [[maybe_unused]]
 static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
     auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
-    rd                         = imm;
+
+    rd = imm;
     dev.counter.wUpper++;
     return exe.next();
 }
@@ -292,10 +294,60 @@ namespace Auipc {
 [[maybe_unused]]
 static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &dev) {
     auto &&[rd, rs1, rs2, imm] = exe.get_meta().parse(rf);
-    rd                         = rf.get_pc() + imm;
+
+    rd = rf.get_pc() + imm;
     dev.counter.wUpper++;
     return exe.next();
 }
 } // namespace Auipc
+
+namespace Fcompute {
+
+template <general::FloatArithOp op>
+static auto fn(Executable &exe, RegisterFile &rf, Memory &, Device &) {
+    auto [rd_, rs1_, rs2_, imm] = exe.get_meta();
+    static_assert(sizeof(target_size_t) == 4);
+    auto &rd = rf[fp(rd_)];
+    auto rs1 = rf[fp(rs1_)];
+    auto rs2 = rf[fp(rs2_)];
+
+    using enum general::FloatArithOp;
+    switch (op) {
+        case ADD:  rd = rs1 + rs2; break;
+        case SUB:  rd = rs1 - rs2; break;
+        case MUL:  rd = rs1 * rs2; break;
+        case DIV:  rd = rs1 / rs2; break;
+        case SQRT: rd = std::sqrt(rs1); break;
+        case MIN:  rd = std::fmin(rs1, rs2); break;
+        case MAX:  rd = std::fmax(rs1, rs2); break;
+        default:   unreachable();
+    }
+
+    return exe.next();
+}
+
+} // namespace Fcompute
+
+namespace FLoadStore {
+
+template <general::MemoryOp op>
+static auto fn(Executable &exe, RegisterFile &rf, Memory &mem, Device &) {
+    auto [rd_, rs1_, rs2_, imm] = exe.get_meta();
+    static_assert(sizeof(target_size_t) == 4);
+    auto &rd = rf[fp(rd_)];
+    auto rs1 = rf[rs1_]; // rs1 is a pointer
+    auto rs2 = rf[fp(rs2_)];
+
+    using enum general::MemoryOp;
+    switch (op) {
+        case LW: rd = mem.load_f32(rs1 + imm); break;
+        case SW: mem.store_f32(rs1 + imm, rs2); break;
+        default: unreachable();
+    }
+
+    return exe.next();
+}
+
+} // namespace FLoadStore
 
 } // namespace dark::interpreter

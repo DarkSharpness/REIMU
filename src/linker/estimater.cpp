@@ -1,3 +1,4 @@
+#include "assembly/storage/command.h"
 #include "assembly/storage/static.h"
 #include "libc/libc.h"
 #include "linker/estimate.h"
@@ -51,6 +52,7 @@ private:
     void visitStorage(LoadImmediate &storage) override { this->update(storage, 2); }
     void visitStorage(LoadUpperImmediate &storage) override { this->update(storage, 1); }
     void visitStorage(AddUpperImmediatePC &storage) override { this->update(storage, 1); }
+    void visitStorage(FloatArithmetic &storage) override { this->update(storage, 1); }
     void visitStorage(Alignment &storage) override { this->update(storage); }
     void visitStorage(IntegerData &storage) override { this->update(storage); }
     void visitStorage(ZeroBytes &storage) override { this->update(storage); }

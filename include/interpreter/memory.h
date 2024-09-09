@@ -29,6 +29,9 @@ public:
     void store_u16(target_size_t addr, std::uint16_t value);
     void store_u32(target_size_t addr, std::uint32_t value);
 
+    auto load_f32(target_size_t addr) -> float;
+    void store_f32(target_size_t addr, float value);
+
     // For malloc use.
     [[nodiscard]]
     auto sbrk(target_ssize_t) -> std::pair<char *, target_size_t>;

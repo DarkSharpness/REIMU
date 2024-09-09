@@ -7,7 +7,7 @@ namespace dark {
 using dark::console::profile;
 
 RegisterFile::RegisterFile(target_size_t entry, const Config &config) :
-    regs(), pc(), new_pc(entry) {
+    regs(), fregs(), pc(), new_pc(entry) {
     (*this)[Register::sp] = config.get_stack_top();
     (*this)[Register::ra] = this->end_pc;
 }

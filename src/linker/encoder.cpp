@@ -10,6 +10,7 @@
 #include "linker/layout.h"
 #include "linker/linker.h"
 #include "riscv/command.h"
+#include "riscv/register.h"
 #include "utility/error.h"
 #include <cctype>
 #include <string>
@@ -196,10 +197,13 @@ private:
     }
 
     void visitStorage(LoadStore &storage) {
-        if (storage.is_load())
-            return this->visitLoad(storage);
-        else
-            return this->visitStore(storage);
+        const bool is_load = storage.is_load();
+        const bool is_float = is_fp_reg(storage.rd);
+        if (is_load) {
+            return is_float ? this->visitFLoad(storage) : this->visitLoad(storage);
+        } else {
+            return is_float ? this->visitFStore(storage) : this->visitStore(storage);
+        }
     }
 
     void visitLoad(LoadStore &storage) {
@@ -224,6 +228,28 @@ private:
         }
 #undef match_and_set
 
+        this->push_command(cmd.to_integer());
+    }
+
+    void visitFLoad(LoadStore &storage) {
+        command::fl_type cmd{};
+        cmd.rd   = freg_to_int(storage.rd);
+        cmd.rs1  = reg_to_int(storage.rs1);
+        auto imm = imm_to_int(storage.imm);
+        cmd.set_imm(check_bits<12, true>(imm, "flw"));
+        runtime_assert(storage.opcode == LoadStore::Opcode::LW);
+        cmd.funct3 = command::fl_type::Funct3::FLW;
+        this->push_command(cmd.to_integer());
+    }
+
+    void visitFStore(LoadStore &storage) {
+        command::fs_type cmd{};
+        cmd.rs1  = reg_to_int(storage.rs1);
+        cmd.rs2  = freg_to_int(storage.rd); // In fact rs2
+        auto imm = imm_to_int(storage.imm);
+        cmd.set_imm(check_bits<12, true>(imm, "fsw"));
+        runtime_assert(storage.opcode == LoadStore::Opcode::SW);
+        cmd.funct3 = command::fs_type::Funct3::FSW;
         this->push_command(cmd.to_integer());
     }
 
@@ -366,6 +392,37 @@ private:
 
         cmd.rd = reg_to_int(storage.rd);
         cmd.set_imm(check_bits<20, false>(imm_to_int(storage.imm), "auipc"));
+
+        this->push_command(cmd.to_integer());
+    }
+
+    void visitStorage(FloatArithmetic &storage) {
+        command::fcompute cmd{};
+
+        cmd.rd  = freg_to_int(storage.rd);
+        cmd.rs1 = freg_to_int(storage.rs1);
+        cmd.rs2 = freg_to_int(storage.rs2);
+
+        using enum FloatArithmetic::Opcode;
+        switch (storage.opcode) {
+            case ADD: cmd.funct7 = command::fcompute::Funct7::ADD_S; break;
+            case SUB: cmd.funct7 = command::fcompute::Funct7::SUB_S; break;
+            case MUL: cmd.funct7 = command::fcompute::Funct7::MUL_S; break;
+            case DIV: cmd.funct7 = command::fcompute::Funct7::DIV_S; break;
+            case SQRT:
+                cmd.funct7 = command::fcompute::Funct7::SQRT_S;
+                cmd.rs2    = 0;
+                break;
+            case MIN:
+                cmd.funct7 = command::fcompute::Funct7::MIN_S;
+                cmd.funct3 = command::fcompute::Funct3::MIN_S_;
+                break;
+            case MAX:
+                cmd.funct7 = command::fcompute::Funct7::MAX_S;
+                cmd.funct3 = command::fcompute::Funct3::MAX_S_;
+                break;
+            default: unreachable();
+        }
 
         this->push_command(cmd.to_integer());
     }

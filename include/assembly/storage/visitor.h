@@ -14,6 +14,8 @@ struct LoadImmediate;
 struct LoadUpperImmediate;
 struct AddUpperImmediatePC;
 
+struct FloatArithmetic;
+
 struct Alignment;
 struct IntegerData;
 struct ZeroBytes;
@@ -36,6 +38,7 @@ struct StorageVisitor {
     virtual void visitStorage(IntegerData &storage) = 0;
     virtual void visitStorage(ZeroBytes &storage) = 0;
     virtual void visitStorage(ASCIZ &storage) = 0;
+    virtual void visitStorage(FloatArithmetic &storage) = 0;
 };
 
 } // namespace dark

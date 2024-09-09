@@ -5,9 +5,15 @@
 
 namespace dark {
 
+struct fp {
+    Register reg;
+    explicit fp(Register reg) : reg(reg) {}
+};
+
 struct RegisterFile {
 private:
     std::array<target_size_t, 32> regs;
+    std::array<float, 32> fregs;
 
     target_size_t pc;
     target_size_t new_pc;
@@ -21,6 +27,10 @@ public:
     auto &operator[](Register reg) { return this->regs[reg_to_int(reg)]; }
     /* Return value of given register. */
     auto operator[](Register reg) const { return this->regs[reg_to_int(reg)]; }
+
+    auto &operator[](fp f) { return this->fregs[freg_to_int(f.reg)]; }
+    auto operator[](fp f) const { return this->fregs[freg_to_int(f.reg)]; }
+
     /* Return old program counter. */
     auto get_pc() const { return this->pc; }
     /* Set new program counter. */
@@ -37,5 +47,6 @@ public:
     /* Psuedo start pc (pretend there's a call at get_start_pc). */
     static constexpr auto get_start_pc() { return end_pc - 4; }
 };
+
 
 } // namespace dark

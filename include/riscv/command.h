@@ -286,6 +286,97 @@ public:
     }
 };
 
+struct fcompute : __details::crtp<fcompute> {
+private:
+    friend struct __details::crtp<fcompute>;
+    const command_size_t _op : 7;
+
+public:
+    command_size_t rd     : 5;
+    command_size_t funct3 : 3;
+    command_size_t rs1    : 5;
+    command_size_t rs2    : 5;
+    command_size_t funct7 : 7;
+
+    enum Funct3 : command_size_t {
+        SGNJ_S_ = 0b000,
+        SGNJN_S = 0b001,
+        SGNJX_S = 0b010,
+        MIN_S_  = 0b000,
+        MAX_S_  = 0b001,
+    };
+
+    enum Funct7 : command_size_t {
+        ADD_S  = 0b0000000,
+        SUB_S  = 0b0000100,
+        MUL_S  = 0b0001000,
+        DIV_S  = 0b0001100,
+        SQRT_S = 0b0001100, // Special: rs2 = 00000
+        SGNJ_S = 0b0010000,
+        MIN_S  = 0b0010100,
+        MAX_S  = 0b0010100,
+    };
+
+    static constexpr command_size_t opcode = 0b1010011;
+
+    explicit fcompute() : _op(opcode), rd(0), funct3(0), rs1(0), rs2(0), funct7(0) {}
+};
+
+struct fl_type : __details::crtp<fl_type> {
+private:
+    friend struct __details::crtp<fl_type>;
+    const command_size_t _op : 7;
+
+public:
+    command_size_t rd     : 5;
+    command_size_t funct3 : 3;
+    command_size_t rs1    : 5;
+    command_size_t imm    : 12;
+
+    enum Funct3 : command_size_t {
+        FLW = 0b010,
+    };
+
+    static constexpr command_size_t opcode = 0b0000111;
+
+    explicit fl_type() : _op(opcode), rd(0), funct3(0), rs1(0), imm(0) {}
+
+    auto get_imm() const -> command_size_t { return __details::sign_extend<12>(imm); }
+
+    void set_imm(command_size_t imm) { this->imm = imm; }
+};
+
+struct fs_type : __details::crtp<fs_type> {
+private:
+    friend struct __details::crtp<fs_type>;
+    const command_size_t _op : 7;
+
+public:
+    command_size_t imm_4_0  : 5;
+    command_size_t funct3   : 3;
+    command_size_t rs1      : 5;
+    command_size_t rs2      : 5;
+    command_size_t imm_11_5 : 7;
+
+    enum Funct3 : command_size_t {
+        FSW = 0b010,
+    };
+
+    static constexpr command_size_t opcode = 0b0100111;
+
+    explicit fs_type() : _op(opcode), imm_4_0(0), funct3(0), rs1(0), rs2(0), imm_11_5(0) {}
+
+    auto get_imm() const -> command_size_t {
+        command_size_t imm = (imm_11_5 << 5) | imm_4_0;
+        return __details::sign_extend<12>(imm);
+    }
+
+    void set_imm(command_size_t imm) {
+        imm_4_0  = imm;
+        imm_11_5 = imm >> 5;
+    }
+};
+
 static constexpr auto get_opcode(command_size_t cmd) {
     return __details::make_std(cmd).opcode;
 }

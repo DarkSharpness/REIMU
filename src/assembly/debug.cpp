@@ -87,6 +87,11 @@ void CallFunction::debug(std::ostream &os) const {
     os << fmt::format("    {} {}", buff, imm.to_string());
 }
 
+void FloatArithmetic::debug(std::ostream &os) const {
+    os << "    Not implemented yet!\n";
+    unreachable("FloatArithmetic::debug");
+}
+
 void Alignment::debug(std::ostream &os) const {
     os << "    .align " << std::countr_zero(alignment);
 }
@@ -167,7 +172,7 @@ static auto imm_to_string(ImmediateBase *imm) -> std::string {
     }
 }
 
-std::string Immediate::to_string() const {
+auto Immediate::to_string() const -> std::string {
     return imm_to_string(data.get());
 }
 

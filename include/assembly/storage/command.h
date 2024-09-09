@@ -136,4 +136,19 @@ struct AddUpperImmediatePC final : Command {
     void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
 };
 
+struct FloatArithmetic final : Command {
+    using Opcode = general::FloatArithOp;
+    Opcode opcode;
+    Register rd;
+    Register rs1;
+    Register rs2;
+
+    explicit FloatArithmetic(Opcode opcode, Register rd, Register rs1, Register rs2) :
+        opcode(opcode), rd(rd), rs1(rs1), rs2(rs2) {}
+
+    void debug(std::ostream &os) const override;
+    void accept(StorageVisitor &visitor) override { visitor.visitStorage(*this); }
+};
+
+
 } // namespace dark

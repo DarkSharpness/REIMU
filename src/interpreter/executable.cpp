@@ -1,11 +1,13 @@
 #include "interpreter/executable.h"
 #include "declarations.h"
+#include "general.h"
 #include "interpreter/device.h"
 #include "interpreter/exception.h"
 #include "interpreter/hint.h"
 #include "interpreter/memory.h"
 #include "interpreter/register.h"
 #include "riscv/command.h"
+#include "riscv/register.h"
 #include "simulation/executable.h"
 
 namespace dark {
@@ -244,18 +246,93 @@ static auto parse_jalr(command_size_t cmd) -> _Pair_t {
     return {interpreter::Jalr::fn, arg};
 }
 
+static auto parse_fcompute(command_size_t cmd) -> _Pair_t {
+    auto fcompute = command::fcompute::from_integer(cmd);
+    auto rs1      = int_to_freg(fcompute.rs1);
+    auto rs2      = int_to_freg(fcompute.rs2);
+    auto rd       = int_to_freg(fcompute.rd);
+    auto arg      = Executable::MetaData{
+             .rd  = rd,
+             .rs1 = rs1,
+             .rs2 = rs2,
+    };
+
+    using enum command::fcompute::Funct7;
+
+    switch (command::get_funct7(cmd)) {
+        case ADD_S: return {interpreter::Fcompute::fn<general::FloatArithOp::ADD>, arg};
+        case SUB_S: return {interpreter::Fcompute::fn<general::FloatArithOp::SUB>, arg};
+        case MUL_S: return {interpreter::Fcompute::fn<general::FloatArithOp::MUL>, arg};
+
+        case DIV_S: // or SQRT_S
+            if (freg_to_int(rs2) == 0) {
+                return {interpreter::Fcompute::fn<general::FloatArithOp::SQRT>, arg};
+            } else {
+                return {interpreter::Fcompute::fn<general::FloatArithOp::DIV>, arg};
+            }
+
+        case MIN_S: // or MAX_S
+            if (command::get_funct3(cmd) == command::fcompute::Funct3::MIN_S_)
+                return {interpreter::Fcompute::fn<general::FloatArithOp::MIN>, arg};
+            if (command::get_funct3(cmd) == command::fcompute::Funct3::MAX_S_)
+                return {interpreter::Fcompute::fn<general::FloatArithOp::MAX>, arg};
+            break;
+        default: break;
+    }
+    handle_unknown_instruction(cmd);
+}
+
+static auto parse_fl_type(command_size_t cmd) -> _Pair_t {
+    auto fl_type = command::fl_type::from_integer(cmd);
+    auto rs1     = int_to_reg(fl_type.rs1); // pointer
+    auto rd      = int_to_freg(fl_type.rd);
+    auto arg     = Executable::MetaData{
+            .rd  = rd,
+            .rs1 = rs1,
+            .rs2 = int_to_freg(0), // Just in case that rs2 may be used.
+            .imm = fl_type.get_imm(),
+    };
+
+    if (fl_type.funct3 == command::fl_type::Funct3::FLW) {
+        return {interpreter::FLoadStore::fn<general::MemoryOp::LW>, arg};
+    } else {
+        handle_unknown_instruction(cmd);
+    }
+}
+
+static auto parse_fs_type(command_size_t cmd) -> _Pair_t {
+    auto fs_type = command::fs_type::from_integer(cmd);
+    auto rs1     = int_to_reg(fs_type.rs1); // pointer
+    auto rs2     = int_to_freg(fs_type.rs2);
+    auto arg     = Executable::MetaData{
+            .rd  = int_to_freg(0), // Just in case that rd may be used.
+            .rs1 = rs1,
+            .rs2 = rs2,
+            .imm = fs_type.get_imm(),
+    };
+
+    if (fs_type.funct3 == command::fs_type::Funct3::FSW) {
+        return {interpreter::FLoadStore::fn<general::MemoryOp::SW>, arg};
+    } else {
+        handle_unknown_instruction(cmd);
+    }
+}
+
 auto parse_cmd(command_size_t cmd) -> _Pair_t {
     switch (command::get_opcode(cmd)) {
-        case command::r_type::opcode: return parse_r_type(cmd);
-        case command::i_type::opcode: return parse_i_type(cmd);
-        case command::s_type::opcode: return parse_s_type(cmd);
-        case command::l_type::opcode: return parse_l_type(cmd);
-        case command::b_type::opcode: return parse_b_type(cmd);
-        case command::auipc::opcode:  return parse_auipc(cmd);
-        case command::lui::opcode:    return parse_lui(cmd);
-        case command::jal::opcode:    return parse_jal(cmd);
-        case command::jalr::opcode:   return parse_jalr(cmd);
-        default:                      break;
+        case command::r_type::opcode:   return parse_r_type(cmd);
+        case command::i_type::opcode:   return parse_i_type(cmd);
+        case command::s_type::opcode:   return parse_s_type(cmd);
+        case command::l_type::opcode:   return parse_l_type(cmd);
+        case command::b_type::opcode:   return parse_b_type(cmd);
+        case command::auipc::opcode:    return parse_auipc(cmd);
+        case command::lui::opcode:      return parse_lui(cmd);
+        case command::jal::opcode:      return parse_jal(cmd);
+        case command::jalr::opcode:     return parse_jalr(cmd);
+        case command::fcompute::opcode: return parse_fcompute(cmd);
+        case command::fl_type::opcode:  return parse_fl_type(cmd);
+        case command::fs_type::opcode:  return parse_fs_type(cmd);
+        default:                        break;
     }
 
     handle_unknown_instruction(cmd);

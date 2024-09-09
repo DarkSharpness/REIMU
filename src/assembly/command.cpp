@@ -2,13 +2,31 @@
 #include "assembly/assembly.h"
 #include "assembly/exception.h"
 #include "assembly/frontend/match.h"
+#include "assembly/frontend/token.h"
 #include "assembly/immediate.h"
 #include "riscv/register.h"
 #include "utility/error.h"
 #include "utility/hash.h"
 #include <algorithm>
+#include <concepts>
 
 namespace dark {
+
+template<std::same_as<Register> ..._Args>
+static auto assume_int_reg(_Args ...reg) {
+    if (!(... && is_int_reg(reg))) {
+        [[unlikely]]
+        throw FailToParse{"Source register must be integer register"};
+    }
+}
+
+template<std::same_as<Register> ..._Args>
+static auto assume_fp_reg(_Args ...reg) {
+    if (!(... && is_fp_reg(reg))) {
+        [[unlikely]]
+        throw FailToParse{"Source register must be floating-point register"};
+    }
+}
 
 using frontend::match;
 using frontend::OffsetRegister;
@@ -30,48 +48,52 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
      * =========================================================
      */
 
-    constexpr auto __insert_arith_reg = [](Assembler *ptr, TokenStream rest, Aop opcode) {
+    constexpr auto __insert_arith_reg = [](Assembler *ptr, TokenStream rest, Aop op) {
         auto [rd, rs1, rs2] = match<Reg, Reg, Reg>(rest);
-        ptr->push_new<ArithmeticReg>(opcode, rd, rs1, rs2);
+        assume_int_reg(rd, rs1, rs2);
+        ptr->push_new<ArithmeticReg>(op, rd, rs1, rs2);
     };
-    constexpr auto __insert_arith_imm = [](Assembler *ptr, TokenStream rest, Aop opcode) {
+    constexpr auto __insert_arith_imm = [](Assembler *ptr, TokenStream rest, Aop op) {
         auto [rd, rs1, imm] = match<Reg, Reg, Imm>(rest);
-        ptr->push_new<ArithmeticImm>(opcode, rd, rs1, imm);
+        assume_int_reg(rd, rs1);
+        ptr->push_new<ArithmeticImm>(op, rd, rs1, imm);
     };
-    static constexpr auto __load_store_label = [](Assembler *ptr, Mop opcode, Immediate &hi,
+    static constexpr auto __load_store_label = [](Assembler *ptr, Mop op, Immediate &hi,
                                                   Immediate &lo, Register rd, Register rt) {
         // This is because only 32-bit int can be divided into lui + offset
         // for 64-bit, we plan to use a new command store-tmp instead
         static_assert(sizeof(target_size_t) == 4, "Only support 32-bit target");
+
+        assume_int_reg(rd, rt);
 
         using enum RelImmediate::Operand;
         auto hi_imm = std::make_unique<RelImmediate>(std::move(hi), HI);
         auto lo_imm = std::make_unique<RelImmediate>(std::move(lo), LO);
 
         ptr->push_new<LoadUpperImmediate>(rt, Immediate{std::move(hi_imm)});
-        ptr->push_new<LoadStore>(opcode, rd, rt, Immediate{std::move(lo_imm)});
+        ptr->push_new<LoadStore>(op, rd, rt, Immediate{std::move(lo_imm)});
     };
-    constexpr auto __insert_load = [](Assembler *ptr, TokenStream rest, Mop opcode) {
-        using PlaceHolder = Token::Placeholder;
-        auto [rd, _]      = match<Reg, PlaceHolder>(rest);
+    constexpr auto __insert_load = [](Assembler *ptr, TokenStream rest, Mop op) {
+        /// TODO: assume int/fp register
+        auto [rd, _] = match<Reg, Token::Placeholder>(rest);
         throw_if(rest.count_args() != 1); // Too many arguments.
         auto offreg = frontend::try_parse_offset_register(rest);
         if (offreg.has_value()) {
             auto &&[off, rs1] = *offreg;
-            ptr->push_new<LoadStore>(opcode, rd, rs1, off);
+            ptr->push_new<LoadStore>(op, rd, rs1, off);
         } else {
             /// TODO: implement tree copy to avoid matching twice
             auto hi = frontend::parse_immediate(rest);
             auto lo = frontend::parse_immediate(rest);
-
-            __load_store_label(ptr, opcode, hi, lo, rd, rd);
+            __load_store_label(ptr, op, hi, lo, rd, rd);
         }
     };
-    constexpr auto __insert_store = [](Assembler *ptr, TokenStream rest, Mop opcode) {
+    constexpr auto __insert_store = [](Assembler *ptr, TokenStream rest, Mop op) {
+        /// TODO: assume int/fp register
         if (rest.count_args() == 2) {
             auto [rs2, off_rs1] = match<Reg, OffReg>(rest);
             auto &&[off, rs1]   = off_rs1;
-            ptr->push_new<LoadStore>(opcode, rs2, rs1, off);
+            ptr->push_new<LoadStore>(op, rs2, rs1, off);
         } else { // store rs2, label, rt
             auto bak = rest;
 
@@ -79,15 +101,16 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
             auto [rs2, hi, rt] = match<Reg, Imm, Reg>(bak);
             auto [___, lo, __] = match<Reg, Imm, Reg>(rest);
 
-            __load_store_label(ptr, opcode, hi, lo, rs2, rt);
+            __load_store_label(ptr, op, hi, lo, rs2, rt);
         }
     };
-    constexpr auto __insert_branch = [](Assembler *ptr, TokenStream rest, Bop opcode,
+    constexpr auto __insert_branch = [](Assembler *ptr, TokenStream rest, Bop op,
                                         bool swap = false) {
         auto [rs1, rs2, offset] = match<Reg, Reg, Imm>(rest);
+        assume_int_reg(rs1, rs2);
         if (swap)
             std::swap(rs1, rs2);
-        ptr->push_new<Branch>(opcode, rs1, rs2, offset);
+        ptr->push_new<Branch>(op, rs1, rs2, offset);
     };
     constexpr auto __insert_jump = [](Assembler *ptr, TokenStream rest) {
         if (rest.count_args() == 1) {
@@ -102,20 +125,24 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
     constexpr auto __insert_jalr = [](Assembler *ptr, TokenStream rest) {
         if (rest.count_args() == 1) {
             auto [rs1] = match<Reg>(rest);
+            assume_int_reg(rs1);
             using Register::ra;
             ptr->push_new<JumpRegister>(ra, rs1, Immediate(0));
         } else {
             auto [rd, off_rs1] = match<Reg, OffReg>(rest);
             auto &&[off, rs1]  = off_rs1;
+            assume_int_reg(rd, rs1);
             ptr->push_new<JumpRegister>(rd, rs1, off);
         }
     };
     constexpr auto __insert_lui = [](Assembler *ptr, TokenStream rest) {
         auto [rd, imm] = match<Reg, Imm>(rest);
+        assume_int_reg(rd);
         ptr->push_new<LoadUpperImmediate>(rd, imm);
     };
     constexpr auto __insert_auipc = [](Assembler *ptr, TokenStream rest) {
         auto [rd, imm] = match<Reg, Imm>(rest);
+        assume_int_reg(rd);
         ptr->push_new<AddUpperImmediatePC>(rd, imm);
     };
 
@@ -127,14 +154,17 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
 
     constexpr auto __insert_mv = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match<Reg, Reg>(rest);
+        assume_int_reg(rd, rs1);
         ptr->push_new<ArithmeticImm>(Aop::ADD, rd, rs1, Immediate(0));
     };
     constexpr auto __insert_li = [](Assembler *ptr, TokenStream rest) {
         auto [rd, imm] = match<Reg, Imm>(rest);
+        assume_int_reg(rd);
         ptr->push_new<LoadImmediate>(rd, imm);
     };
     constexpr auto __insert_neg = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match<Reg, Reg>(rest);
+        assume_int_reg(rd, rs1);
         using Register::zero;
         ptr->push_new<ArithmeticReg>(Aop::SUB, rd, zero, rs1);
     };
@@ -144,6 +174,7 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
     };
     constexpr auto __insert_seqz = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match<Reg, Reg>(rest);
+        assume_int_reg(rd, rs1);
         ptr->push_new<ArithmeticImm>(Aop::SLTU, rd, rs1, Immediate(1));
     };
     constexpr auto __insert_snez = [](Assembler *ptr, TokenStream rest) {
@@ -153,24 +184,27 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
     };
     constexpr auto __insert_sgtz = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match<Reg, Reg>(rest);
+        assume_int_reg(rd, rs1);
         using Register::zero;
         ptr->push_new<ArithmeticReg>(Aop::SLT, rd, zero, rs1);
     };
     constexpr auto __insert_sltz = [](Assembler *ptr, TokenStream rest) {
         auto [rd, rs1] = match<Reg, Reg>(rest);
+        assume_int_reg(rd, rs1);
         using Register::zero;
         ptr->push_new<ArithmeticReg>(Aop::SLT, rd, rs1, zero);
     };
     enum class Cmp_type { EQZ, NEZ, LTZ, GTZ, LEZ, GEZ };
-    constexpr auto __insert_brz = [](Assembler *ptr, TokenStream rest, Cmp_type opcode) {
+    constexpr auto __insert_brz = [](Assembler *ptr, TokenStream rest, Cmp_type op) {
         auto [rs1, offset] = match<Reg, Imm>(rest);
+        assume_int_reg(rs1);
 
 #define try_match(cmp, op, ...)                                                                    \
     case cmp: ptr->push_new<Branch>(op, ##__VA_ARGS__, offset); return
 
         using Register::zero;
 
-        switch (opcode) {
+        switch (op) {
             try_match(Cmp_type::EQZ, Bop::BEQ, rs1, zero);
             try_match(Cmp_type::NEZ, Bop::BNE, rs1, zero);
             try_match(Cmp_type::LTZ, Bop::BLT, rs1, zero);
@@ -192,6 +226,7 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
     };
     constexpr auto __insert_jr = [](Assembler *ptr, TokenStream rest) {
         auto [rs1] = match<Reg>(rest);
+        assume_int_reg(rs1);
         using Register::zero;
         ptr->push_new<JumpRegister>(zero, rs1, Immediate(0));
     };
@@ -202,6 +237,7 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
     };
     constexpr auto __insert_lla = [](Assembler *ptr, TokenStream rest) {
         auto [rd, offset] = match<Reg, Imm>(rest);
+        assume_int_reg(rd);
         ptr->push_new<LoadImmediate>(rd, offset);
     };
     constexpr auto __insert_nop = [](Assembler *ptr, TokenStream rest) {
@@ -309,7 +345,32 @@ void Assembler::parse_command_new(std::string_view token, const Stream &rest) {
 
         default: break;
     }
+
+    using Fop = FloatArithmetic::Opcode;
+
+    constexpr auto __insert_fp_arith = [](Assembler *ptr, TokenStream rest, Fop op) {
+        auto [rd, rs1, rs2] = match<Reg, Reg, Reg>(rest);
+        assume_fp_reg(rd, rs1, rs2);
+        ptr->push_new<FloatArithmetic>(op, rd, rs1, rs2);
+    };
+
+    switch (switch_hash_impl(token)) {
+        match_or_break("fadd.s", __insert_fp_arith, Fop::ADD);
+        match_or_break("fsub.s", __insert_fp_arith, Fop::SUB);
+        match_or_break("fmul.s", __insert_fp_arith, Fop::MUL);
+        match_or_break("fdiv.s", __insert_fp_arith, Fop::DIV);
+        match_or_break("fsqrt.s", __insert_fp_arith, Fop::SQRT);
+        match_or_break("fmin.s", __insert_fp_arith, Fop::MIN);
+        match_or_break("fmax.s", __insert_fp_arith, Fop::MAX);
+
+        match_or_break("flw", __insert_load, Mop::LW);
+        match_or_break("fsw", __insert_store, Mop::SW);
+
+        default: break;
+    }
+
     throw FailToParse{fmt::format("Unknown command: \"{}\"", token)};
+    #undef match_or_break
 }
 
 } // namespace dark

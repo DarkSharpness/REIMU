@@ -151,6 +151,7 @@ private:
     void visitStorage(JumpRegister &storage)        override { TrivialPass{storage.imm}; }
     void visitStorage(LoadUpperImmediate &storage)  override { TrivialPass{storage.imm}; }
     void visitStorage(AddUpperImmediatePC &storage) override { TrivialPass{storage.imm}; }
+    void visitStorage(FloatArithmetic &storage)     override { allow_unused(storage); }
     void visitStorage(Alignment &storage)           override { allow_unused(storage); }
     void visitStorage(IntegerData &storage)         override { TrivialPass{storage.data}; }
     void visitStorage(ZeroBytes &storage)           override { allow_unused(storage); }

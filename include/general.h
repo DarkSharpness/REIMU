@@ -32,4 +32,14 @@ enum class MemoryOp : std::uint8_t { LB, LH, LW, LBU, LHU, SB, SH, SW };
 
 enum class BranchOp : std::uint8_t { BEQ, BNE, BLT, BGE, BLTU, BGEU };
 
+enum class FloatArithOp : std::uint8_t {
+    ADD,
+    SUB,
+    MUL,
+    DIV,
+    SQRT,
+    MIN,
+    MAX,
+};
+
 } // namespace dark::general
