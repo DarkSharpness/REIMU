@@ -1,7 +1,5 @@
 #pragma once
-#include "assembly/storage.h"
 #include "assembly/storage/static.h"
-#include "linker/linker.h"
 
 namespace dark::__details {
 

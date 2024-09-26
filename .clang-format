@@ -25,7 +25,6 @@ BitFieldColonSpacing: Both
 BreakBeforeConceptDeclarations: Always
 BreakConstructorInitializers: AfterColon
 BreakStringLiterals: true
-BreakTemplateDeclarations: Yes
 ColumnLimit: 100
 DerivePointerAlignment: false
 EmptyLineAfterAccessModifier: Leave

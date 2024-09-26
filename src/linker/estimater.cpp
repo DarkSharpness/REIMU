@@ -1,3 +1,4 @@
+#include "assembly/storage/command.h"
 #include "assembly/storage/static.h"
 #include "libc/libc.h"
 #include "linker/estimate.h"

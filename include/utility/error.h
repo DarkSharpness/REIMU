@@ -63,7 +63,7 @@ static constexpr std::string_view color_code = {
 struct PanicError {};
 
 template <typename... Args>
-inline static void warning(fmt::format_string<Args...> fmt = "", Args &&...args) {
+inline void warning(fmt::format_string<Args...> fmt = "", Args &&...args) {
     console::warning << fmt::format(
         "{}Warning{}: {}\n", console::color_code<console::Color::YELLOW>,
         console::color_code<console::Color::RESET>, fmt::format(fmt, std::forward<Args>(args)...)
@@ -72,7 +72,7 @@ inline static void warning(fmt::format_string<Args...> fmt = "", Args &&...args)
 
 template <typename... _Args>
 [[noreturn]]
-inline static void panic(fmt::format_string<_Args...> fmt = "", _Args &&...args) {
+inline void panic(fmt::format_string<_Args...> fmt = "", _Args &&...args) {
     console::flush_stdout();
     console::error << fmt::format(
         "\n{:=^80}\n\n"
@@ -85,31 +85,32 @@ inline static void panic(fmt::format_string<_Args...> fmt = "", _Args &&...args)
 }
 
 template <typename _Tp, typename... _Args>
-inline static void
-panic_if(_Tp &&condition, fmt::format_string<_Args...> fmt = "", _Args &&...args) {
+inline void panic_if(_Tp &&condition, fmt::format_string<_Args...> fmt = "", _Args &&...args) {
     if (condition) {
         [[unlikely]] return panic(fmt, std::forward<_Args>(args)...);
     }
 }
 
 [[noreturn]]
-inline static void unreachable(
+inline void unreachable(
     std::string message = "", std::source_location where = std::source_location::current()
 ) {
     // Failure case, print the message and exit
     console::flush_stdout();
-    std::cerr << fmt::format("{}"
-                             "{}"
-                             "Assertion failed at {}:{} in {}:\n"
-                             "Internal error, please report this issue to the developer.\n"
-                             "{}",
-        message, console::color_code<console::Color::RED>, where.file_name(), where.line(),
-        where.function_name(), console::color_code<console::Color::RESET>);
+    std::cerr << fmt::format(
+      "{}"
+      "{}"
+      "Assertion failed at {}:{} in {}:\n"
+      "Internal error, please report this issue to the developer.\n"
+      "{}",
+      message, console::color_code<console::Color::RED>, where.file_name(),
+      where.line(), where.function_name(),
+      console::color_code<console::Color::RESET>);
     std::exit(EXIT_FAILURE);
 }
 
 template <typename _Tp>
-inline static void
+inline void
 runtime_assert(_Tp &&condition, std::source_location where = std::source_location::current()) {
     if (!condition) {
         [[unlikely]] return unreachable("", where);

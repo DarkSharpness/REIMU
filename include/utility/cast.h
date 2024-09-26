@@ -8,7 +8,7 @@
 namespace dark {
 
 template <std::integral _Tp>
-inline static auto sv_to_integer(std::string_view view, int base = 10) -> std::optional<_Tp> {
+inline auto sv_to_integer(std::string_view view, int base = 10) -> std::optional<_Tp> {
     _Tp result;
     auto res = std::from_chars(view.data(), view.data() + view.size(), result, base);
     if (res.ec == std::errc() && res.ptr == view.end())
