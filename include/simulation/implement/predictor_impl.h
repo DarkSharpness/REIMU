@@ -15,17 +15,17 @@ inline BranchPredictor::BranchPredictor() : table() {
 }
 
 inline auto BranchPredictor::predict(target_size_t pc) const -> bool {
-    auto index = this->get_index(pc);
+    auto index           = this->get_index(pc);
     constexpr auto kHalf = kMask >> 1;
     return this->get_bits(index) > kHalf;
 }
 
 inline auto BranchPredictor::update(target_size_t pc, bool taken) -> void {
-    const auto index    = this->get_index(pc);
-    const auto data     = this->get_bits(index);
+    const auto index = this->get_index(pc);
+    const auto data  = this->get_bits(index);
 
     constexpr auto kMax = kMask;
-    constexpr auto kMin = target_size_t {0};
+    constexpr auto kMin = target_size_t{0};
 
     if (taken) {
         if (data != kMax)
@@ -42,12 +42,12 @@ inline auto BranchPredictor::get_index(target_size_t pc) -> target_size_t {
 }
 
 inline auto BranchPredictor::get_bits(target_size_t index) const -> target_size_t {
-    const auto [which, offset] = div_mod <kDigit> (index);
+    const auto [which, offset] = div_mod<kDigit>(index);
     return (this->table[which] >> offset) & kMask;
 }
 
 inline auto BranchPredictor::set_bits(target_size_t index, target_size_t delta) -> void {
-    const auto [which, offset] = div_mod <kDigit> (index);
+    const auto [which, offset] = div_mod<kDigit>(index);
     this->table[which] ^= (delta << offset);
 }
 

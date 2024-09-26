@@ -21,6 +21,7 @@ AllowShortBlocksOnASingleLine: Always
 AllowShortCaseLabelsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortLambdasOnASingleLine: All
+AlwaysBreakTemplateDeclarations: true
 BitFieldColonSpacing: Both
 BreakBeforeConceptDeclarations: Always
 BreakConstructorInitializers: AfterColon

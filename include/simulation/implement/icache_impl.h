@@ -20,13 +20,13 @@ static auto make_icache_range(Memory &mem) -> target_size_t {
 
 [[maybe_unused]]
 static auto compile_always(Executable &, RegisterFile &rf, Memory &mem, Device &dev) {
-    Executable exe { compile_once, {} };
+    Executable exe{compile_once, {}};
     return exe(rf, mem, dev);
 }
 
 [[maybe_unused]]
 static auto handle_cache_miss() -> Executable & {
-    static Executable exe { compile_always, {} };
+    static Executable exe{compile_always, {}};
     return exe;
 }
 
@@ -43,18 +43,18 @@ inline ICache::ICache(Memory &mem) : length(make_icache_range(mem)) {
     this->cached = std::make_unique<Executable[]>(reserved);
 
     // libc functions
-    for (std::size_t i = 0 ; i < libcsize ; ++i)
+    for (std::size_t i = 0; i < libcsize; ++i)
         this->cached[i].set_handle(libc::funcs[i], {});
 
     // Other functions are left as compile_once
-    for (std::size_t i = libcsize ; i < reserved ; ++i)
+    for (std::size_t i = libcsize; i < reserved; ++i)
         this->cached[i].set_handle(compile_once, {});
 }
 
 /* ifetch with some hint */
 inline auto ICache::ifetch(target_size_t pc, Hint hint) noexcept -> Executable & {
-    if (std::size_t(hint.next - this->cached.get()) < this->length)
-        [[likely]] return *hint.next;
+    if (std::size_t(hint.next - this->cached.get()) < this->length) [[likely]]
+        return *hint.next;
 
     std::size_t which = (pc - kTextStart) / sizeof(command_size_t);
     if (pc % alignof(command_size_t) != 0 || which >= this->length)

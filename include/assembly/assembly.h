@@ -51,9 +51,9 @@ private:
     std::vector<std::unique_ptr<Storage>> storages;
     std::vector<std::pair<std::size_t, Section>> sections;
 
-    const std::string file_name;        // Debug information
-    const std::shared_ptr<char[]> sp;   // Debug information
-    std::size_t line_number;            // Debug information
+    const std::string file_name;      // Debug information
+    const std::shared_ptr<char[]> sp; // Debug information
+    std::size_t line_number;          // Debug information
 
     void set_section(Section);
     void add_label(std::string_view);
@@ -68,11 +68,7 @@ private:
         requires std::constructible_from<_Tp, Storage::LineInfo, std::remove_reference_t<_Args>...>
     void push_new(_Args &&...args) {
         this->storages.push_back(std::make_unique<_Tp>(
-            Storage::LineInfo {
-                .file = this->sp,
-                .line = this->line_number
-            },
-            std::move(args)...
+            Storage::LineInfo{.file = this->sp, .line = this->line_number}, std::move(args)...
         ));
     }
 };

@@ -1,6 +1,6 @@
 #include "declarations.h"
-#include <limits>
 #include <array>
+#include <limits>
 
 namespace dark {
 
@@ -12,16 +12,16 @@ struct BranchPredictor {
 private:
     using _Data_t = std::uint8_t;
 
-    static constexpr target_size_t _Nm    = 4096;
-    static constexpr target_size_t kBits  = 2;
-    static constexpr target_size_t kMask  = (1 << kBits) - 1;
+    static constexpr target_size_t _Nm   = 4096;
+    static constexpr target_size_t kBits = 2;
+    static constexpr target_size_t kMask = (1 << kBits) - 1;
 
     static constexpr target_size_t kDigit = std::numeric_limits<_Data_t>::digits;
     static constexpr target_size_t kBytes = (_Nm * kBits) / kDigit;
 
     static_assert(kBytes * kDigit == _Nm * kBits, "Invalid size");
 
-    std::array <_Data_t, kBytes> table;
+    std::array<_Data_t, kBytes> table;
 
     static auto get_index(target_size_t) -> target_size_t;
 
