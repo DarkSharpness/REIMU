@@ -21,7 +21,8 @@ enum class Error : std::uint8_t {
     LibcOutOfBound, // libc read/write access
     LibcError,      // libc error
 
-    DivideByZero,
+    DivideByZero, // division or modulo by zero
+    OutOfMemory,  // heap overflow
 
     NotImplemented,
 };

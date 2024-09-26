@@ -41,7 +41,10 @@ auto FailToInterpret::what(RegisterFile &rf, Memory &, Device &) const -> std::s
                 "Unknown instruction at 0x{:x}: 0x{:x}", rf.get_pc(), this->detail.command
             );
 
-        case DivideByZero:   return fmt::format("Divide by zero at 0x{:x}", rf.get_pc());
+        case DivideByZero: return fmt::format("Divide by zero at 0x{:x}", rf.get_pc());
+        case OutOfMemory:
+            return fmt::format("Out of memory! Trying to allocate {} bytes", this->detail.size);
+
         case LibcError:      return fmt::format("{}: {}", __libc_name(), this->message);
         case NotImplemented: return "Not implemented";
 

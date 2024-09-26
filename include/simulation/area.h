@@ -1,5 +1,7 @@
 // Should only be included in interpreter/memory.cpp
 #include "config/config.h"
+#include "declarations.h"
+#include "interpreter/exception.h"
 #include "interpreter/forward.h"
 #include "interpreter/interval.h"
 #include "libc/libc.h"
@@ -19,7 +21,7 @@ private:
     std::byte *const storage;
 
 public:
-    explicit StaticArea(const MemoryLayout &layout) :
+    explicit StaticArea(const MemoryLayout &layout, const Config &) :
         text({layout.text.begin(), layout.text.end()}),
         data({layout.data.begin(), layout.bss.end()}),
         storage(new std::byte[data.finish - text.start]{} - text.start) {
@@ -47,6 +49,7 @@ struct HeapArea {
 private:
     std::vector<std::byte> storage;
     const target_size_t heap_start;
+    const target_size_t heap_capacity;
     target_size_t heap_finish;
     // Our implementation require that the end of static area
     // should not overlap with the start of heap area
@@ -56,24 +59,41 @@ private:
         return (addr & ~(kPageSize - 1)) + kPageSize;
     }
 
+    static auto checked_diff(target_size_t a, target_size_t b) -> target_size_t {
+        runtime_assert(a < b);
+        return b - a;
+    }
+
 public:
-    explicit HeapArea(const MemoryLayout &layout) :
-        heap_start(next_page(layout.bss.end())), heap_finish(heap_start) {}
+    explicit HeapArea(const MemoryLayout &layout, const Config &config) :
+        heap_start(next_page(layout.bss.end())),
+        heap_capacity(checked_diff(heap_start, config.get_stack_low())), heap_finish(heap_start) {}
+
     bool in_heap(target_size_t lo, target_size_t hi) const {
         return this->heap_start <= lo && hi <= this->heap_finish;
     }
     auto *get_heap(target_size_t addr) { return this->storage.data() - this->heap_start + addr; }
     auto get_range() const -> Interval { return {this->heap_start, this->heap_finish}; }
-    auto grow(target_ssize_t size) {
+    auto grow(target_ssize_t size) -> std::pair<char *, target_size_t> {
         /// TODO: remove this useless check
         const auto old_size = this->heap_finish - this->heap_start;
         runtime_assert(old_size == this->storage.size());
+
+        if (old_size + size > this->heap_capacity)
+            throw FailToInterpret{
+                .error = Error::OutOfMemory,
+                .detail =
+                    {
+                        .address = {},
+                        .size    = target_size_t(size),
+                    }
+            };
 
         const auto retval = this->heap_finish;
         this->heap_finish += size;
         const auto new_size = old_size + size;
 
-        // To avoid too many reallocations, we reserve the next power of 2
+        // To avoid too many reallocations, we reserve to the next power of 2
         if (size > 0)
             this->storage.reserve(std::bit_ceil(new_size));
         this->storage.resize(new_size);
@@ -88,7 +108,7 @@ private:
     std::byte *const storage;
 
 public:
-    explicit StackArea(const Config &config) :
+    explicit StackArea(const MemoryLayout &, const Config &config) :
         stack({config.get_stack_low(), config.get_stack_top()}),
         storage(new std::byte[stack.finish - stack.start]{} - stack.start) {}
 

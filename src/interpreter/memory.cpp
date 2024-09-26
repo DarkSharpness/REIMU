@@ -28,7 +28,7 @@ static auto int_cast(std::byte *ptr) -> _Int & {
  */
 struct Memory_Impl : StaticArea, HeapArea, StackArea {
     explicit Memory_Impl(const Config &config, const MemoryLayout &layout) :
-        StaticArea(layout), HeapArea(layout), StackArea(config) {}
+        StaticArea(layout, config), HeapArea(layout, config), StackArea(layout, config) {}
 
     auto checked_ifetch(target_size_t) -> command_size_t;
 

@@ -1,5 +1,6 @@
 // Should only be included once in src/libc/memory.cpp
 #include "declarations.h"
+#include "interpreter/exception.h"
 #include "interpreter/memory.h"
 #include "libc/libc.h"
 #include "utility/error.h"
@@ -51,6 +52,12 @@ private:
 
     [[nodiscard]]
     auto allocate_required(Memory &mem, target_size_t required) {
+        const auto content = required - kHeaderSize; // The real content size
+        if (content > target_size_t(std::numeric_limits<target_ssize_t>::max()))
+            throw FailToInterpret{
+                .error = Error::OutOfMemory, .detail = {.address = {}, .size = content}
+            };
+
         const auto ret_pair            = mem.sbrk(required);
         const auto [real_ptr, old_brk] = ret_pair;
         runtime_assert(this->brk == old_brk);
