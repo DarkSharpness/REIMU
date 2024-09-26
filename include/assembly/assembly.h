@@ -51,8 +51,9 @@ private:
     std::vector<std::unique_ptr<Storage>> storages;
     std::vector<std::pair<std::size_t, Section>> sections;
 
-    std::string file_name;   // Debug information
-    std::size_t line_number; // Debug information
+    const std::string file_name;        // Debug information
+    const std::shared_ptr<char[]> sp;   // Debug information
+    std::size_t line_number;            // Debug information
 
     void set_section(Section);
     void add_label(std::string_view);
@@ -61,15 +62,18 @@ private:
     void parse_storage_new(std::string_view, const Stream &);
     void parse_command_new(std::string_view, const Stream &);
 
-    [[noreturn]]
-    void handle_at(std::size_t, std::string) const;
-
     auto split_by_section() const -> std::vector<StorageSlice>;
 
     template <typename _Tp, typename... _Args>
-        requires std::constructible_from<_Tp, std::remove_reference_t<_Args>...>
+        requires std::constructible_from<_Tp, Storage::LineInfo, std::remove_reference_t<_Args>...>
     void push_new(_Args &&...args) {
-        this->storages.push_back(std::make_unique<_Tp>(std::move(args)...));
+        this->storages.push_back(std::make_unique<_Tp>(
+            Storage::LineInfo {
+                .file = this->sp,
+                .line = this->line_number
+            },
+            std::move(args)...
+        ));
     }
 };
 

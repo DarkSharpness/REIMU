@@ -38,8 +38,7 @@ private:
     }
 
     /* Move out the integer value and transform. */
-    template <typename _Fn>
-    static Immediate move_integer(Immediate &data, _Fn &&fn) {
+    template <typename _Fn> static Immediate move_integer(Immediate &data, _Fn &&fn) {
         auto &imm = dynamic_cast<IntImmediate &>(*data.data);
         imm.data  = fn(imm.data);
         return std::move(data);
@@ -193,9 +192,9 @@ private:
         if (kJumpMin / 2 <= distance && distance <= kJumpMax / 2) {
             using enum Register;
             if (call.is_tail_call()) {
-                retval = std::make_unique<JumpRelative>(zero, std::move(call.imm));
+                retval = std::make_unique<JumpRelative>(call.line_info, zero, std::move(call.imm));
             } else {
-                retval = std::make_unique<JumpRelative>(ra, std::move(call.imm));
+                retval = std::make_unique<JumpRelative>(call.line_info, ra, std::move(call.imm));
             }
         }
     }
@@ -214,10 +213,13 @@ private:
         if (kAddiMin <= value && value <= kAddiMax) {
             using enum Register;
             using enum ArithmeticImm::Opcode;
-            retval = std::make_unique<ArithmeticImm>(ADD, load.rd, zero, std::move(load.imm));
+            retval = std::make_unique<ArithmeticImm>(
+                load.line_info, ADD, load.rd, zero, std::move(load.imm)
+            );
         } else if (integer.data % kLuiUnit == 0) {
             integer.data /= kLuiUnit;
-            retval = std::make_unique<LoadUpperImmediate>(load.rd, std::move(load.imm));
+            retval =
+                std::make_unique<LoadUpperImmediate>(load.line_info, load.rd, std::move(load.imm));
         }
     }
 };

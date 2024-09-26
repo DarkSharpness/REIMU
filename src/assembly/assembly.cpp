@@ -1,8 +1,13 @@
 #include "assembly/assembly.h"
+#include "assembly/forward.h"
 #include "assembly/frontend/lexer.h"
 #include "assembly/frontend/match.h"
+#include "fmtlib.h"
 #include "utility/error.h"
+#include <algorithm>
 #include <fstream>
+#include <memory>
+#include <string_view>
 
 namespace dark {
 
@@ -11,10 +16,18 @@ bool is_label_char(char c) {
     return std::isalnum(c) || c == '_' || c == '.' || c == '@' || c == '$';
 }
 
-Assembler::Assembler(std::string_view file_name) :
-    current_section(Section::UNKNOWN), file_name(file_name), line_number(0) {
+static auto to_shared(std::string_view str) -> std::shared_ptr<char[]> {
+    auto ptr = std::make_shared<char[]>(str.size() + 1);
+    std::ranges::copy(str, ptr.get());
+    ptr[str.size()] = '\0';
+    return ptr;
+}
+
+Assembler::Assembler(std::string_view file_name_) :
+    current_section(Section::UNKNOWN), file_name(file_name_), sp(to_shared(file_name_)),
+    line_number(0) {
     std::ifstream file{this->file_name};
-    panic_if(!file.is_open(), "Failed to open {}", file_name);
+    panic_if(!file.is_open(), "Failed to open {}", this->file_name);
 
     this->line_number = 0;
     std::string line; // Current line
@@ -25,7 +38,10 @@ Assembler::Assembler(std::string_view file_name) :
             this->parse_line(line);
         } catch (FailToParse &e) {
             file.close();
-            this->handle_at(this->line_number, std::move(e.inner));
+            handle_build_failure(
+                fmt::format("Fail to parse source assembly.\n {}\n", e.inner),
+                this->file_name, this->line_number
+            );
         } catch (std::exception &e) {
             unreachable(fmt::format("Unexpected error: {}\n", e.what()));
         }

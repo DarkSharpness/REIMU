@@ -3,15 +3,16 @@
 
 namespace dark {
 
-Alignment::Alignment(std::size_t alignment) : alignment(alignment) {
+Alignment::Alignment(LineInfo li, std::size_t alignment) : StaticData(li), alignment(alignment) {
     throw_if(!std::has_single_bit(alignment), "Invalid alignment: \"{}\"", alignment);
 }
 
-IntegerData::IntegerData(Immediate data, Type type) : data(std::move(data)), type(type) {}
+IntegerData::IntegerData(LineInfo li, Immediate data, Type type) :
+    StaticData(li), data(std::move(data)), type(type) {}
 
-ZeroBytes::ZeroBytes(std::size_t count) : count(count) {}
+ZeroBytes::ZeroBytes(LineInfo li, std::size_t count) : StaticData(li), count(count) {}
 
-ASCIZ::ASCIZ(std::string str) : data(std::move(str)) {}
+ASCIZ::ASCIZ(LineInfo li, std::string str) : StaticData(li), data(std::move(str)) {}
 
 auto sv_to_reg(std::string_view view) -> Register {
     auto reg = sv_to_reg_nothrow(view);

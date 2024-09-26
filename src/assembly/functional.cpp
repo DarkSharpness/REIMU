@@ -1,5 +1,6 @@
 #include "assembly/assembly.h"
 #include "assembly/exception.h"
+#include "assembly/forward.h"
 #include "assembly/layout.h"
 #include "fmtlib.h"
 #include "utility/error.h"
@@ -9,40 +10,43 @@
 
 namespace dark {
 
-void Assembler::handle_at(std::size_t which_line, std::string msg) const {
+[[noreturn]]
+auto handle_build_failure(std::string msg, const std::string &file_name, std::size_t line) -> void {
     using enum console::Color;
+    using console::color_code;
 
-    std::ifstream file{this->file_name};
+    std::ifstream file{file_name};
 
-    runtime_assert(which_line != 0 && file.is_open());
+    runtime_assert(line != 0 && file.is_open());
 
-    const std::size_t windows[2] = {which_line - 1 ? which_line - 1 : 1, which_line + 1};
+    const std::size_t windows[2] = {line - 1 ? line - 1 : 1, line + 1};
 
-    auto counter = windows[0];
-    auto line    = std::string{};
-    while (--counter && std::getline(file, line))
+    auto counter  = windows[0];
+    auto line_str = std::string{};
+    while (--counter && std::getline(file, line_str))
         ;
     runtime_assert(counter == 0);
-
     std::string line_fmt_string;
     for (std::size_t i = windows[0]; i <= windows[1]; ++i) {
-        if (!std::getline(file, line))
+        if (!std::getline(file, line_str))
             break;
-        if (i == which_line)
-            line_fmt_string += fmt::
-                format("{}{: >4}  |  {}{}\n", console::color_code<RED>, i, line, console::color_code<RESET>);
-        else
-            line_fmt_string += fmt::format("{: >4}  |  {}\n", i, line);
+        if (i == line) {
+            line_fmt_string +=
+                fmt::format("{}{: >4}  |  {}{}\n", color_code<RED>, i, line_str, color_code<RESET>);
+        } else {
+            line_fmt_string += fmt::format("{: >4}  |  {}\n", i, line_str);
+        }
     }
 
     if (msg.size() != 0 && msg.back() != '\n')
         msg.push_back('\n');
+
     if (line_fmt_string.ends_with('\n'))
         line_fmt_string.pop_back();
 
     panic(
-        "{:}Failed to parse {}{}:{}{}\n{}", msg, console::color_code<YELLOW>, this->file_name,
-        which_line, console::color_code<RESET>, line_fmt_string
+        "{}Failure at {}{}:{}{}\n{}", msg, color_code<YELLOW>, file_name, line, color_code<RESET>,
+        line_fmt_string
     );
 }
 

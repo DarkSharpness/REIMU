@@ -36,8 +36,8 @@ static auto check_bits(target_size_t imm, std::string_view name) -> command_size
         ch = std::tolower(ch);
 
     throw FailToLink{fmt::format(
-        "\"{}\" immediate out of range, should be within [{}, {}]", name_str,
-        static_cast<target_ssize_t>(min), max
+        "\"{}\" immediate out of range (got {}, should be within [{}, {}])\n", name_str,
+        static_cast<target_ssize_t>(imm), static_cast<target_ssize_t>(min), max
     )};
 }
 
@@ -73,10 +73,11 @@ private:
             if (dynamic_cast<Command *>(&storage))
                 this->check_command();
             StorageVisitor::visit(storage);
-            /// TODO: catch the exception, and format the error message
-            /// Plan to add detailed information about where crashed
         } catch (FailToLink &e) {
-            panic("Fail to link source assembly.\n  {}", e.what);
+            handle_build_failure(
+                fmt::format("Fail to link source assembly.\n  {}", e.what),
+                storage.line_info.to_string(), storage.line_info.line
+            );
         } catch (...) { unreachable("Unknown exception caught in Encoder::visit"); }
     }
 
@@ -410,8 +411,7 @@ private:
     }
 };
 
-template <typename... _Args>
-static void encoding_pass(_Args &&...args) {
+template <typename... _Args> static void encoding_pass(_Args &&...args) {
     [[maybe_unused]]
     Encoder _{std::forward<_Args>(args)...};
 }
