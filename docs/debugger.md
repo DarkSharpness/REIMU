@@ -24,12 +24,12 @@ wrong_0:
     ret
 
 # The debugger only recognizes standard return instructions, specifically `ret` (which is `jalr zero, 0(ra)`).
-# Although the logic of the following code is correct, our debugger will flag it and
-# terminate the program with an error message.
+# Although the logic of the following code is correct, our debugger will reject it
+# and terminate the program with an error message.
     .globl wrong_1
 wrong_1:
     mv t0, sp
-    jalr t0
+    jalr t0     # equal to jalr zero, 0(t0)
 ```
 
 ## Supported Commands
@@ -52,13 +52,13 @@ The debug shell supports the following commands:
 | `undisplay n`         | undisplay     | Stop displaying the value of the expression with the specified number `n` |
 | `w mode expr`         | watch         | Watch the value of the expression `expr` in the specified `mode`          |
 | `unwatch n`           | unwatch       | Delete the watchpoint with the specified number `n`                       |
-| `help`                | help          | Display the help message                                                   |
+| `help`                | help          | Display the help message                                                  |
 
 ## Expressions
 
 Expressions can include registers, immediate values, and labels. Arithmetic expressions involving these elements are supported.
 
-- Registers can be referenced as `$name` or `x$which`, e.g., `$ra`, `$x1`. The special register `$pc` represents the program counter.
+- Registers can be referenced as `$name` or `$x{which}`, e.g., `$ra`, `$x1`. The special register `$pc` represents the program counter.
 - Labels are represented by their names, e.g., `main`.
 - Immediate values can be in hexadecimal (`0x10`), decimal (`16`), or binary (`0b10000`) format.
 
@@ -140,7 +140,7 @@ bt          # Show the backtrace of the current function call stack
 s 100       # Execute the next 100 instructions
 b main + 8  # Set a breakpoint at the address of main + 8
 w m w .num  # Watch the word at the address of the symbol `num`
-w r w $s11  # Watch the value of register s11
+w r $s11    # Watch the value of register s11
 c           # Continue execution until the next stop point or the end of the program
 ```
 

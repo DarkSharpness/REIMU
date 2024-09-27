@@ -64,15 +64,15 @@ If you need to debug your program, you can use the `--debug` flag to enable the 
 reimu --debug -i test.in -o test.out
 ```
 
-For more information on the debug shell, see the [debug mode](#built-in-debugger) section.
+## Debugging
+
+For more information on the debug shell, refer to [debug mode](debugger.md).
+
+For more information about the error message, refer to [error message](error.md).
 
 ## Support
 
 See [support](support.md) for more information.
-
-## Built-in Debugger
-
-See [debugger](debugger.md) for more information.
 
 ## Weight calculation
 

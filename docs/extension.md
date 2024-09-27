@@ -127,4 +127,4 @@ Note that the `visitor` is heavily used in the linker section, so you must add t
 
 ### Extending with a New Instruction Set
 
-TODO
+See the branch [fp](https://github.com/DarkSharpness/REIMU/tree/fp) for example of how to add a floating-point instruction.
