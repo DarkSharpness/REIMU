@@ -57,7 +57,9 @@ static void simulate_normal(RegisterFile &rf, Memory &mem, Device &dev, std::siz
             hint      = exe(rf, mem, dev);
         }
         panic_if(timeout + 1 == 0, "Time Limit Exceeded");
-    } catch (FailToInterpret &e) { panic("{}", e.what(rf, mem, dev)); } catch (std::exception &e) {
+    } catch (FailToInterpret &e) {
+        panic("Fail to execute the program.\n  {}", e.what(rf, mem, dev));
+    } catch (std::exception &e) {
         unreachable(fmt::format("std::exception caught: {}\n", e.what()));
     }
 }
@@ -88,13 +90,15 @@ static void simulate_debug(
             hint      = exe(rf, mem, dev);
         }
         panic_if(timeout + 1 == 0, "Time Limit Exceeded");
-    } catch (FailToInterpret &e) { panic("{}", e.what(rf, mem, dev)); } catch (std::exception &e) {
+
+        guard.manager = nullptr;
+        console::message << "[Debugger] normal exit after " << manager.get_step() << " steps"
+                         << std::endl;
+    } catch (FailToInterpret &e) {
+        panic("Fail to execute the program.\n  {}", e.what(rf, mem, dev));
+    } catch (std::exception &e) {
         unreachable(fmt::format("std::exception caught: {}\n", e.what()));
     }
-
-    guard.manager = nullptr;
-    console::message << "[Debugger] normal exit after " << manager.get_step() << " steps"
-                     << std::endl;
 }
 
 } // namespace dark
