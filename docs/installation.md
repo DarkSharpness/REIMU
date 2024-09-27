@@ -44,3 +44,21 @@ You can also use Docker to build the project. Just run the following command:
 docker build -t reimu_img .
 docker run -it reimu_img
 ```
+
+## How to build
+
+Build for the first time:
+
+```shell
+xmake f -p linux -a x86_64
+xmake
+xmake install --admin
+```
+
+Update and rebuild:
+
+```shell
+git pull
+xmake
+xmake install --admin
+```
