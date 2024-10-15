@@ -38,7 +38,8 @@ private:
     }
 
     /* Move out the integer value and transform. */
-    template <typename _Fn> static Immediate move_integer(Immediate &data, _Fn &&fn) {
+    template <typename _Fn>
+    static Immediate move_integer(Immediate &data, _Fn &&fn) {
         auto &imm = dynamic_cast<IntImmediate &>(*data.data);
         imm.data  = fn(imm.data);
         return std::move(data);

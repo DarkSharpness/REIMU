@@ -31,7 +31,7 @@ static constexpr std::initializer_list <std::string_view> kInitAssemblyFiles = {
     "test.s",
 };
 
-static constexpr std::string_view kHelpMessage = 
+static constexpr std::string_view kHelpMessage =
 R"(This is a RISC-V simulator. Usage: reimu [options]
 Options:
   -h, --help                        Display help information.

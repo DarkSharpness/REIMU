@@ -498,7 +498,7 @@ auto DebugManager::parse_line(const std::string_view str) -> bool {
     {c, continue}               Continue
     {b, breakpoint} [address]   Add a breakpoint at [address]
     {d, delete} [index]         Delete the breakpoint with [index]
-    {x} [count][type] [address] Exhibit [count] instructions or data at [address] 
+    {x} [count][type] [address] Exhibit [count] instructions or data at [address]
     {p, print} [type] [address] Print the value at [address]
     {bt, backtrace}             Print the backtrace
     {i, info} [type]            Print the information of [type]

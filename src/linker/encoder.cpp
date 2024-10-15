@@ -411,7 +411,8 @@ private:
     }
 };
 
-template <typename... _Args> static void encoding_pass(_Args &&...args) {
+template <typename... _Args>
+static void encoding_pass(_Args &&...args) {
     [[maybe_unused]]
     Encoder _{std::forward<_Args>(args)...};
 }
