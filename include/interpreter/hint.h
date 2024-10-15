@@ -9,5 +9,4 @@ struct Hint {
     bool operator==(const Hint &other) const = default;
 };
 
-
 } // namespace dark

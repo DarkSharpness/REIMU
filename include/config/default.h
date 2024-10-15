@@ -1,5 +1,4 @@
 #pragma once
-#include "declarations.h"
 #include <string_view>
 
 namespace dark::config {

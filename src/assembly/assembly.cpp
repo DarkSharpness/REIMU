@@ -39,8 +39,8 @@ Assembler::Assembler(std::string_view file_name_) :
         } catch (FailToParse &e) {
             file.close();
             handle_build_failure(
-                fmt::format("Fail to parse source assembly.\n {}\n", e.inner),
-                this->file_name, this->line_number
+                fmt::format("Fail to parse source assembly.\n {}\n", e.inner), this->file_name,
+                this->line_number
             );
         } catch (std::exception &e) {
             unreachable(fmt::format("Unexpected error: {}\n", e.what()));

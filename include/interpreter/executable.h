@@ -1,4 +1,5 @@
 #pragma once
+#include "declarations.h"
 #include "interpreter/forward.h"
 #include "interpreter/hint.h"
 #include "riscv/register.h"

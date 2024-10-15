@@ -135,8 +135,8 @@ static auto pretty_l_type(command_size_t cmd) -> std::string {
 #undef match_and_return
 }
 
-static auto pretty_b_type(command_size_t cmd, DebugManager &manager, target_size_t pc)
-    -> std::string {
+static auto
+pretty_b_type(command_size_t cmd, DebugManager &manager, target_size_t pc) -> std::string {
     auto b_type = command::b_type::from_integer(cmd);
     auto rs1    = int_to_reg(b_type.rs1);
     auto rs2    = int_to_reg(b_type.rs2);

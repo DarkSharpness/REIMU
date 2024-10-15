@@ -1,5 +1,4 @@
 #pragma once
-#include "declarations.h"
 
 // Some forward declarations to avoid circular dependencies
 namespace dark {

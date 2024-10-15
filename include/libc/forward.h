@@ -1,5 +1,4 @@
 #pragma once
-#include "declarations.h"
 #include "riscv/abi.h"
 
 namespace dark::libc {

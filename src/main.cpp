@@ -31,8 +31,14 @@ int main(int argc, char **argv) {
             " Interpret time: {}ms ", duration_cast<ms>(interpret_time - build_time).count()
         );
         message << fmt::format("\n{:=^80}\n\n", interpret_str);
-    } catch (dark::PanicError &e) { return 1; } catch (std::exception &e) {
+    } catch (dark::PanicError &e) {
+        // clang-format off
+        return 1;
+    } catch (std::exception &e) {
         dark::unreachable(fmt::format("std::exception caught: {}\n", e.what()));
-    } catch (...) { dark::unreachable("unexpected exception caught\n"); }
+    } catch (...) {
+        dark::unreachable("unexpected exception caught\n");
+        // clang-format on
+    }
     return 0;
 }

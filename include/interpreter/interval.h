@@ -1,5 +1,5 @@
 #pragma once
-#include "interpreter/forward.h"
+#include "declarations.h"
 
 namespace dark {
 

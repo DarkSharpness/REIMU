@@ -90,7 +90,7 @@ void DebugManager::print_info_dispatch(const DisplayInfo &info) {
         );
 
         for (std::size_t i = 0; i < cnt; ++i) {
-            target_ssize_t loaded {};
+            target_ssize_t loaded{};
             target_ssize_t addr = pos + i * sizeof(data);
 
             static_assert(std::integral<decltype(data)>);
@@ -182,8 +182,12 @@ void DebugManager::print_info_dispatch(const DisplayInfo &info) {
 static auto match_immediate(frontend::TokenStream &stream) {
     try {
         return frontend::match<Immediate>(stream);
-    } catch (FailToParse &) { panic("Invalid immediate value"); } catch (...) {
+    } catch (FailToParse &) {
+        // clang-format off
+        panic("Invalid immediate value");
+    } catch (...) {
         panic("Unknown exception occurred");
+        // clang-format on
     }
 }
 
@@ -231,8 +235,8 @@ static auto extract_register(frontend::TokenStream &stream) -> Register {
     return reg.value();
 }
 
-static auto extract_int(frontend::TokenStream &stream)
-    -> std::optional<std::optional<std::size_t>> {
+static auto extract_int(frontend::TokenStream &stream
+) -> std::optional<std::optional<std::size_t>> {
     if (stream.empty())
         return std::nullopt;
     auto first = stream.split_at(1)[0];
@@ -367,8 +371,7 @@ auto DebugManager::parse_line(const std::string_view str) -> bool {
                 message << std::endl;
             }
         } else {
-            panic(
-                "Invalid info type.\n  Available types: breakpoint, symbol, shell, display, watch"
+            panic("Invalid info type.\n  Available types: breakpoint, symbol, shell, display, watch"
             );
         }
         return false;
@@ -526,36 +529,37 @@ auto DebugManager::parse_line(const std::string_view str) -> bool {
         } catch (...) {                                                                            \
             message << msg << std::endl;                                                           \
             return false;                                                                          \
-        }
+        }                                                                                          \
+        do {                                                                                       \
+        } while (false)
 
     switch (switch_hash_impl(first.what)) {
-        match_str("s", __step, "Usage: s [count]") match_str(
-            "step", __step, "Usage: step [count]"
-        ) match_str("c", __continue, "Usage: continue")
-            match_str("continue", __continue, "Usage: continue") match_str(
-                "b", __breakpoint, "Usage: b [address]"
-            ) match_str("breakpoint", __breakpoint, "Usage: breakpoint [address]")
-                match_str("d", __delete_bp, "Usage: d [index]") match_str(
-                    "delete", __delete_bp, "Usage: delete [index]"
-                ) match_str("x", __exhibit, "Usage: x [count][type] [address]")
-                    match_str("p", __print, "Usage: p [type] [address]") match_str(
-                        "print", __print, "Usage: print [type] [address]"
-                    ) match_str("bt", __backtrace, "Usage: bt")
-                        match_str("backtrace", __backtrace, "Usage: backtrace") match_str(
-                            "i", __info, "Usage: i [type]"
-                        ) match_str("info", __info, "Usage: info [type]")
-                            match_str("q", __exit, "Usage: q") match_str(
-                                "quit", __exit, "Usage: quit"
-                            ) match_str("h", __history, "Usage: h [index]")
-                                match_str("history", __history, "Usage: history [index]") match_str(
-                                    "display", __display, "Usage: display [m|v] [type] [address]"
-                                ) match_str("undisplay", __undisplay, "Usage: undisplay [index]")
-                                    match_str("w", __watch, "Usage: w [m|r] [type] [address]")
-                                        match_str(
-                                            "watch", __watch, "Usage: watch [m|r] [type] [address]"
-                                        ) match_str("unwatch", __unwatch, "Usage: unwatch [index]")
-                                            match_str("help", __help, "Usage: help") default
-            : break;
+        match_str("s", __step, "Usage: s [count]");
+        match_str("step", __step, "Usage: step [count]");
+        match_str("c", __continue, "Usage: continue");
+        match_str("continue", __continue, "Usage: continue");
+        match_str("b", __breakpoint, "Usage: b [address]");
+        match_str("breakpoint", __breakpoint, "Usage: breakpoint [address]");
+        match_str("d", __delete_bp, "Usage: d [index]");
+        match_str("delete", __delete_bp, "Usage: delete [index]");
+        match_str("x", __exhibit, "Usage: x [count][type] [address]");
+        match_str("p", __print, "Usage: p [type] [address]");
+        match_str("print", __print, "Usage: print [type] [address]");
+        match_str("bt", __backtrace, "Usage: bt");
+        match_str("backtrace", __backtrace, "Usage: backtrace");
+        match_str("i", __info, "Usage: i [type]");
+        match_str("info", __info, "Usage: info [type]");
+        match_str("q", __exit, "Usage: q");
+        match_str("quit", __exit, "Usage: quit");
+        match_str("h", __history, "Usage: h [index]");
+        match_str("history", __history, "Usage: history [index]");
+        match_str("display", __display, "Usage: display [m|v] [type] [address]");
+        match_str("undisplay", __undisplay, "Usage: undisplay [index]");
+        match_str("w", __watch, "Usage: w [m|r] [type] [address]");
+        match_str("watch", __watch, "Usage: watch [m|r] [type] [address]");
+        match_str("unwatch", __unwatch, "Usage: unwatch [index]");
+        match_str("help", __help, "Usage: help");
+        default: break;
     }
 
     try {
