@@ -7,8 +7,10 @@
 #include "libc/libc.h"
 #include "linker/estimate.h"
 #include "linker/evaluate.h"
+#include "linker/exception.h"
 #include "linker/layout.h"
 #include "linker/linker.h"
+#include "linker/visitor.h"
 #include "riscv/command.h"
 #include "utility/error.h"
 #include <cctype>
@@ -16,10 +18,6 @@
 #include <string_view>
 
 namespace dark {
-
-struct FailToLink {
-    std::string what;
-};
 
 template <int _Nm, bool _Signed>
 static auto check_bits(target_size_t imm, std::string_view name) -> command_size_t {
@@ -41,7 +39,7 @@ static auto check_bits(target_size_t imm, std::string_view name) -> command_size
     )};
 }
 
-struct Encoder final : Evaluator, StorageVisitor {
+struct Encoder final : Evaluator, LinkVisitor {
 public:
     using Section = Linker::LinkResult::Section;
 
@@ -69,16 +67,11 @@ private:
     Section &data;
 
     void visit(Storage &storage) {
-        try {
-            if (dynamic_cast<Command *>(&storage))
+        LinkVisitor::visit_safe(storage, [this](auto &storage) {
+            if (dynamic_cast<Command *>(&storage) != nullptr)
                 this->check_command();
             StorageVisitor::visit(storage);
-        } catch (FailToLink &e) {
-            handle_build_failure(
-                fmt::format("Fail to link source assembly.\n  {}", e.what),
-                storage.line_info.to_string(), storage.line_info.line
-            );
-        } catch (...) { unreachable("Unknown exception caught in Encoder::visit"); }
+        });
     }
 
     void check_command() {

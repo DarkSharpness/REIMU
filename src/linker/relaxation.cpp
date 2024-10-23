@@ -3,6 +3,7 @@
 #include "assembly/storage/visitor.h"
 #include "linker/evaluate.h"
 #include "linker/linker.h"
+#include "linker/visitor.h"
 #include "utility/cast.h"
 #include "utility/misc.h"
 
@@ -116,7 +117,7 @@ private:
     }
 };
 
-struct RelaxtionPass final : private Evaluator, StorageVisitor {
+struct RelaxtionPass final : private Evaluator, LinkVisitor {
 private:
     _Storage_t retval;
 
@@ -133,7 +134,9 @@ public:
             this->set_local(details.get_local_table());
             for (auto &&[storage, position] : details) {
                 this->set_position(position);
-                this->visit(*storage);
+                this->visit_safe(*storage, [this](auto &storage) {
+                    StorageVisitor::visit(storage);
+                });
                 if (retval)
                     storage = std::move(retval);
             }

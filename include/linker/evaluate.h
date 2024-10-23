@@ -1,5 +1,6 @@
 #pragma once
 #include "assembly/immediate.h"
+#include "linker/exception.h"
 #include "linker/linker.h"
 #include "utility/cast.h"
 #include "utility/error.h"
@@ -42,7 +43,7 @@ protected:
             return it->second.get_location();
         if (str == ".")
             return this->position;
-        panic("Unknown symbol \"{}\"", str);
+        throw FailToLink{fmt::format("Unknown symbol \"{}\"", str)};
     }
 
     /* Evaluate the given immediate value. */
