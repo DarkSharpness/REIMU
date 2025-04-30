@@ -138,8 +138,8 @@ static constexpr auto op(target_size_t size) -> std::size_t {
     return 1 * size;
 }
 
-static constexpr auto
-find_first_diff(const char *lhs, const char *rhs, std::size_t size) -> std::size_t {
+static constexpr auto find_first_diff(const char *lhs, const char *rhs, std::size_t size)
+    -> std::size_t {
     for (std::size_t i = 0; i < size; ++i)
         if (lhs[i] != rhs[i])
             return i;

@@ -235,8 +235,8 @@ static auto extract_register(frontend::TokenStream &stream) -> Register {
     return reg.value();
 }
 
-static auto extract_int(frontend::TokenStream &stream
-) -> std::optional<std::optional<std::size_t>> {
+static auto extract_int(frontend::TokenStream &stream)
+    -> std::optional<std::optional<std::size_t>> {
     if (stream.empty())
         return std::nullopt;
     auto first = stream.split_at(1)[0];

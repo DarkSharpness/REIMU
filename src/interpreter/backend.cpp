@@ -13,6 +13,7 @@
 #include "simulation/icache.h"
 #include "utility/error.h"
 #include <cstddef>
+#include <ostream>
 
 namespace dark {
 
