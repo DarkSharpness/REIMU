@@ -11,6 +11,7 @@ local warnings = {
 
 local other_cxflags = {
     "-Wswitch-default",     -- warn if no default case in a switch statement
+    "-Wno-gnu-zero-variadic-macro-arguments" -- disable warning on this
 }
 
 target("reimu")
@@ -20,6 +21,5 @@ target("reimu")
     add_includedirs("include/")
     add_files("src/*/*.cpp")
     add_files("src/main.cpp")
-    set_toolchains("gcc")
     set_languages("c++23")
     add_packages("fmt")
