@@ -90,6 +90,6 @@ Configurations:
 
 // clang-format on
 
-static constexpr std::string_view kVersionMessage = "reimu 1.0.0\n";
+static constexpr std::string_view kVersionMessage = "reimu 1.0.1\n";
 
 } // namespace dark::config
