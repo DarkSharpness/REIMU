@@ -5,7 +5,6 @@
 #include "utility/cast.h"
 #include "utility/error.h"
 #include "utility/tagged.h"
-#include <cctype>
 #include <concepts>
 #include <cstddef>
 #include <cstdlib>
