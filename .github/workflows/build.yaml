@@ -23,9 +23,13 @@ jobs:
         with:
           xmake-version: latest
 
-      - name: Build binary from source
-        run: xmake -y && xmake install reimu
-      # TODO: maybe we need unit test here
+      - name: Build binary from source (use clang)
+        run: xmake f --toolchain=clang && xmake -y
+
+      - name: Build binary from source (use gcc)
+        run: xmake f --toolchain=gcc && xmake -y
+
+        # TODO: maybe we need unit test here
 
       - name: Create GitHub Release and Upload Binary
         uses: softprops/action-gh-release@v2
