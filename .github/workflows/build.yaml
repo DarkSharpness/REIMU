@@ -24,10 +24,10 @@ jobs:
           xmake-version: latest
 
       - name: Build binary from source (use clang)
-        run: xmake f --toolchain=clang && xmake -y
+        run: xmake f --toolchain=clang -y && xmake -y
 
       - name: Build binary from source (use gcc)
-        run: xmake f --toolchain=gcc && xmake -y
+        run: xmake f --toolchain=gcc -y && xmake -y
 
         # TODO: maybe we need unit test here
 
