@@ -4,6 +4,7 @@
 #include "linker/estimate.h"
 #include "linker/linker.h"
 #include "utility/error.h"
+#include <bit>
 
 namespace dark {
 

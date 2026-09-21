@@ -6,9 +6,15 @@
 #include <string>
 #include <string_view>
 
+// Manually declaring std::cerr is non-portable and breaks with libc++
+// Use the standard declaration provided by <iostream> instead.
+#if 0
 namespace std {
 extern std::ostream cerr;
 } // namespace std
+#else
+#include <iostream>
+#endif
 
 namespace dark {
 

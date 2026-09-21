@@ -1,5 +1,6 @@
 #include "assembly/storage/static.h"
 #include "assembly/exception.h"
+#include <bit>
 
 namespace dark {
 

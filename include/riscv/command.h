@@ -2,6 +2,7 @@
 #include "declarations.h"
 #include <bit>
 #include <concepts>
+#include <type_traits>
 
 namespace dark::command {
 

@@ -9,6 +9,7 @@
 #include "utility/error.h"
 #include <algorithm>
 #include <vector>
+#include <bit>
 
 namespace dark {
 
