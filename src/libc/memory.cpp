@@ -18,7 +18,7 @@ void MemoryManager::unknown_malloc_pointer(target_size_t ptr, __details::_Index 
     throw FailToInterpret{
         .error      = Error::LibcError,
         .libc_which = static_cast<libc_index_t>(index),
-        .message    = fmt::format("Not a malloc pointer: 0x{:#x}", ptr),
+        .message    = fmt::format("Not a malloc pointer: {:#x}", ptr),
     };
 }
 
