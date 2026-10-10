@@ -5,6 +5,7 @@
 #include <memory>
 #include <span>
 #include <unordered_map>
+#include <string_view>
 
 namespace dark {
 

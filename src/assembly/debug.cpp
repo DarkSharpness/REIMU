@@ -3,6 +3,7 @@
 #include "assembly/storage/static.h"
 #include "fmtlib.h"
 #include "utility/error.h"
+#include <ostream>
 
 namespace dark {
 
